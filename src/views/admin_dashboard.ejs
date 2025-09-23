@@ -279,7 +279,7 @@
                         <td><%= order.customerName %></td>
                         <td><%= order.tableNumber || 'N/A' %></td>
                         <td><%= order.items.length %> items</td>
-                        <td>€<%= order.total.toFixed(2) %></td>
+                        <td>€<%= (order.total || 0).toFixed(2) %></td>
                         <td>
                             <span class="status-badge status-<%= order.status %>">
                                 <%= order.status.charAt(0).toUpperCase() + order.status.slice(1) %>
