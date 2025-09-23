@@ -97,32 +97,18 @@ const app = express();
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
-// Enhanced CORS configuration
+// Enhanced CORS configuration - Allow all origins for now
 app.use(cors({ 
-  origin: [
-    'https://restaurant-frontend-new-git-main-pauls-projects-e33d2a76.vercel.app',
-    'https://restaurant-frontend-new.vercel.app',
-    'https://restaurant-frontend-new-navy.vercel.app',
-    'http://localhost:3000',
-    'http://localhost:5173'
-  ],
+  origin: true, // Allow all origins temporarily
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
-// Manual CORS headers as backup
+// Manual CORS headers as backup - Allow all origins
 app.use((req, res, next) => {
-  const allowedOrigins = [
-    'https://restaurant-frontend-new-git-main-pauls-projects-e33d2a76.vercel.app',
-    'https://restaurant-frontend-new.vercel.app',
-    'https://restaurant-frontend-new-navy.vercel.app',
-    'http://localhost:3000',
-    'http://localhost:5173'
-  ];
-  
   const origin = req.headers.origin;
-  if (allowedOrigins.includes(origin)) {
+  if (origin) {
     res.setHeader('Access-Control-Allow-Origin', origin);
   }
   
@@ -182,6 +168,17 @@ app.get('/api/cors-test', (req, res) => {
     message: 'CORS is working!',
     origin: req.headers.origin,
     timestamp: new Date().toISOString()
+  });
+});
+
+// Debug endpoint to test menu data
+app.get('/api/debug', (req, res) => {
+  res.json({
+    message: 'Backend is working!',
+    categories: menuData.categories.length,
+    items: menuData.items.length,
+    timestamp: new Date().toISOString(),
+    sampleItem: menuData.items[0] || 'No items'
   });
 });
 
