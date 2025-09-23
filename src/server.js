@@ -137,26 +137,36 @@ app.post('/api/orders', (req, res) => {
   try {
     const { items, orderType, tableNumber, customerName, total } = req.body;
     
+    // Validate required fields
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ success: false, error: 'Items are required' });
+    }
+    
+    if (!total || isNaN(total)) {
+      return res.status(400).json({ success: false, error: 'Valid total is required' });
+    }
+    
     const newOrder = {
       id: orderIdCounter++,
       items: items.map(item => {
         const menuItem = menuData.items.find(i => i.id === item.id);
         return {
-          id: item.id,
-          name: menuItem ? menuItem.name : 'Unknown Item',
-          price: menuItem ? menuItem.price : 0,
-          qty: item.qty
+          id: item.id || 0,
+          name: menuItem ? menuItem.name : { en: 'Unknown Item' },
+          price: menuItem ? (menuItem.price || 0) : 0,
+          qty: item.qty || 1
         };
       }),
-      orderType,
+      orderType: orderType || 'dine-in',
       tableNumber: tableNumber || null,
       customerName: customerName || 'Walk-in Customer',
-      total,
+      total: parseFloat(total) || 0,
       status: 'pending',
       createdAt: new Date().toISOString()
     };
     
     orders.push(newOrder);
+    console.log('New order created:', newOrder);
     res.json({ success: true, orderId: newOrder.id });
   } catch (error) {
     console.error('Order creation error:', error);
