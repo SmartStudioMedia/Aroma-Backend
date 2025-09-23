@@ -285,7 +285,7 @@
                         </div>
                     </div>
                     
-                    <div class="item-price">€<%= item.price.toFixed(2) %></div>
+                    <div class="item-price">€<%= (item.price || 0).toFixed(2) %></div>
                     
                     <div class="item-actions">
                         <button class="btn btn-primary btn-sm" onclick="editItem(<%= item.id %>)">Edit</button>
