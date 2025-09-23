@@ -1,13 +1,13 @@
 {
-  "name": "aroma-backend",
+  "name": "restbackend",
   "version": "1.0.0",
-  "description": "AROMA Restaurant Backend API",
+  "description": "Restaurant Backend API with Professional Admin Dashboard",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js"
   },
-  "keywords": ["restaurant", "api", "backend", "aroma"],
+  "keywords": ["restaurant", "api", "backend", "admin", "dashboard"],
   "author": "",
   "license": "ISC",
   "dependencies": {
