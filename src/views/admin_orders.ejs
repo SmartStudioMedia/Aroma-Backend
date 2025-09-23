@@ -294,7 +294,7 @@
                         </div>
                         <div class="detail-item">
                             <div class="detail-label">Total</div>
-                            <div class="detail-value">€<%= order.total.toFixed(2) %></div>
+                            <div class="detail-value">€<%= (order.total || 0).toFixed(2) %></div>
                         </div>
                         <div class="detail-item">
                             <div class="detail-label">Status</div>
@@ -313,7 +313,7 @@
                             <div class="item">
                                 <div class="item-name"><%= item.name.en || item.name %></div>
                                 <div class="item-qty">Qty: <%= item.qty %></div>
-                                <div class="item-price">€<%= (item.price * item.qty).toFixed(2) %></div>
+                                <div class="item-price">€<%= ((item.price || 0) * (item.qty || 0)).toFixed(2) %></div>
                             </div>
                             <% }); %>
                         </div>
