@@ -166,60 +166,85 @@ app.post('/api/orders', (req, res) => {
 
 // Admin Dashboard Routes
 app.get('/admin', authMiddleware, (req, res) => {
-  const pending = orders.filter(o => o.status === 'pending').length;
-  const confirmed = orders.filter(o => o.status === 'confirmed').length;
-  const completed = orders.filter(o => o.status === 'completed').length;
-  const cancelled = orders.filter(o => o.status === 'cancelled').length;
-  const totalSales = orders.reduce((sum, order) => sum + order.total, 0);
-  
-  // Calculate analytics data
-  const categoryStats = {};
-  menuData.categories.forEach(cat => {
-    categoryStats[cat.name] = {
-      orders: orders.filter(o => o.items.some(item => {
-        const menuItem = menuData.items.find(i => i.id === item.id);
-        return menuItem && menuItem.category_id === cat.id;
-      })).length,
-      revenue: orders.filter(o => o.items.some(item => {
-        const menuItem = menuData.items.find(i => i.id === item.id);
-        return menuItem && menuItem.category_id === cat.id;
-      })).reduce((sum, order) => sum + order.total, 0)
-    };
-  });
-  
-  res.render('admin_dashboard', {
-    stats: { pending, confirmed, completed, cancelled, totalSales },
-    recentOrders: orders.slice(-10).reverse(),
-    categoryStats,
-    orders: orders
-  });
+  try {
+    const pending = orders.filter(o => o.status === 'pending').length;
+    const confirmed = orders.filter(o => o.status === 'confirmed').length;
+    const completed = orders.filter(o => o.status === 'completed').length;
+    const cancelled = orders.filter(o => o.status === 'cancelled').length;
+    const totalSales = orders.reduce((sum, order) => sum + (order.total || 0), 0);
+    
+    // Calculate analytics data
+    const categoryStats = {};
+    menuData.categories.forEach(cat => {
+      categoryStats[cat.name] = {
+        orders: orders.filter(o => o.items && o.items.some(item => {
+          const menuItem = menuData.items.find(i => i.id === item.id);
+          return menuItem && menuItem.category_id === cat.id;
+        })).length,
+        revenue: orders.filter(o => o.items && o.items.some(item => {
+          const menuItem = menuData.items.find(i => i.id === item.id);
+          return menuItem && menuItem.category_id === cat.id;
+        })).reduce((sum, order) => sum + (order.total || 0), 0)
+      };
+    });
+    
+    res.render('admin_dashboard', {
+      stats: { pending, confirmed, completed, cancelled, totalSales },
+      recentOrders: orders.slice(-10).reverse(),
+      categoryStats,
+      orders: orders
+    });
+  } catch (error) {
+    console.error('Admin dashboard error:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
 });
 
 app.get('/admin/orders', authMiddleware, (req, res) => {
-  res.render('admin_orders', { orders: orders });
+  try {
+    res.render('admin_orders', { orders: orders || [] });
+  } catch (error) {
+    console.error('Admin orders error:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
 });
 
 app.get('/admin/items', authMiddleware, (req, res) => {
-  res.render('admin_items', { 
-    items: menuData.items,
-    categories: menuData.categories
-  });
+  try {
+    res.render('admin_items', { 
+      items: menuData.items || [],
+      categories: menuData.categories || []
+    });
+  } catch (error) {
+    console.error('Admin items error:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
 });
 
 app.get('/admin/categories', authMiddleware, (req, res) => {
-  res.render('admin_categories', { categories: menuData.categories });
+  try {
+    res.render('admin_categories', { categories: menuData.categories || [] });
+  } catch (error) {
+    console.error('Admin categories error:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
 });
 
 app.get('/admin/settings', authMiddleware, (req, res) => {
-  res.render('admin_settings', { 
-    settings: {
-      restaurantName: 'AROMA Restaurant',
-      currency: 'EUR',
-      taxRate: 0.18,
-      serviceCharge: 0.10,
-      deliveryFee: 2.50
-    }
-  });
+  try {
+    res.render('admin_settings', { 
+      settings: {
+        restaurantName: 'AROMA Restaurant',
+        currency: 'EUR',
+        taxRate: 0.18,
+        serviceCharge: 0.10,
+        deliveryFee: 2.50
+      }
+    });
+  } catch (error) {
+    console.error('Admin settings error:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
 });
 
 // API endpoints for admin
@@ -228,21 +253,45 @@ app.get('/admin/api/orders', authMiddleware, (req, res) => {
 });
 
 app.post('/admin/orders/:id/status', authMiddleware, (req, res) => {
-  const { id } = req.params;
-  const { status } = req.body;
-  
-  const order = orders.find(o => o.id === parseInt(id));
-  if (order) {
-    order.status = status;
-    res.json({ success: true });
-  } else {
-    res.status(404).json({ success: false, error: 'Order not found' });
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    
+    const order = orders.find(o => o.id === parseInt(id));
+    if (order) {
+      order.status = status;
+      res.json({ success: true });
+    } else {
+      res.status(404).json({ success: false, error: 'Order not found' });
+    }
+  } catch (error) {
+    console.error('Order status update error:', error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
 
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
+});
+
+// Global error handler
+app.use((error, req, res, next) => {
+  console.error('Global error handler:', error);
+  res.status(500).json({ 
+    error: 'Internal Server Error', 
+    message: error.message,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({ 
+    error: 'Not Found', 
+    message: 'The requested resource was not found',
+    timestamp: new Date().toISOString()
+  });
 });
 
 // Start server
