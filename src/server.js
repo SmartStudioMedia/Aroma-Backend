@@ -4,12 +4,21 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const basicAuth = require('express-basic-auth');
 const path = require('path');
+const nodemailer = require('nodemailer');
 
 const PORT = process.env.PORT || 4000;
 const ADMIN_USER = process.env.ADMIN_USER || 'admin';
 const ADMIN_PASS = process.env.ADMIN_PASS || 'changeme';
 const KITCHEN_USER = process.env.KITCHEN_USER || 'kitchen';
 const KITCHEN_PASS = process.env.KITCHEN_PASS || 'kitchen123';
+
+// Email configuration
+const EMAIL_HOST = process.env.EMAIL_HOST || 'smtp.gmail.com';
+const EMAIL_PORT = process.env.EMAIL_PORT || 587;
+const EMAIL_USER = process.env.EMAIL_USER || '';
+const EMAIL_PASS = process.env.EMAIL_PASS || '';
+const EMAIL_FROM = process.env.EMAIL_FROM || 'noreply@aromarestaurant.com';
+const RESTAURANT_NAME = process.env.RESTAURANT_NAME || 'AROMA Restaurant';
 
 // In-memory data storage
 let menuData = {
@@ -92,6 +101,100 @@ let orders = [];
 let orderIdCounter = 1;
 
 const app = express();
+
+// Email transporter configuration
+const emailTransporter = nodemailer.createTransporter({
+  host: EMAIL_HOST,
+  port: EMAIL_PORT,
+  secure: EMAIL_PORT === 465, // true for 465, false for other ports
+  auth: {
+    user: EMAIL_USER,
+    pass: EMAIL_PASS
+  }
+});
+
+// Email sending function
+async function sendOrderConfirmation(order, customerEmail, customerName) {
+  try {
+    if (!EMAIL_USER || !EMAIL_PASS) {
+      console.log('⚠️ Email not configured - skipping email send');
+      return { success: false, message: 'Email not configured' };
+    }
+
+    const orderItems = order.items.map(item => {
+      const menuItem = menuData.items.find(mi => mi.id === item.id);
+      return {
+        name: menuItem ? menuItem.name.en : `Item ${item.id}`,
+        quantity: item.qty,
+        price: menuItem ? menuItem.price : 0
+      };
+    });
+
+    const orderTotal = orderItems.reduce((total, item) => total + (item.price * item.quantity), 0);
+
+    const mailOptions = {
+      from: EMAIL_FROM,
+      to: customerEmail,
+      subject: `Order Confirmation - ${RESTAURANT_NAME}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background: linear-gradient(135deg, #ff6b35, #f7931e); color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0;">
+            <h1 style="margin: 0; font-size: 28px;">🍔 ${RESTAURANT_NAME}</h1>
+            <p style="margin: 10px 0 0 0; font-size: 16px;">Order Confirmation</p>
+          </div>
+          
+          <div style="background: white; padding: 30px; border: 1px solid #e0e0e0; border-top: none;">
+            <h2 style="color: #333; margin-top: 0;">Hello ${customerName}!</h2>
+            <p style="color: #666; font-size: 16px;">Thank you for your order! Here are the details:</p>
+            
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <h3 style="color: #333; margin-top: 0;">Order #${order.id}</h3>
+              <p style="margin: 5px 0;"><strong>Order Type:</strong> ${order.orderType === 'dine-in' ? 'Dine In' : 'Takeaway'}</p>
+              ${order.tableNumber ? `<p style="margin: 5px 0;"><strong>Table:</strong> ${order.tableNumber}</p>` : ''}
+              <p style="margin: 5px 0;"><strong>Order Time:</strong> ${new Date(order.timestamp).toLocaleString()}</p>
+            </div>
+            
+            <h3 style="color: #333;">Your Order:</h3>
+            <div style="border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+              ${orderItems.map(item => `
+                <div style="display: flex; justify-content: space-between; padding: 15px; border-bottom: 1px solid #f0f0f0;">
+                  <div>
+                    <strong>${item.name}</strong>
+                    <div style="color: #666; font-size: 14px;">Quantity: ${item.quantity}</div>
+                  </div>
+                  <div style="font-weight: bold; color: #ff6b35;">€${(item.price * item.quantity).toFixed(2)}</div>
+                </div>
+              `).join('')}
+              <div style="display: flex; justify-content: space-between; padding: 15px; background: #f8f9fa; font-weight: bold; font-size: 18px;">
+                <span>Total:</span>
+                <span style="color: #ff6b35;">€${orderTotal.toFixed(2)}</span>
+              </div>
+            </div>
+            
+            <div style="background: #e8f5e8; padding: 15px; border-radius: 8px; margin: 20px 0;">
+              <p style="margin: 0; color: #2d5a2d;"><strong>Status:</strong> ${order.status.charAt(0).toUpperCase() + order.status.slice(1)}</p>
+            </div>
+            
+            <p style="color: #666; font-size: 14px; margin-top: 30px;">
+              We'll prepare your order and notify you when it's ready. Thank you for choosing ${RESTAURANT_NAME}!
+            </p>
+          </div>
+          
+          <div style="background: #333; color: white; padding: 20px; text-align: center; border-radius: 0 0 10px 10px; font-size: 14px;">
+            <p style="margin: 0;">© 2024 ${RESTAURANT_NAME}. All rights reserved.</p>
+          </div>
+        </div>
+      `
+    };
+
+    const result = await emailTransporter.sendMail(mailOptions);
+    console.log('✅ Email sent successfully:', result.messageId);
+    return { success: true, messageId: result.messageId };
+  } catch (error) {
+    console.error('❌ Email sending failed:', error);
+    return { success: false, error: error.message };
+  }
+}
 
 // Set EJS as template engine
 app.set('view engine', 'ejs');
@@ -197,9 +300,9 @@ app.get('/api/settings', (req, res) => {
   });
 });
 
-app.post('/api/orders', (req, res) => {
+app.post('/api/orders', async (req, res) => {
   try {
-    const { items, orderType, tableNumber, customerName, total } = req.body;
+    const { items, orderType, tableNumber, customerName, customerEmail, total } = req.body;
     
     // Validate required fields
     if (!items || !Array.isArray(items) || items.length === 0) {
@@ -208,6 +311,10 @@ app.post('/api/orders', (req, res) => {
     
     if (!total || isNaN(total)) {
       return res.status(400).json({ success: false, error: 'Valid total is required' });
+    }
+
+    if (!customerName || !customerEmail) {
+      return res.status(400).json({ success: false, error: 'Customer name and email are required' });
     }
     
     const newOrder = {
@@ -223,15 +330,26 @@ app.post('/api/orders', (req, res) => {
       }),
       orderType: orderType || 'dine-in',
       tableNumber: tableNumber || null,
-      customerName: customerName || 'Walk-in Customer',
+      customerName: customerName,
+      customerEmail: customerEmail,
       total: parseFloat(total) || 0,
       status: 'pending',
+      timestamp: new Date().toISOString(),
       createdAt: new Date().toISOString()
     };
     
     orders.push(newOrder);
     console.log('New order created:', newOrder);
-    res.json({ success: true, orderId: newOrder.id });
+    
+    // Send email confirmation
+    const emailResult = await sendOrderConfirmation(newOrder, customerEmail, customerName);
+    
+    res.json({ 
+      success: true, 
+      orderId: newOrder.id,
+      emailSent: emailResult.success,
+      emailMessage: emailResult.message || emailResult.error
+    });
   } catch (error) {
     console.error('Order creation error:', error);
     res.status(500).json({ success: false, error: 'Failed to create order' });
