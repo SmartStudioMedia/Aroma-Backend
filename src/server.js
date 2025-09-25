@@ -103,7 +103,7 @@ let orderIdCounter = 1;
 const app = express();
 
 // Email transporter configuration
-const emailTransporter = nodemailer.createTransporter({
+const emailTransporter = nodemailer.createTransport({
   host: EMAIL_HOST,
   port: EMAIL_PORT,
   secure: EMAIL_PORT === 465, // true for 465, false for other ports
