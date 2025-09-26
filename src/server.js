@@ -5,6 +5,7 @@ const bodyParser = require('body-parser');
 const basicAuth = require('express-basic-auth');
 const path = require('path');
 const sgMail = require('@sendgrid/mail');
+const fs = require('fs');
 
 const PORT = process.env.PORT || 4000;
 const ADMIN_USER = process.env.ADMIN_USER || 'admin';
@@ -21,6 +22,38 @@ const RESTAURANT_NAME = process.env.RESTAURANT_NAME || 'AROMA Restaurant';
 if (SENDGRID_API_KEY) {
   sgMail.setApiKey(SENDGRID_API_KEY);
 }
+
+// Menu data persistence
+const MENU_DATA_FILE = path.join(__dirname, 'menu-data.json');
+
+function saveMenuData() {
+  try {
+    fs.writeFileSync(MENU_DATA_FILE, JSON.stringify(menuData, null, 2));
+    console.log('✅ Menu data saved to file');
+  } catch (error) {
+    console.error('❌ Error saving menu data:', error);
+  }
+}
+
+function loadMenuData() {
+  try {
+    if (fs.existsSync(MENU_DATA_FILE)) {
+      const data = fs.readFileSync(MENU_DATA_FILE, 'utf8');
+      const loadedData = JSON.parse(data);
+      menuData.categories = loadedData.categories || menuData.categories;
+      menuData.items = loadedData.items || menuData.items;
+      console.log('✅ Menu data loaded from file');
+    } else {
+      console.log('📝 No existing menu data file, using defaults');
+      saveMenuData(); // Save initial data
+    }
+  } catch (error) {
+    console.error('❌ Error loading menu data:', error);
+  }
+}
+
+// Load menu data on startup
+loadMenuData();
 
 // In-memory data storage
 let menuData = {
@@ -342,6 +375,7 @@ app.post('/api/menu/items', (req, res) => {
     };
     
     menuData.items.push(newItem);
+    saveMenuData(); // Save to file
     console.log('New menu item created:', newItem);
     res.json({ success: true, item: newItem });
   } catch (error) {
@@ -376,6 +410,7 @@ app.put('/api/menu/items/:id', (req, res) => {
     };
     
     menuData.items[itemIndex] = updatedItem;
+    saveMenuData(); // Save to file
     console.log('Menu item updated:', updatedItem);
     res.json({ success: true, item: updatedItem });
   } catch (error) {
@@ -394,6 +429,7 @@ app.delete('/api/menu/items/:id', (req, res) => {
     }
     
     menuData.items.splice(itemIndex, 1);
+    saveMenuData(); // Save to file
     console.log('Menu item deleted:', itemId);
     res.json({ success: true });
   } catch (error) {
@@ -420,6 +456,7 @@ app.post('/api/menu/categories', (req, res) => {
     };
     
     menuData.categories.push(newCategory);
+    saveMenuData(); // Save to file
     console.log('New category created:', newCategory);
     res.json({ success: true, category: newCategory });
   } catch (error) {
@@ -447,6 +484,7 @@ app.put('/api/menu/categories/:id', (req, res) => {
     };
     
     menuData.categories[categoryIndex] = updatedCategory;
+    saveMenuData(); // Save to file
     console.log('Category updated:', updatedCategory);
     res.json({ success: true, category: updatedCategory });
   } catch (error) {
@@ -474,6 +512,7 @@ app.delete('/api/menu/categories/:id', (req, res) => {
     }
     
     menuData.categories.splice(categoryIndex, 1);
+    saveMenuData(); // Save to file
     console.log('Category deleted:', categoryId);
     res.json({ success: true });
   } catch (error) {
