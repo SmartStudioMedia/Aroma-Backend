@@ -52,7 +52,6 @@
             text-decoration: none;
             border-radius: 8px;
             transition: all 0.3s ease;
-            font-weight: 500;
         }
         
         .nav-tab:hover {
@@ -68,7 +67,7 @@
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
             border-radius: 15px;
-            padding: 25px;
+            padding: 30px;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
         }
         
@@ -77,11 +76,13 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 30px;
+            flex-wrap: wrap;
+            gap: 15px;
         }
         
         .items-header h3 {
-            color: #2d3748;
             font-size: 1.5rem;
+            color: #2d3748;
         }
         
         .btn {
@@ -115,6 +116,11 @@
             color: white;
         }
         
+        .btn-sm {
+            padding: 8px 16px;
+            font-size: 0.875rem;
+        }
+        
         .items-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
@@ -122,16 +128,17 @@
         }
         
         .item-card {
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
+            background: white;
             border-radius: 12px;
             padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             transition: all 0.3s ease;
+            border: 1px solid #e5e7eb;
         }
         
         .item-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            transform: translateY(-4px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
         }
         
         .item-image {
@@ -143,44 +150,17 @@
         }
         
         .item-name {
-            font-size: 1.2rem;
+            font-size: 1.25rem;
             font-weight: 600;
-            color: #2d3748;
+            color: #1f2937;
             margin-bottom: 8px;
         }
         
         .item-description {
             color: #6b7280;
-            font-size: 0.9rem;
+            font-size: 0.875rem;
             margin-bottom: 15px;
             line-height: 1.4;
-        }
-        
-        .item-details {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-        
-        .detail-item {
-            background: white;
-            padding: 8px 12px;
-            border-radius: 6px;
-            border: 1px solid #e5e7eb;
-        }
-        
-        .detail-label {
-            font-size: 0.8rem;
-            color: #6b7280;
-            text-transform: uppercase;
-            font-weight: 500;
-        }
-        
-        .detail-value {
-            font-size: 0.9rem;
-            color: #2d3748;
-            font-weight: 500;
         }
         
         .item-price {
@@ -190,28 +170,30 @@
             margin-bottom: 15px;
         }
         
+        .item-details {
+            margin-bottom: 15px;
+        }
+        
+        .detail-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            padding: 4px 0;
+        }
+        
+        .detail-label {
+            font-weight: 500;
+            color: #374151;
+        }
+        
+        .detail-value {
+            color: #6b7280;
+        }
+        
         .item-actions {
             display: flex;
             gap: 10px;
             flex-wrap: wrap;
-        }
-        
-        .btn-sm {
-            padding: 6px 12px;
-            font-size: 0.875rem;
-        }
-        
-        .category-filter {
-            margin-bottom: 20px;
-        }
-        
-        .category-filter select {
-            padding: 10px 15px;
-            border: 1px solid #d1d5db;
-            border-radius: 8px;
-            background: white;
-            font-size: 1rem;
-            color: #374151;
         }
         
         .status-badge {
@@ -231,6 +213,138 @@
             color: #991b1b;
         }
         
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+        }
+        
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 30px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        
+        .modal-header h2 {
+            color: #1f2937;
+            font-size: 1.5rem;
+        }
+        
+        .close {
+            color: #aaa;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+        
+        .close:hover {
+            color: #000;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #374151;
+        }
+        
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #4f46e5;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+            margin: 0;
+        }
+        
+        .category-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .category-tab {
+            padding: 10px 20px;
+            border: 2px solid #e5e7eb;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+        
+        .category-tab:hover {
+            border-color: #4f46e5;
+            background: #f8fafc;
+        }
+        
+        .category-tab.active {
+            background: #4f46e5;
+            color: white;
+            border-color: #4f46e5;
+        }
+        
+        .item-card {
+            transition: all 0.3s ease;
+        }
+        
+        .item-card.hidden {
+            display: none;
+        }
+        
         @media (max-width: 768px) {
             .items-grid {
                 grid-template-columns: 1fr;
@@ -240,6 +354,10 @@
                 flex-direction: column;
                 align-items: flex-start;
                 gap: 15px;
+            }
+            
+            .form-row {
+                grid-template-columns: 1fr;
             }
         }
     </style>
@@ -261,22 +379,33 @@
         <div class="items-container">
             <div class="items-header">
                 <h3>Menu Items</h3>
-                <button class="btn btn-primary" onclick="addNewItem()">+ Add New Item</button>
-            </div>
-            
-            <div class="category-filter">
-                <select onchange="filterByCategory(this.value)">
-                    <option value="">All Categories</option>
-                    <% categories.forEach(category => { %>
-                    <option value="<%= category.id %>"><%= category.icon %> <%= category.name %></option>
-                    <% }); %>
-                </select>
+                <button class="btn btn-primary" onclick="openAddItemModal()">+ Add New Item</button>
             </div>
 
-            <div class="items-grid">
+            <!-- Category Tabs -->
+            <div class="category-tabs" style="margin-bottom: 30px; display: flex; gap: 10px; flex-wrap: wrap;">
+                <button class="category-tab active" onclick="filterByCategory('all')" data-category="all">
+                    All Items (<%= items.length %>)
+                </button>
+                <% categories.forEach(category => { %>
+                <button class="category-tab" onclick="filterByCategory(<%= category.id %>)" data-category="<%= category.id %>">
+                    <%= category.icon %> <%= category.name %> 
+                    (<%= items.filter(item => item.category_id === category.id).length %>)
+                </button>
+                <% }); %>
+            </div>
+
+            <div class="items-grid" id="itemsGrid">
                 <% items.forEach(item => { %>
-                <div class="item-card" data-category="<%= item.category_id %>">
-                    <img src="<%= item.image %>" alt="<%= item.name.en %>" class="item-image" onerror="this.src='https://via.placeholder.com/300x200?text=No+Image'">
+                <div class="item-card" data-category-id="<%= item.category_id %>">
+                    <% if (item.video) { %>
+                        <video class="item-image" controls>
+                            <source src="<%= item.video %>" type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                    <% } else { %>
+                        <img src="<%= item.image %>" alt="<%= item.name.en %>" class="item-image" onerror="this.src='https://via.placeholder.com/300x200?text=No+Image'">
+                    <% } %>
                     
                     <div class="item-name"><%= item.name.en %></div>
                     <div class="item-description"><%= item.description.en %></div>
@@ -307,13 +436,14 @@
                         </div>
                     </div>
                     
-                    <div class="item-price">€<%= item.price.toFixed(2) %></div>
+                    <div class="item-price">€<%= (item.price || 0).toFixed(2) %></div>
                     
                     <div class="item-actions">
                         <button class="btn btn-primary btn-sm" onclick="editItem(<%= item.id %>)">Edit</button>
                         <button class="btn btn-<%= item.active ? 'danger' : 'success' %> btn-sm" onclick="toggleItemStatus(<%= item.id %>, <%= !item.active %>)">
                             <%= item.active ? 'Deactivate' : 'Activate' %>
                         </button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteItem(<%= item.id %>)">Delete</button>
                     </div>
                 </div>
                 <% }); %>
@@ -321,31 +451,243 @@
         </div>
     </div>
 
+    <!-- Add/Edit Item Modal -->
+    <div id="itemModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Add New Item</h2>
+                <span class="close" onclick="closeModal()">&times;</span>
+            </div>
+            <form id="itemForm">
+                <input type="hidden" id="itemId" value="">
+                
+                <div class="form-group">
+                    <label for="itemName">Item Name *</label>
+                    <input type="text" id="itemName" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="itemDescription">Description</label>
+                    <textarea id="itemDescription" rows="3"></textarea>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="itemPrice">Price (€) *</label>
+                        <input type="number" id="itemPrice" step="0.01" min="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="itemCategory">Category *</label>
+                        <select id="itemCategory" required>
+                            <option value="">Select Category</option>
+                            <% categories.forEach(category => { %>
+                            <option value="<%= category.id %>"><%= category.icon %> <%= category.name %></option>
+                            <% }); %>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="itemImage">Image URL</label>
+                    <input type="url" id="itemImage" placeholder="https://example.com/image.jpg">
+                </div>
+                
+                <div class="form-group">
+                    <label for="itemVideo">Video URL (optional)</label>
+                    <input type="url" id="itemVideo" placeholder="https://example.com/video.mp4">
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="itemPrepTime">Prep Time</label>
+                        <input type="text" id="itemPrepTime" placeholder="15 min">
+                    </div>
+                    <div class="form-group">
+                        <label for="itemAllergies">Allergies</label>
+                        <input type="text" id="itemAllergies" placeholder="Contains gluten, dairy">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="itemIngredients">Ingredients</label>
+                    <textarea id="itemIngredients" rows="2" placeholder="Beef patty, lettuce, tomato, onion, bun"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="itemNutrition">Nutrition Info</label>
+                    <textarea id="itemNutrition" rows="2" placeholder="Calories: 650, Protein: 35g, Carbs: 45g, Fat: 35g"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="itemActive" checked>
+                        <label for="itemActive">Active (visible to customers)</label>
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                    <button type="button" class="btn" onclick="closeModal()" style="background: #6b7280; color: white;">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Item</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
-        function filterByCategory(categoryId) {
-            const cards = document.querySelectorAll('.item-card');
-            cards.forEach(card => {
-                if (!categoryId || card.dataset.category === categoryId) {
-                    card.style.display = 'block';
-                } else {
-                    card.style.display = 'none';
-                }
-            });
-        }
+        let currentItemId = null;
         
-        function addNewItem() {
-            alert('Add new item functionality will be implemented');
+        function openAddItemModal() {
+            currentItemId = null;
+            document.getElementById('modalTitle').textContent = 'Add New Item';
+            document.getElementById('itemForm').reset();
+            document.getElementById('itemActive').checked = true;
+            document.getElementById('itemModal').style.display = 'block';
         }
         
         function editItem(itemId) {
-            alert('Edit item functionality will be implemented for item ID: ' + itemId);
+            currentItemId = itemId;
+            document.getElementById('modalTitle').textContent = 'Edit Item';
+            
+            // Find the item data
+            const item = <%= JSON.stringify(items) %>.find(i => i.id === itemId);
+            if (item) {
+                document.getElementById('itemId').value = item.id;
+                document.getElementById('itemName').value = item.name.en || '';
+                document.getElementById('itemDescription').value = item.description.en || '';
+                document.getElementById('itemPrice').value = item.price || '';
+                document.getElementById('itemCategory').value = item.category_id || '';
+                document.getElementById('itemImage').value = item.image || '';
+                document.getElementById('itemVideo').value = item.video || '';
+                document.getElementById('itemPrepTime').value = item.prepTime.en || '';
+                document.getElementById('itemAllergies').value = item.allergies.en || '';
+                document.getElementById('itemIngredients').value = item.ingredients.en || '';
+                document.getElementById('itemNutrition').value = item.nutrition.en || '';
+                document.getElementById('itemActive').checked = item.active;
+            }
+            
+            document.getElementById('itemModal').style.display = 'block';
+        }
+        
+        function closeModal() {
+            document.getElementById('itemModal').style.display = 'none';
         }
         
         function toggleItemStatus(itemId, newStatus) {
             if (confirm('Are you sure you want to ' + (newStatus ? 'activate' : 'deactivate') + ' this item?')) {
-                // Here you would make an API call to update the item status
-                alert('Item status updated');
-                location.reload();
+                fetch(`/api/menu/items/${itemId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        active: newStatus
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert('Error updating item: ' + data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error updating item');
+                });
+            }
+        }
+        
+        function deleteItem(itemId) {
+            if (confirm('Are you sure you want to delete this item? This action cannot be undone.')) {
+                fetch(`/api/menu/items/${itemId}`, {
+                    method: 'DELETE'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert('Error deleting item: ' + data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error deleting item');
+                });
+            }
+        }
+        
+        document.getElementById('itemForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = {
+                name: document.getElementById('itemName').value,
+                description: document.getElementById('itemDescription').value,
+                price: parseFloat(document.getElementById('itemPrice').value),
+                image: document.getElementById('itemImage').value,
+                video: document.getElementById('itemVideo').value,
+                category_id: parseInt(document.getElementById('itemCategory').value),
+                prepTime: document.getElementById('itemPrepTime').value,
+                allergies: document.getElementById('itemAllergies').value,
+                ingredients: document.getElementById('itemIngredients').value,
+                nutrition: document.getElementById('itemNutrition').value,
+                active: document.getElementById('itemActive').checked
+            };
+            
+            const url = currentItemId ? `/api/menu/items/${currentItemId}` : '/api/menu/items';
+            const method = currentItemId ? 'PUT' : 'POST';
+            
+            fetch(url, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error saving item: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error saving item');
+            });
+        });
+        
+        // Category filtering
+        function filterByCategory(categoryId) {
+            // Update active tab
+            document.querySelectorAll('.category-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelector(`[data-category="${categoryId}"]`).classList.add('active');
+            
+            // Filter items
+            const itemCards = document.querySelectorAll('.item-card');
+            itemCards.forEach(card => {
+                if (categoryId === 'all') {
+                    card.classList.remove('hidden');
+                } else {
+                    const cardCategoryId = card.getAttribute('data-category-id');
+                    if (cardCategoryId == categoryId) {
+                        card.classList.remove('hidden');
+                    } else {
+                        card.classList.add('hidden');
+                    }
+                }
+            });
+        }
+        
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('itemModal');
+            if (event.target === modal) {
+                closeModal();
             }
         }
     </script>
