@@ -674,28 +674,141 @@ app.get('/admin/settings', authMiddleware, (req, res) => {
   }
 });
 
+// Pending Orders Page
+app.get('/admin/orders/pending', authMiddleware, (req, res) => {
+  try {
+    const pendingOrders = orders.filter(o => o.status === 'pending')
+      .sort((a, b) => new Date(b.timestamp || b.createdAt) - new Date(a.timestamp || a.createdAt));
+    
+    res.render('admin_orders_status', {
+      title: 'Pending Orders',
+      orders: pendingOrders,
+      status: 'pending',
+      stats: {
+        total: pendingOrders.length,
+        totalValue: pendingOrders.reduce((sum, order) => sum + (order.total || 0), 0)
+      }
+    });
+  } catch (error) {
+    console.error('Pending orders error:', error);
+    res.status(500).send('Internal Server Error');
+  }
+});
+
+// Confirmed Orders Page
+app.get('/admin/orders/confirmed', authMiddleware, (req, res) => {
+  try {
+    const confirmedOrders = orders.filter(o => o.status === 'confirmed')
+      .sort((a, b) => new Date(b.timestamp || b.createdAt) - new Date(a.timestamp || a.createdAt));
+    
+    res.render('admin_orders_status', {
+      title: 'Confirmed Orders',
+      orders: confirmedOrders,
+      status: 'confirmed',
+      stats: {
+        total: confirmedOrders.length,
+        totalValue: confirmedOrders.reduce((sum, order) => sum + (order.total || 0), 0)
+      }
+    });
+  } catch (error) {
+    console.error('Confirmed orders error:', error);
+    res.status(500).send('Internal Server Error');
+  }
+});
+
+// Completed Orders Page
+app.get('/admin/orders/completed', authMiddleware, (req, res) => {
+  try {
+    const completedOrders = orders.filter(o => o.status === 'completed')
+      .sort((a, b) => new Date(b.timestamp || b.createdAt) - new Date(a.timestamp || a.createdAt));
+    
+    res.render('admin_orders_status', {
+      title: 'Completed Orders',
+      orders: completedOrders,
+      status: 'completed',
+      stats: {
+        total: completedOrders.length,
+        totalValue: completedOrders.reduce((sum, order) => sum + (order.total || 0), 0)
+      }
+    });
+  } catch (error) {
+    console.error('Completed orders error:', error);
+    res.status(500).send('Internal Server Error');
+  }
+});
+
+// Sales Analytics Page
+app.get('/admin/sales', authMiddleware, (req, res) => {
+  try {
+    const completedOrders = orders.filter(o => o.status === 'completed');
+    const totalSales = completedOrders.reduce((sum, order) => sum + (order.total || 0), 0);
+    
+    // Calculate daily, weekly, monthly sales
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const weekStart = new Date(today.getTime() - (today.getDay() * 24 * 60 * 60 * 1000));
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const yearStart = new Date(now.getFullYear(), 0, 1);
+    
+    const dailySales = completedOrders
+      .filter(o => new Date(o.timestamp || o.createdAt) >= today)
+      .reduce((sum, order) => sum + (order.total || 0), 0);
+    
+    const weeklySales = completedOrders
+      .filter(o => new Date(o.timestamp || o.createdAt) >= weekStart)
+      .reduce((sum, order) => sum + (order.total || 0), 0);
+    
+    const monthlySales = completedOrders
+      .filter(o => new Date(o.timestamp || o.createdAt) >= monthStart)
+      .reduce((sum, order) => sum + (order.total || 0), 0);
+    
+    const yearlySales = completedOrders
+      .filter(o => new Date(o.timestamp || o.createdAt) >= yearStart)
+      .reduce((sum, order) => sum + (order.total || 0), 0);
+    
+    res.render('admin_sales', {
+      stats: {
+        total: totalSales,
+        daily: dailySales,
+        weekly: weeklySales,
+        monthly: monthlySales,
+        yearly: yearlySales
+      },
+      orders: completedOrders
+    });
+  } catch (error) {
+    console.error('Sales analytics error:', error);
+    res.status(500).send('Internal Server Error');
+  }
+});
+
 // API endpoints for admin
 app.get('/admin/api/orders', authMiddleware, (req, res) => {
   res.json(orders);
 });
 
+// Update order status
 app.post('/admin/orders/:id/status', authMiddleware, (req, res) => {
   try {
-    const { id } = req.params;
+    const orderId = parseInt(req.params.id);
     const { status } = req.body;
     
-    const order = orders.find(o => o.id === parseInt(id));
-    if (order) {
-      order.status = status;
-      res.json({ success: true });
-    } else {
-      res.status(404).json({ success: false, error: 'Order not found' });
+    const orderIndex = orders.findIndex(o => o.id === orderId);
+    if (orderIndex === -1) {
+      return res.status(404).json({ success: false, error: 'Order not found' });
     }
+    
+    orders[orderIndex].status = status;
+    orders[orderIndex].updatedAt = new Date().toISOString();
+    
+    console.log(`Order ${orderId} status updated to: ${status}`);
+    res.json({ success: true, order: orders[orderIndex] });
   } catch (error) {
-    console.error('Order status update error:', error);
+    console.error('Error updating order status:', error);
     res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
+
 
 // Kitchen Staff Routes
 app.get('/kitchen', kitchenAuthMiddleware, (req, res) => {
