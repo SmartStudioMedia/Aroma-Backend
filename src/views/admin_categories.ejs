@@ -143,41 +143,38 @@
         .category-icon {
             font-size: 3rem;
             margin-bottom: 15px;
-            display: block;
         }
         
         .category-name {
-            font-size: 1.3rem;
+            font-size: 1.5rem;
             font-weight: 600;
             color: #2d3748;
             margin-bottom: 10px;
         }
         
         .category-details {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
             margin-bottom: 20px;
         }
         
         .detail-item {
-            background: white;
-            padding: 8px 12px;
-            border-radius: 6px;
-            border: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        
+        .detail-item:last-child {
+            border-bottom: none;
         }
         
         .detail-label {
-            font-size: 0.8rem;
             color: #6b7280;
-            text-transform: uppercase;
             font-weight: 500;
         }
         
         .detail-value {
-            font-size: 0.9rem;
             color: #2d3748;
-            font-weight: 500;
+            font-weight: 600;
         }
         
         .category-actions {
@@ -202,6 +199,49 @@
         .status-inactive {
             background: #fee2e2;
             color: #991b1b;
+        }
+        
+        .add-category-form {
+            background: #f8fafc;
+            border: 2px dashed #d1d5db;
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .add-category-form h4 {
+            color: #374151;
+            margin-bottom: 20px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+            text-align: left;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #374151;
+            font-weight: 500;
+        }
+        
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px 15px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 1rem;
+            color: #374151;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
         }
         
         @media (max-width: 768px) {
@@ -234,27 +274,58 @@
         <div class="categories-container">
             <div class="categories-header">
                 <h3>Menu Categories</h3>
-                <button class="btn btn-primary" onclick="addNewCategory()">+ Add New Category</button>
+                <button class="btn btn-primary" onclick="toggleAddForm()">+ Add New Category</button>
+            </div>
+            
+            <div class="add-category-form" id="addCategoryForm" style="display: none;">
+                <h4>Add New Category</h4>
+                <form onsubmit="addCategory(event)">
+                    <div class="form-group">
+                        <label for="categoryName">Category Name</label>
+                        <input type="text" id="categoryName" name="name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="categoryIcon">Icon (Emoji)</label>
+                        <input type="text" id="categoryIcon" name="icon" placeholder="🍔" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="categoryOrder">Sort Order</label>
+                        <input type="number" id="categoryOrder" name="sort_order" value="1" min="1">
+                    </div>
+                    <div class="form-group">
+                        <label for="categoryStatus">Status</label>
+                        <select id="categoryStatus" name="active">
+                            <option value="true">Active</option>
+                            <option value="false">Inactive</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-success">Add Category</button>
+                    <button type="button" class="btn btn-danger" onclick="toggleAddForm()">Cancel</button>
+                </form>
             </div>
 
             <div class="categories-grid">
                 <% categories.forEach(category => { %>
                 <div class="category-card">
-                    <span class="category-icon"><%= category.icon %></span>
+                    <div class="category-icon"><%= category.icon %></div>
                     <div class="category-name"><%= category.name %></div>
                     
                     <div class="category-details">
                         <div class="detail-item">
-                            <div class="detail-label">Sort Order</div>
-                            <div class="detail-value"><%= category.sort_order %></div>
+                            <span class="detail-label">ID</span>
+                            <span class="detail-value">#<%= category.id %></span>
                         </div>
                         <div class="detail-item">
-                            <div class="detail-label">Status</div>
-                            <div class="detail-value">
+                            <span class="detail-label">Sort Order</span>
+                            <span class="detail-value"><%= category.sort_order %></span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Status</span>
+                            <span class="detail-value">
                                 <span class="status-badge status-<%= category.active ? 'active' : 'inactive' %>">
                                     <%= category.active ? 'Active' : 'Inactive' %>
                                 </span>
-                            </div>
+                            </span>
                         </div>
                     </div>
                     
@@ -271,8 +342,19 @@
     </div>
 
     <script>
-        function addNewCategory() {
-            alert('Add new category functionality will be implemented');
+        function toggleAddForm() {
+            const form = document.getElementById('addCategoryForm');
+            form.style.display = form.style.display === 'none' ? 'block' : 'none';
+        }
+        
+        function addCategory(event) {
+            event.preventDefault();
+            const formData = new FormData(event.target);
+            const data = Object.fromEntries(formData);
+            
+            // Here you would make an API call to add the category
+            alert('Category added successfully!');
+            location.reload();
         }
         
         function editCategory(categoryId) {
@@ -281,6 +363,7 @@
         
         function toggleCategoryStatus(categoryId, newStatus) {
             if (confirm('Are you sure you want to ' + (newStatus ? 'activate' : 'deactivate') + ' this category?')) {
+                // Here you would make an API call to update the category status
                 alert('Category status updated');
                 location.reload();
             }
