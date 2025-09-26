@@ -115,11 +115,6 @@
             color: white;
         }
         
-        .btn-sm {
-            padding: 6px 12px;
-            font-size: 0.875rem;
-        }
-        
         .items-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
@@ -201,6 +196,24 @@
             flex-wrap: wrap;
         }
         
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 0.875rem;
+        }
+        
+        .category-filter {
+            margin-bottom: 20px;
+        }
+        
+        .category-filter select {
+            padding: 10px 15px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            background: white;
+            font-size: 1rem;
+            color: #374151;
+        }
+        
         .status-badge {
             padding: 4px 8px;
             border-radius: 12px;
@@ -250,10 +263,19 @@
                 <h3>Menu Items</h3>
                 <button class="btn btn-primary" onclick="addNewItem()">+ Add New Item</button>
             </div>
+            
+            <div class="category-filter">
+                <select onchange="filterByCategory(this.value)">
+                    <option value="">All Categories</option>
+                    <% categories.forEach(category => { %>
+                    <option value="<%= category.id %>"><%= category.icon %> <%= category.name %></option>
+                    <% }); %>
+                </select>
+            </div>
 
             <div class="items-grid">
                 <% items.forEach(item => { %>
-                <div class="item-card">
+                <div class="item-card" data-category="<%= item.category_id %>">
                     <img src="<%= item.image %>" alt="<%= item.name.en %>" class="item-image" onerror="this.src='https://via.placeholder.com/300x200?text=No+Image'">
                     
                     <div class="item-name"><%= item.name.en %></div>
@@ -285,7 +307,7 @@
                         </div>
                     </div>
                     
-                    <div class="item-price">€<%= (item.price || 0).toFixed(2) %></div>
+                    <div class="item-price">€<%= item.price.toFixed(2) %></div>
                     
                     <div class="item-actions">
                         <button class="btn btn-primary btn-sm" onclick="editItem(<%= item.id %>)">Edit</button>
@@ -300,6 +322,17 @@
     </div>
 
     <script>
+        function filterByCategory(categoryId) {
+            const cards = document.querySelectorAll('.item-card');
+            cards.forEach(card => {
+                if (!categoryId || card.dataset.category === categoryId) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+        
         function addNewItem() {
             alert('Add new item functionality will be implemented');
         }
@@ -310,6 +343,7 @@
         
         function toggleItemStatus(itemId, newStatus) {
             if (confirm('Are you sure you want to ' + (newStatus ? 'activate' : 'deactivate') + ' this item?')) {
+                // Here you would make an API call to update the item status
                 alert('Item status updated');
                 location.reload();
             }
