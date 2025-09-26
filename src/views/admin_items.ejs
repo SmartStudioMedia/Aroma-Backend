@@ -441,67 +441,67 @@
                 <button class="category-tab active" data-category="all">
                     All Items (<%= items.length %>)
                 </button>
-                <% categories.forEach(category => { %>
-                <button class="category-tab" data-category="<%= category.id %>">
-                    <%= category.icon %> <%= category.name %> 
-                    (<%= items.filter(item => item.category_id === category.id).length %>)
+                <% for (var i = 0; i < categories.length; i++) { %>
+                <button class="category-tab" data-category="<%= categories[i].id %>">
+                    <%= categories[i].icon %> <%= categories[i].name %> 
+                    (<%= items.filter(function(item) { return item.category_id === categories[i].id; }).length %>)
                 </button>
-                <% }); %>
+                <% } %>
             </div>
 
             <!-- Items Grid -->
             <div class="items-grid" id="itemsGrid">
-                <% items.forEach(item => { %>
-                <div class="item-card" data-category-id="<%= item.category_id %>">
-                    <% if (item.video) { %>
+                <% for (var j = 0; j < items.length; j++) { %>
+                <div class="item-card" data-category-id="<%= items[j].category_id %>">
+                    <% if (items[j].video) { %>
                         <video class="item-image" controls>
-                            <source src="<%= item.video %>" type="video/mp4">
+                            <source src="<%= items[j].video %>" type="video/mp4">
                             Your browser does not support the video tag.
                         </video>
                     <% } else { %>
-                        <img src="<%= item.image %>" alt="<%= item.name.en %>" class="item-image" onerror="this.src='https://via.placeholder.com/300x200?text=No+Image'">
+                        <img src="<%= items[j].image %>" alt="<%= items[j].name.en %>" class="item-image" onerror="this.src='https://via.placeholder.com/300x200?text=No+Image'">
                     <% } %>
                     
-                    <div class="item-name"><%= item.name.en %></div>
-                    <div class="item-description"><%= item.description.en %></div>
+                    <div class="item-name"><%= items[j].name.en %></div>
+                    <div class="item-description"><%= items[j].description.en %></div>
                     
                     <div class="item-details">
                         <div class="detail-item">
                             <div class="detail-label">Category</div>
                             <div class="detail-value">
-                                <% const category = categories.find(c => c.id === item.category_id); %>
+                                <% var category = null; for (var k = 0; k < categories.length; k++) { if (categories[k].id === items[j].category_id) { category = categories[k]; break; } } %>
                                 <%= category ? category.icon + ' ' + category.name : 'Unknown' %>
                             </div>
                         </div>
                         <div class="detail-item">
                             <div class="detail-label">Status</div>
                             <div class="detail-value">
-                                <span class="status-badge status-<%= item.active ? 'active' : 'inactive' %>">
-                                    <%= item.active ? 'Active' : 'Inactive' %>
+                                <span class="status-badge status-<%= items[j].active ? 'active' : 'inactive' %>">
+                                    <%= items[j].active ? 'Active' : 'Inactive' %>
                                 </span>
                             </div>
                         </div>
                         <div class="detail-item">
                             <div class="detail-label">Prep Time</div>
-                            <div class="detail-value"><%= item.prepTime.en %></div>
+                            <div class="detail-value"><%= items[j].prepTime.en %></div>
                         </div>
                         <div class="detail-item">
                             <div class="detail-label">Allergies</div>
-                            <div class="detail-value"><%= item.allergies.en %></div>
+                            <div class="detail-value"><%= items[j].allergies.en %></div>
                         </div>
                     </div>
                     
-                    <div class="item-price">€<%= (item.price || 0).toFixed(2) %></div>
+                    <div class="item-price">€<%= (items[j].price || 0).toFixed(2) %></div>
                     
                     <div class="item-actions">
-                        <button class="btn btn-primary btn-sm" onclick="editItem(<%= item.id %>)">Edit</button>
-                        <button class="btn btn-<%= item.active ? 'danger' : 'success' %> btn-sm" onclick="toggleItemStatus(<%= item.id %>, <%= !item.active %>)">
-                            <%= item.active ? 'Deactivate' : 'Activate' %>
+                        <button class="btn btn-primary btn-sm" onclick="editItem(<%= items[j].id %>)">Edit</button>
+                        <button class="btn btn-<%= items[j].active ? 'danger' : 'success' %> btn-sm" onclick="toggleItemStatus(<%= items[j].id %>, <%= !items[j].active %>)">
+                            <%= items[j].active ? 'Deactivate' : 'Activate' %>
                         </button>
-                        <button class="btn btn-danger btn-sm" onclick="deleteItem(<%= item.id %>)">Delete</button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteItem(<%= items[j].id %>)">Delete</button>
                     </div>
                 </div>
-                <% }); %>
+                <% } %>
             </div>
         </div>
     </div>
@@ -511,7 +511,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2 id="modalTitle">Add New Item</h2>
-                <span class="close" onclick="closeModal()">&times;</span>
+                <span class="close" onclick="closeModal()">×</span>
             </div>
             <form id="itemForm">
                 <input type="hidden" id="itemId" value="">
