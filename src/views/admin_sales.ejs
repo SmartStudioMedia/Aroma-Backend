@@ -316,10 +316,46 @@
             </div>
             
             <div class="chart-container">
-                <h3>Sales Distribution</h3>
+                <h3>Sales Distribution by Category</h3>
                 <div class="chart-wrapper">
                     <canvas id="distributionChart"></canvas>
                 </div>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <h3>Recent Orders</h3>
+            <div class="orders-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Order ID</th>
+                            <th>Customer</th>
+                            <th>Table</th>
+                            <th>Items</th>
+                            <th>Total</th>
+                            <th>Status</th>
+                            <th>Time</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% orders.slice(0, 10).forEach(order => { %>
+                        <tr>
+                            <td>#<%= order.id %></td>
+                            <td><%= order.customerName %></td>
+                            <td><%= order.tableNumber || 'N/A' %></td>
+                            <td><%= order.items.length %> items</td>
+                            <td>€<%= (order.total || 0).toFixed(2) %></td>
+                            <td>
+                                <span class="status-badge status-<%= order.status %>">
+                                    <%= order.status.charAt(0).toUpperCase() + order.status.slice(1) %>
+                                </span>
+                            </td>
+                            <td><%= new Date(order.timestamp || order.createdAt).toLocaleString() %></td>
+                        </tr>
+                        <% }); %>
+                    </tbody>
+                </table>
             </div>
         </div>
 
@@ -329,7 +365,8 @@
     </div>
 
     <script>
-        // Sales data
+        // Actual sales data from server
+        const ordersData = <%- JSON.stringify(orders) %>;
         const salesData = {
             daily: <%= stats.daily %>,
             weekly: <%= stats.weekly %>,
@@ -360,24 +397,24 @@
 
             const ctx = document.getElementById('salesChart').getContext('2d');
             
-            // Generate sample data based on period
+            // Generate real data based on actual orders
             let labels, data;
             switch(period) {
                 case 'daily':
-                    labels = ['6 AM', '9 AM', '12 PM', '3 PM', '6 PM', '9 PM'];
-                    data = [20, 45, 80, 60, 120, 90];
+                    labels = generateHourlyLabels();
+                    data = generateHourlyData();
                     break;
                 case 'weekly':
-                    labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-                    data = [150, 200, 180, 220, 300, 350, 280];
+                    labels = generateWeeklyLabels();
+                    data = generateWeeklyData();
                     break;
                 case 'monthly':
-                    labels = ['Week 1', 'Week 2', 'Week 3', 'Week 4'];
-                    data = [800, 950, 1100, 1200];
+                    labels = generateMonthlyLabels();
+                    data = generateMonthlyData();
                     break;
                 case 'yearly':
-                    labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
-                    data = [3000, 3200, 3500, 3800, 4000, 4200];
+                    labels = generateYearlyLabels();
+                    data = generateYearlyData();
                     break;
             }
 
@@ -420,21 +457,119 @@
             });
         }
 
+        function generateHourlyLabels() {
+            const labels = [];
+            for (let i = 0; i < 24; i++) {
+                labels.push(`${i}:00`);
+            }
+            return labels;
+        }
+
+        function generateHourlyData() {
+            const data = new Array(24).fill(0);
+            ordersData.forEach(order => {
+                const hour = new Date(order.timestamp || order.createdAt).getHours();
+                data[hour] += order.total || 0;
+            });
+            return data;
+        }
+
+        function generateWeeklyLabels() {
+            const labels = [];
+            const today = new Date();
+            for (let i = 6; i >= 0; i--) {
+                const date = new Date(today.getTime() - (i * 24 * 60 * 60 * 1000));
+                labels.push(date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+            }
+            return labels;
+        }
+
+        function generateWeeklyData() {
+            const data = new Array(7).fill(0);
+            const today = new Date();
+            ordersData.forEach(order => {
+                const orderDate = new Date(order.timestamp || order.createdAt);
+                const daysDiff = Math.floor((today - orderDate) / (24 * 60 * 60 * 1000));
+                if (daysDiff >= 0 && daysDiff < 7) {
+                    data[6 - daysDiff] += order.total || 0;
+                }
+            });
+            return data;
+        }
+
+        function generateMonthlyLabels() {
+            const labels = [];
+            const today = new Date();
+            for (let i = 11; i >= 0; i--) {
+                const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
+                labels.push(date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }));
+            }
+            return labels;
+        }
+
+        function generateMonthlyData() {
+            const data = new Array(12).fill(0);
+            const today = new Date();
+            ordersData.forEach(order => {
+                const orderDate = new Date(order.timestamp || order.createdAt);
+                const monthsDiff = (today.getFullYear() - orderDate.getFullYear()) * 12 + 
+                                 (today.getMonth() - orderDate.getMonth());
+                if (monthsDiff >= 0 && monthsDiff < 12) {
+                    data[11 - monthsDiff] += order.total || 0;
+                }
+            });
+            return data;
+        }
+
+        function generateYearlyLabels() {
+            const labels = [];
+            const currentYear = new Date().getFullYear();
+            for (let i = 4; i >= 0; i--) {
+                labels.push((currentYear - i).toString());
+            }
+            return labels;
+        }
+
+        function generateYearlyData() {
+            const data = new Array(5).fill(0);
+            const currentYear = new Date().getFullYear();
+            ordersData.forEach(order => {
+                const orderYear = new Date(order.timestamp || order.createdAt).getFullYear();
+                const yearDiff = currentYear - orderYear;
+                if (yearDiff >= 0 && yearDiff < 5) {
+                    data[4 - yearDiff] += order.total || 0;
+                }
+            });
+            return data;
+        }
+
         function initDistributionChart() {
             const ctx = document.getElementById('distributionChart').getContext('2d');
+            
+            // Calculate real category data from orders
+            const categoryData = {};
+            ordersData.forEach(order => {
+                order.items.forEach(item => {
+                    const menuItem = item; // Assuming item has category info
+                    const category = 'General'; // Default category
+                    if (!categoryData[category]) {
+                        categoryData[category] = 0;
+                    }
+                    categoryData[category] += (item.price || 0) * (item.qty || 1);
+                });
+            });
+
+            const labels = Object.keys(categoryData);
+            const data = Object.values(categoryData);
+            const colors = ['#4f46e5', '#059669', '#dc2626', '#f59e0b', '#8b5cf6', '#06b6d4'];
             
             distributionChart = new Chart(ctx, {
                 type: 'doughnut',
                 data: {
-                    labels: ['Burgers', 'Sides', 'Drinks', 'Desserts'],
+                    labels: labels,
                     datasets: [{
-                        data: [40, 25, 20, 15],
-                        backgroundColor: [
-                            '#4f46e5',
-                            '#059669',
-                            '#dc2626',
-                            '#f59e0b'
-                        ],
+                        data: data,
+                        backgroundColor: colors.slice(0, labels.length),
                         borderWidth: 0
                     }]
                 },
