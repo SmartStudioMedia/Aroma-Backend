@@ -431,126 +431,59 @@
                 <% }); %>
             </div>
 
-            <!-- Category Sections -->
-            <% categories.forEach(category => { %>
-            <div class="category-section" id="category-<%= category.id %>" style="display: none;">
-                <div class="category-header">
-                    <h3><%= category.icon %> <%= category.name %> Items</h3>
-                    <div class="category-stats">
-                        <span class="stat-badge"><%= items.filter(item => item.category_id === category.id).length %> items</span>
-                        <button class="btn btn-primary btn-sm" onclick="openAddItemModal(<%= category.id %>)">+ Add to <%= category.name %></button>
-                    </div>
-                </div>
-                <div class="items-grid">
-                    <% items.filter(item => item.category_id === category.id).forEach(item => { %>
-                    <div class="item-card">
-                        <% if (item.video) { %>
-                            <video class="item-image" controls>
-                                <source src="<%= item.video %>" type="video/mp4">
-                                Your browser does not support the video tag.
-                            </video>
-                        <% } else { %>
-                            <img src="<%= item.image %>" alt="<%= item.name.en %>" class="item-image" onerror="this.src='https://via.placeholder.com/300x200?text=No+Image'">
-                        <% } %>
-                        
-                        <div class="item-name"><%= item.name.en %></div>
-                        <div class="item-description"><%= item.description.en %></div>
-                        
-                        <div class="item-details">
-                            <div class="detail-item">
-                                <div class="detail-label">Status</div>
-                                <div class="detail-value">
-                                    <span class="status-badge status-<%= item.active ? 'active' : 'inactive' %>">
-                                        <%= item.active ? 'Active' : 'Inactive' %>
-                                    </span>
-                                </div>
-                            </div>
-                            <div class="detail-item">
-                                <div class="detail-label">Prep Time</div>
-                                <div class="detail-value"><%= item.prepTime.en %></div>
-                            </div>
-                            <div class="detail-item">
-                                <div class="detail-label">Allergies</div>
-                                <div class="detail-value"><%= item.allergies.en %></div>
+            <!-- Items Grid -->
+            <div class="items-grid" id="itemsGrid">
+                <% items.forEach(item => { %>
+                <div class="item-card" data-category-id="<%= item.category_id %>">
+                    <% if (item.video) { %>
+                        <video class="item-image" controls>
+                            <source src="<%= item.video %>" type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                    <% } else { %>
+                        <img src="<%= item.image %>" alt="<%= item.name.en %>" class="item-image" onerror="this.src='https://via.placeholder.com/300x200?text=No+Image'">
+                    <% } %>
+                    
+                    <div class="item-name"><%= item.name.en %></div>
+                    <div class="item-description"><%= item.description.en %></div>
+                    
+                    <div class="item-details">
+                        <div class="detail-item">
+                            <div class="detail-label">Category</div>
+                            <div class="detail-value">
+                                <% const category = categories.find(c => c.id === item.category_id); %>
+                                <%= category ? category.icon + ' ' + category.name : 'Unknown' %>
                             </div>
                         </div>
-                        
-                        <div class="item-price">€<%= (item.price || 0).toFixed(2) %></div>
-                        
-                        <div class="item-actions">
-                            <button class="btn btn-primary btn-sm" onclick="editItem(<%= item.id %>)">Edit</button>
-                            <button class="btn btn-<%= item.active ? 'danger' : 'success' %> btn-sm" onclick="toggleItemStatus(<%= item.id %>, <%= !item.active %>)">
-                                <%= item.active ? 'Deactivate' : 'Activate' %>
-                            </button>
-                            <button class="btn btn-danger btn-sm" onclick="deleteItem(<%= item.id %>)">Delete</button>
-                        </div>
-                    </div>
-                    <% }); %>
-                </div>
-            </div>
-            <% }); %>
-
-            <!-- All Items Section -->
-            <div class="category-section" id="category-all">
-                <div class="category-header">
-                    <h3>📋 All Menu Items</h3>
-                    <div class="category-stats">
-                        <span class="stat-badge"><%= items.length %> items</span>
-                    </div>
-                </div>
-                <div class="items-grid">
-                    <% items.forEach(item => { %>
-                    <div class="item-card" data-category-id="<%= item.category_id %>">
-                        <% if (item.video) { %>
-                            <video class="item-image" controls>
-                                <source src="<%= item.video %>" type="video/mp4">
-                                Your browser does not support the video tag.
-                            </video>
-                        <% } else { %>
-                            <img src="<%= item.image %>" alt="<%= item.name.en %>" class="item-image" onerror="this.src='https://via.placeholder.com/300x200?text=No+Image'">
-                        <% } %>
-                        
-                        <div class="item-name"><%= item.name.en %></div>
-                        <div class="item-description"><%= item.description.en %></div>
-                        
-                        <div class="item-details">
-                            <div class="detail-item">
-                                <div class="detail-label">Category</div>
-                                <div class="detail-value">
-                                    <% const category = categories.find(c => c.id === item.category_id); %>
-                                    <%= category ? category.icon + ' ' + category.name : 'Unknown' %>
-                                </div>
-                            </div>
-                            <div class="detail-item">
-                                <div class="detail-label">Status</div>
-                                <div class="detail-value">
-                                    <span class="status-badge status-<%= item.active ? 'active' : 'inactive' %>">
-                                        <%= item.active ? 'Active' : 'Inactive' %>
-                                    </span>
-                                </div>
-                            </div>
-                            <div class="detail-item">
-                                <div class="detail-label">Prep Time</div>
-                                <div class="detail-value"><%= item.prepTime.en %></div>
-                            </div>
-                            <div class="detail-item">
-                                <div class="detail-label">Allergies</div>
-                                <div class="detail-value"><%= item.allergies.en %></div>
+                        <div class="detail-item">
+                            <div class="detail-label">Status</div>
+                            <div class="detail-value">
+                                <span class="status-badge status-<%= item.active ? 'active' : 'inactive' %>">
+                                    <%= item.active ? 'Active' : 'Inactive' %>
+                                </span>
                             </div>
                         </div>
-                        
-                        <div class="item-price">€<%= (item.price || 0).toFixed(2) %></div>
-                        
-                        <div class="item-actions">
-                            <button class="btn btn-primary btn-sm" onclick="editItem(<%= item.id %>)">Edit</button>
-                            <button class="btn btn-<%= item.active ? 'danger' : 'success' %> btn-sm" onclick="toggleItemStatus(<%= item.id %>, <%= !item.active %>)">
-                                <%= item.active ? 'Deactivate' : 'Activate' %>
-                            </button>
-                            <button class="btn btn-danger btn-sm" onclick="deleteItem(<%= item.id %>)">Delete</button>
+                        <div class="detail-item">
+                            <div class="detail-label">Prep Time</div>
+                            <div class="detail-value"><%= item.prepTime.en %></div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Allergies</div>
+                            <div class="detail-value"><%= item.allergies.en %></div>
                         </div>
                     </div>
-                    <% }); %>
+                    
+                    <div class="item-price">€<%= (item.price || 0).toFixed(2) %></div>
+                    
+                    <div class="item-actions">
+                        <button class="btn btn-primary btn-sm" onclick="editItem(<%= item.id %>)">Edit</button>
+                        <button class="btn btn-<%= item.active ? 'danger' : 'success' %> btn-sm" onclick="toggleItemStatus(<%= item.id %>, <%= !item.active %>)">
+                            <%= item.active ? 'Deactivate' : 'Activate' %>
+                        </button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteItem(<%= item.id %>)">Delete</button>
+                    </div>
                 </div>
+                <% }); %>
             </div>
         </div>
     </div>
@@ -772,23 +705,21 @@
             });
             document.querySelector(`[data-category="${categoryId}"]`).classList.add('active');
             
-            // Show/hide category sections
-            document.querySelectorAll('.category-section').forEach(section => {
-                section.style.display = 'none';
+            // Filter items
+            const itemCards = document.querySelectorAll('.item-card');
+            itemCards.forEach(card => {
+                if (categoryId === 'all') {
+                    card.style.display = 'block';
+                } else {
+                    const cardCategoryId = card.getAttribute('data-category-id');
+                    if (cardCategoryId == categoryId) {
+                        card.style.display = 'block';
+                    } else {
+                        card.style.display = 'none';
+                    }
+                }
             });
-            
-            if (categoryId === 'all') {
-                document.getElementById('category-all').style.display = 'block';
-            } else {
-                document.getElementById(`category-${categoryId}`).style.display = 'block';
-            }
         }
-        
-        // Initialize page - show all items by default
-        document.addEventListener('DOMContentLoaded', function() {
-            // Show all items section by default
-            document.getElementById('category-all').style.display = 'block';
-        });
         
         // Open add item modal with pre-selected category
         function openAddItemModal(categoryId = null) {
