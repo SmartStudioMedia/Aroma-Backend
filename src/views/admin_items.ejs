@@ -439,11 +439,11 @@
             <!-- Category Tabs -->
             <div class="category-tabs" id="categoryTabs">
                 <button class="category-tab active" data-category="all">
-                    📋 All Items (<%= items.length %>)
+                    All Items (<%= items.length %>)
                 </button>
                 <% categories.forEach(category => { %>
-                <button class="category-tab" data-category="<%- category.id %>">
-                    <%- category.icon %> <%- category.name %> 
+                <button class="category-tab" data-category="<%= category.id %>">
+                    <%= category.icon %> <%= category.name %> 
                     (<%= items.filter(item => item.category_id === category.id).length %>)
                 </button>
                 <% }); %>
@@ -452,7 +452,7 @@
             <!-- Items Grid -->
             <div class="items-grid" id="itemsGrid">
                 <% items.forEach(item => { %>
-                <div class="item-card" data-category-id="<%- item.category_id %>">
+                <div class="item-card" data-category-id="<%= item.category_id %>">
                     <% if (item.video) { %>
                         <video class="item-image" controls>
                             <source src="<%= item.video %>" type="video/mp4">
@@ -720,26 +720,28 @@
             console.log('Filtering by category:', categoryId);
             
             // Remove active class from all tabs
-            document.querySelectorAll('.category-tab').forEach(function(tab) {
-                tab.classList.remove('active');
-            });
+            var allTabs = document.querySelectorAll('.category-tab');
+            for (var i = 0; i < allTabs.length; i++) {
+                allTabs[i].classList.remove('active');
+            }
             
             // Add active class to clicked tab
-            const activeTab = document.querySelector('[data-category="' + categoryId + '"]');
+            var activeTab = document.querySelector('[data-category="' + categoryId + '"]');
             if (activeTab) {
                 activeTab.classList.add('active');
                 console.log('Active tab set:', activeTab.textContent.trim());
             }
             
             // Get all item cards
-            const itemCards = document.querySelectorAll('.item-card');
+            var itemCards = document.querySelectorAll('.item-card');
             console.log('Total item cards found:', itemCards.length);
             
-            let visibleCount = 0;
+            var visibleCount = 0;
             
             // Filter items based on category
-            itemCards.forEach(function(card) {
-                const cardCategoryId = card.getAttribute('data-category-id');
+            for (var i = 0; i < itemCards.length; i++) {
+                var card = itemCards[i];
+                var cardCategoryId = card.getAttribute('data-category-id');
                 
                 if (categoryId === 'all') {
                     // Show all items
@@ -757,7 +759,7 @@
                         card.style.opacity = '0';
                     }
                 }
-            });
+            }
             
             console.log('Visible items after filter:', visibleCount);
         }
@@ -789,18 +791,19 @@
             console.log('Page loaded, initializing category tabs...');
             
             // Add click event listeners to all category tabs
-            const categoryTabs = document.querySelectorAll('.category-tab');
+            var categoryTabs = document.querySelectorAll('.category-tab');
             console.log('Found category tabs:', categoryTabs.length);
             
-            categoryTabs.forEach(function(tab, index) {
-                const categoryId = tab.getAttribute('data-category');
-                console.log('Tab ' + (index + 1) + ':', categoryId);
+            for (var i = 0; i < categoryTabs.length; i++) {
+                var tab = categoryTabs[i];
+                var categoryId = tab.getAttribute('data-category');
+                console.log('Tab ' + (i + 1) + ':', categoryId);
                 
                 tab.addEventListener('click', function(e) {
                     e.preventDefault();
                     e.stopPropagation();
                     
-                    const clickedCategoryId = this.getAttribute('data-category');
+                    var clickedCategoryId = this.getAttribute('data-category');
                     console.log('Tab clicked:', clickedCategoryId);
                     
                     // Call the filter function
@@ -817,7 +820,7 @@
                 tab.addEventListener('mouseleave', function() {
                     this.style.transform = 'translateY(0)';
                 });
-            });
+            }
             
             // Initialize with all items visible
             console.log('Initializing with all items visible...');
