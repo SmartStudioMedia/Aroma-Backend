@@ -146,6 +146,8 @@ async function sendOrderConfirmation(order, customerEmail, customerName) {
               <p style="margin: 5px 0;"><strong>Order Type:</strong> ${order.orderType === 'dine-in' ? 'Dine In' : 'Takeaway'}</p>
               ${order.tableNumber ? `<p style="margin: 5px 0;"><strong>Table:</strong> ${order.tableNumber}</p>` : ''}
               <p style="margin: 5px 0;"><strong>Order Time:</strong> ${new Date(order.timestamp).toLocaleString()}</p>
+              ${order.marketingConsent ? `<p style="margin: 5px 0; color: #28a745;"><strong>✓ Marketing Communications:</strong> Opted In</p>` : ''}
+              ${order.newsletterConsent ? `<p style="margin: 5px 0; color: #28a745;"><strong>✓ Newsletter:</strong> Subscribed</p>` : ''}
             </div>
             
             <h3 style="color: #333;">Your Order:</h3>
@@ -328,7 +330,7 @@ app.get('/api/settings', (req, res) => {
 
 app.post('/api/orders', async (req, res) => {
   try {
-    const { items, orderType, tableNumber, customerName, customerEmail, total } = req.body;
+    const { items, orderType, tableNumber, customerName, customerEmail, marketingConsent, newsletterConsent, total } = req.body;
     
     // Validate required fields
     if (!items || !Array.isArray(items) || items.length === 0) {
@@ -358,6 +360,8 @@ app.post('/api/orders', async (req, res) => {
       tableNumber: tableNumber || null,
       customerName: customerName,
       customerEmail: customerEmail,
+      marketingConsent: marketingConsent || false,
+      newsletterConsent: newsletterConsent || false,
       total: parseFloat(total) || 0,
       status: 'pending',
       timestamp: new Date().toISOString(),
@@ -366,6 +370,8 @@ app.post('/api/orders', async (req, res) => {
     
     orders.push(newOrder);
     console.log('New order created:', newOrder);
+    console.log('📧 Marketing consent:', marketingConsent ? 'Yes' : 'No');
+    console.log('📧 Newsletter consent:', newsletterConsent ? 'Yes' : 'No');
     
     // Send email confirmation
     console.log('📧 Attempting to send email to:', customerEmail);
