@@ -317,6 +317,171 @@ app.get('/api/menu', (req, res) => {
   res.json(menuData);
 });
 
+// Menu Management API Routes
+app.post('/api/menu/items', (req, res) => {
+  try {
+    const { name, description, price, image, category_id, ingredients, nutrition, allergies, prepTime, video } = req.body;
+    
+    if (!name || !price || !category_id) {
+      return res.status(400).json({ success: false, error: 'Name, price, and category are required' });
+    }
+    
+    const newItem = {
+      id: Math.max(...menuData.items.map(i => i.id), 0) + 1,
+      name: typeof name === 'string' ? { en: name } : name,
+      description: typeof description === 'string' ? { en: description } : description,
+      price: parseFloat(price),
+      image: image || 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400',
+      video: video || null,
+      category_id: parseInt(category_id),
+      active: true,
+      ingredients: typeof ingredients === 'string' ? { en: ingredients } : ingredients,
+      nutrition: typeof nutrition === 'string' ? { en: nutrition } : nutrition,
+      allergies: typeof allergies === 'string' ? { en: allergies } : allergies,
+      prepTime: typeof prepTime === 'string' ? { en: prepTime } : prepTime
+    };
+    
+    menuData.items.push(newItem);
+    console.log('New menu item created:', newItem);
+    res.json({ success: true, item: newItem });
+  } catch (error) {
+    console.error('Error creating menu item:', error);
+    res.status(500).json({ success: false, error: 'Failed to create menu item' });
+  }
+});
+
+app.put('/api/menu/items/:id', (req, res) => {
+  try {
+    const itemId = parseInt(req.params.id);
+    const { name, description, price, image, category_id, ingredients, nutrition, allergies, prepTime, video, active } = req.body;
+    
+    const itemIndex = menuData.items.findIndex(item => item.id === itemId);
+    if (itemIndex === -1) {
+      return res.status(404).json({ success: false, error: 'Item not found' });
+    }
+    
+    const updatedItem = {
+      ...menuData.items[itemIndex],
+      name: name || menuData.items[itemIndex].name,
+      description: description || menuData.items[itemIndex].description,
+      price: price !== undefined ? parseFloat(price) : menuData.items[itemIndex].price,
+      image: image || menuData.items[itemIndex].image,
+      video: video !== undefined ? video : menuData.items[itemIndex].video,
+      category_id: category_id !== undefined ? parseInt(category_id) : menuData.items[itemIndex].category_id,
+      ingredients: ingredients || menuData.items[itemIndex].ingredients,
+      nutrition: nutrition || menuData.items[itemIndex].nutrition,
+      allergies: allergies || menuData.items[itemIndex].allergies,
+      prepTime: prepTime || menuData.items[itemIndex].prepTime,
+      active: active !== undefined ? active : menuData.items[itemIndex].active
+    };
+    
+    menuData.items[itemIndex] = updatedItem;
+    console.log('Menu item updated:', updatedItem);
+    res.json({ success: true, item: updatedItem });
+  } catch (error) {
+    console.error('Error updating menu item:', error);
+    res.status(500).json({ success: false, error: 'Failed to update menu item' });
+  }
+});
+
+app.delete('/api/menu/items/:id', (req, res) => {
+  try {
+    const itemId = parseInt(req.params.id);
+    const itemIndex = menuData.items.findIndex(item => item.id === itemId);
+    
+    if (itemIndex === -1) {
+      return res.status(404).json({ success: false, error: 'Item not found' });
+    }
+    
+    menuData.items.splice(itemIndex, 1);
+    console.log('Menu item deleted:', itemId);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting menu item:', error);
+    res.status(500).json({ success: false, error: 'Failed to delete menu item' });
+  }
+});
+
+// Category Management API Routes
+app.post('/api/menu/categories', (req, res) => {
+  try {
+    const { name, icon, sort_order } = req.body;
+    
+    if (!name) {
+      return res.status(400).json({ success: false, error: 'Category name is required' });
+    }
+    
+    const newCategory = {
+      id: Math.max(...menuData.categories.map(c => c.id), 0) + 1,
+      name: name,
+      icon: icon || '🍽️',
+      sort_order: sort_order || menuData.categories.length + 1,
+      active: true
+    };
+    
+    menuData.categories.push(newCategory);
+    console.log('New category created:', newCategory);
+    res.json({ success: true, category: newCategory });
+  } catch (error) {
+    console.error('Error creating category:', error);
+    res.status(500).json({ success: false, error: 'Failed to create category' });
+  }
+});
+
+app.put('/api/menu/categories/:id', (req, res) => {
+  try {
+    const categoryId = parseInt(req.params.id);
+    const { name, icon, sort_order, active } = req.body;
+    
+    const categoryIndex = menuData.categories.findIndex(cat => cat.id === categoryId);
+    if (categoryIndex === -1) {
+      return res.status(404).json({ success: false, error: 'Category not found' });
+    }
+    
+    const updatedCategory = {
+      ...menuData.categories[categoryIndex],
+      name: name || menuData.categories[categoryIndex].name,
+      icon: icon || menuData.categories[categoryIndex].icon,
+      sort_order: sort_order !== undefined ? parseInt(sort_order) : menuData.categories[categoryIndex].sort_order,
+      active: active !== undefined ? active : menuData.categories[categoryIndex].active
+    };
+    
+    menuData.categories[categoryIndex] = updatedCategory;
+    console.log('Category updated:', updatedCategory);
+    res.json({ success: true, category: updatedCategory });
+  } catch (error) {
+    console.error('Error updating category:', error);
+    res.status(500).json({ success: false, error: 'Failed to update category' });
+  }
+});
+
+app.delete('/api/menu/categories/:id', (req, res) => {
+  try {
+    const categoryId = parseInt(req.params.id);
+    const categoryIndex = menuData.categories.findIndex(cat => cat.id === categoryId);
+    
+    if (categoryIndex === -1) {
+      return res.status(404).json({ success: false, error: 'Category not found' });
+    }
+    
+    // Check if any items are using this category
+    const itemsUsingCategory = menuData.items.filter(item => item.category_id === categoryId);
+    if (itemsUsingCategory.length > 0) {
+      return res.status(400).json({ 
+        success: false, 
+        error: `Cannot delete category. ${itemsUsingCategory.length} items are using this category.` 
+      });
+    }
+    
+    menuData.categories.splice(categoryIndex, 1);
+    console.log('Category deleted:', categoryId);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting category:', error);
+    res.status(500).json({ success: false, error: 'Failed to delete category' });
+  }
+});
+
 app.get('/api/settings', (req, res) => {
   res.json({
     restaurantName: 'AROMA Restaurant',
