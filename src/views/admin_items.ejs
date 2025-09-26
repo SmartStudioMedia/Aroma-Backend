@@ -648,14 +648,15 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
+                    alert('Item saved successfully!');
                     location.reload();
                 } else {
-                    alert('Error saving item: ' + data.error);
+                    alert('Error saving item: ' + (data.error || 'Unknown error'));
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('Error saving item');
+                alert('Error saving item: ' + error.message);
             });
         });
         
