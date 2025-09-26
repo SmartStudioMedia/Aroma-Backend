@@ -324,6 +324,12 @@
             cursor: pointer;
             transition: all 0.3s ease;
             font-weight: 500;
+            color: #374151;
+            text-decoration: none;
+            display: inline-block;
+            user-select: none;
+            position: relative;
+            z-index: 1;
         }
         
         .category-tab:hover {
@@ -699,26 +705,40 @@
         
         // Category filtering
         function filterByCategory(categoryId) {
+            console.log('Filtering by category:', categoryId);
+            
             // Update active tab
             document.querySelectorAll('.category-tab').forEach(tab => {
                 tab.classList.remove('active');
             });
-            document.querySelector(`[data-category="${categoryId}"]`).classList.add('active');
+            const activeTab = document.querySelector(`[data-category="${categoryId}"]`);
+            if (activeTab) {
+                activeTab.classList.add('active');
+                console.log('Active tab set:', activeTab.textContent);
+            }
             
             // Filter items
             const itemCards = document.querySelectorAll('.item-card');
+            console.log('Total item cards found:', itemCards.length);
+            
+            let visibleCount = 0;
             itemCards.forEach(card => {
                 if (categoryId === 'all') {
                     card.style.display = 'block';
+                    visibleCount++;
                 } else {
                     const cardCategoryId = card.getAttribute('data-category-id');
+                    console.log('Card category ID:', cardCategoryId, 'Looking for:', categoryId);
                     if (cardCategoryId == categoryId) {
                         card.style.display = 'block';
+                        visibleCount++;
                     } else {
                         card.style.display = 'none';
                     }
                 }
             });
+            
+            console.log('Visible items after filter:', visibleCount);
         }
         
         // Open add item modal with pre-selected category
@@ -742,6 +762,24 @@
                 closeModal();
             }
         }
+        
+        // Initialize page when loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Page loaded, initializing category tabs...');
+            
+            // Add click event listeners to all category tabs
+            document.querySelectorAll('.category-tab').forEach(tab => {
+                tab.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const categoryId = this.getAttribute('data-category');
+                    console.log('Tab clicked:', categoryId);
+                    filterByCategory(categoryId);
+                });
+            });
+            
+            // Initialize with all items visible
+            filterByCategory('all');
+        });
     </script>
 </body>
 </html>
