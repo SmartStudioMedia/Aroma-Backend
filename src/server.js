@@ -23,38 +23,6 @@ if (SENDGRID_API_KEY) {
   sgMail.setApiKey(SENDGRID_API_KEY);
 }
 
-// Menu data persistence
-const MENU_DATA_FILE = path.join(__dirname, 'menu-data.json');
-
-function saveMenuData() {
-  try {
-    fs.writeFileSync(MENU_DATA_FILE, JSON.stringify(menuData, null, 2));
-    console.log('✅ Menu data saved to file');
-  } catch (error) {
-    console.error('❌ Error saving menu data:', error);
-  }
-}
-
-function loadMenuData() {
-  try {
-    if (fs.existsSync(MENU_DATA_FILE)) {
-      const data = fs.readFileSync(MENU_DATA_FILE, 'utf8');
-      const loadedData = JSON.parse(data);
-      menuData.categories = loadedData.categories || menuData.categories;
-      menuData.items = loadedData.items || menuData.items;
-      console.log('✅ Menu data loaded from file');
-    } else {
-      console.log('📝 No existing menu data file, using defaults');
-      saveMenuData(); // Save initial data
-    }
-  } catch (error) {
-    console.error('❌ Error loading menu data:', error);
-  }
-}
-
-// Load menu data on startup
-loadMenuData();
-
 // In-memory data storage
 let menuData = {
   categories: [
@@ -134,6 +102,38 @@ let menuData = {
 
 let orders = [];
 let orderIdCounter = 1;
+
+// Menu data persistence
+const MENU_DATA_FILE = path.join(__dirname, 'menu-data.json');
+
+function saveMenuData() {
+  try {
+    fs.writeFileSync(MENU_DATA_FILE, JSON.stringify(menuData, null, 2));
+    console.log('✅ Menu data saved to file');
+  } catch (error) {
+    console.error('❌ Error saving menu data:', error);
+  }
+}
+
+function loadMenuData() {
+  try {
+    if (fs.existsSync(MENU_DATA_FILE)) {
+      const data = fs.readFileSync(MENU_DATA_FILE, 'utf8');
+      const loadedData = JSON.parse(data);
+      menuData.categories = loadedData.categories || menuData.categories;
+      menuData.items = loadedData.items || menuData.items;
+      console.log('✅ Menu data loaded from file');
+    } else {
+      console.log('📝 No existing menu data file, using defaults');
+      saveMenuData(); // Save initial data
+    }
+  } catch (error) {
+    console.error('❌ Error loading menu data:', error);
+  }
+}
+
+// Load menu data on startup
+loadMenuData();
 
 const app = express();
 
