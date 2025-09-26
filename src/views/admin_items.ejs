@@ -784,6 +784,12 @@
             }
         }
         
+        // Initialize page - show all items by default
+        document.addEventListener('DOMContentLoaded', function() {
+            // Show all items section by default
+            document.getElementById('category-all').style.display = 'block';
+        });
+        
         // Open add item modal with pre-selected category
         function openAddItemModal(categoryId = null) {
             currentItemId = null;
