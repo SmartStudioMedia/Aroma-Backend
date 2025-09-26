@@ -4,7 +4,7 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const basicAuth = require('express-basic-auth');
 const path = require('path');
-const nodemailer = require('nodemailer');
+const sgMail = require('@sendgrid/mail');
 
 const PORT = process.env.PORT || 4000;
 const ADMIN_USER = process.env.ADMIN_USER || 'admin';
@@ -13,12 +13,14 @@ const KITCHEN_USER = process.env.KITCHEN_USER || 'kitchen';
 const KITCHEN_PASS = process.env.KITCHEN_PASS || 'kitchen123';
 
 // Email configuration
-const EMAIL_HOST = process.env.EMAIL_HOST || 'smtp.gmail.com';
-const EMAIL_PORT = process.env.EMAIL_PORT || 587;
-const EMAIL_USER = process.env.EMAIL_USER || '';
-const EMAIL_PASS = process.env.EMAIL_PASS || '';
+const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY || '';
 const EMAIL_FROM = process.env.EMAIL_FROM || 'noreply@aromarestaurant.com';
 const RESTAURANT_NAME = process.env.RESTAURANT_NAME || 'AROMA Restaurant';
+
+// Configure SendGrid
+if (SENDGRID_API_KEY) {
+  sgMail.setApiKey(SENDGRID_API_KEY);
+}
 
 // In-memory data storage
 let menuData = {
@@ -102,23 +104,15 @@ let orderIdCounter = 1;
 
 const app = express();
 
-// Email transporter configuration
-const emailTransporter = nodemailer.createTransport({
-  host: EMAIL_HOST,
-  port: EMAIL_PORT,
-  secure: EMAIL_PORT === 465, // true for 465, false for other ports
-  auth: {
-    user: EMAIL_USER,
-    pass: EMAIL_PASS
-  }
-});
-
-// Email sending function
+// Email sending function using SendGrid
 async function sendOrderConfirmation(order, customerEmail, customerName) {
   try {
-    if (!EMAIL_USER || !EMAIL_PASS) {
-      console.log('⚠️ Email not configured - skipping email send');
-      return { success: false, message: 'Email not configured' };
+    console.log('📧 SendGrid API Key configured:', !!SENDGRID_API_KEY);
+    console.log('📧 API Key length:', SENDGRID_API_KEY ? SENDGRID_API_KEY.length : 0);
+    
+    if (!SENDGRID_API_KEY) {
+      console.log('⚠️ SendGrid API key not configured - skipping email send');
+      return { success: false, message: 'SendGrid API key not configured' };
     }
 
     const orderItems = order.items.map(item => {
@@ -132,9 +126,9 @@ async function sendOrderConfirmation(order, customerEmail, customerName) {
 
     const orderTotal = orderItems.reduce((total, item) => total + (item.price * item.quantity), 0);
 
-    const mailOptions = {
-      from: EMAIL_FROM,
+    const msg = {
       to: customerEmail,
+      from: EMAIL_FROM,
       subject: `Order Confirmation - ${RESTAURANT_NAME}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -187,11 +181,11 @@ async function sendOrderConfirmation(order, customerEmail, customerName) {
       `
     };
 
-    const result = await emailTransporter.sendMail(mailOptions);
-    console.log('✅ Email sent successfully:', result.messageId);
-    return { success: true, messageId: result.messageId };
+    const result = await sgMail.send(msg);
+    console.log('✅ Email sent successfully via SendGrid:', result[0].statusCode);
+    return { success: true, messageId: result[0].headers['x-message-id'] };
   } catch (error) {
-    console.error('❌ Email sending failed:', error);
+    console.error('❌ SendGrid email sending failed:', error);
     return { success: false, error: error.message };
   }
 }
@@ -285,6 +279,38 @@ app.get('/api/debug', (req, res) => {
   });
 });
 
+// Test email endpoint
+app.get('/api/test-email', async (req, res) => {
+  try {
+    const testOrder = {
+      id: 999,
+      items: [{ id: 1, name: { en: 'Test Burger' }, price: 12.99, qty: 1 }],
+      orderType: 'dine-in',
+      tableNumber: 5,
+      customerName: 'Test Customer',
+      customerEmail: 'test@example.com',
+      total: 12.99,
+      status: 'pending',
+      timestamp: new Date().toISOString()
+    };
+
+    const emailResult = await sendOrderConfirmation(testOrder, 'test@example.com', 'Test Customer');
+    
+    res.json({
+      success: true,
+      emailResult: emailResult,
+      emailConfigured: !!SENDGRID_API_KEY,
+      sendGridApiKey: SENDGRID_API_KEY ? 'Set' : 'Not Set'
+    });
+  } catch (error) {
+    res.json({
+      success: false,
+      error: error.message,
+      emailConfigured: !!SENDGRID_API_KEY
+    });
+  }
+});
+
 // API Routes
 app.get('/api/menu', (req, res) => {
   res.json(menuData);
@@ -342,7 +368,9 @@ app.post('/api/orders', async (req, res) => {
     console.log('New order created:', newOrder);
     
     // Send email confirmation
+    console.log('📧 Attempting to send email to:', customerEmail);
     const emailResult = await sendOrderConfirmation(newOrder, customerEmail, customerName);
+    console.log('📧 Email result:', emailResult);
     
     res.json({ 
       success: true, 
