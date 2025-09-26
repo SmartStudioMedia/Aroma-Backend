@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AROMA Restaurant - <%= title %></title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header h1 {
+            color: #2d3748;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .nav-tabs {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .nav-tab {
+            padding: 12px 24px;
+            background: #4f46e5;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+        
+        .nav-tab:hover {
+            background: #3730a3;
+            transform: translateY(-2px);
+        }
+        
+        .nav-tab.active {
+            background: #059669;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        
+        .stat-card h3 {
+            color: #4f46e5;
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+        
+        .stat-card p {
+            color: #6b7280;
+            font-size: 1.1rem;
+        }
+        
+        .filters-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        
+        .filters-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .filters-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .filter-group label {
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 8px;
+        }
+        
+        .filter-group input,
+        .filter-group select {
+            padding: 10px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+        
+        .filter-group input:focus,
+        .filter-group select:focus {
+            outline: none;
+            border-color: #4f46e5;
+        }
+        
+        .search-box {
+            position: relative;
+        }
+        
+        .search-box input {
+            padding-left: 40px;
+        }
+        
+        .search-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #6b7280;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn-primary {
+            background: #4f46e5;
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .btn-sm {
+            padding: 8px 16px;
+            font-size: 0.875rem;
+        }
+        
+        .orders-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        
+        .orders-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .orders-header h3 {
+            font-size: 1.5rem;
+            color: #2d3748;
+        }
+        
+        .orders-table {
+            overflow-x: auto;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        th, td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        th {
+            background: #f8fafc;
+            font-weight: 600;
+            color: #374151;
+        }
+        
+        tr:hover {
+            background: #f9fafb;
+        }
+        
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        
+        .status-pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .status-confirmed {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        
+        .status-completed {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .status-cancelled {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .order-details {
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .no-orders {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6b7280;
+        }
+        
+        .no-orders h3 {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .no-orders p {
+            font-size: 1rem;
+        }
+        
+        .chart-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+        
+        .chart-container h3 {
+            color: #2d3748;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .chart-wrapper {
+            position: relative;
+            height: 300px;
+        }
+        
+        .period-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            justify-content: center;
+        }
+        
+        .period-tab {
+            padding: 8px 16px;
+            border: 2px solid #4f46e5;
+            background: transparent;
+            color: #4f46e5;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .period-tab.active {
+            background: #4f46e5;
+            color: white;
+        }
+        
+        .period-tab:hover {
+            background: #4f46e5;
+            color: white;
+        }
+        
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .filters-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .orders-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 15px;
+            }
+            
+            .orders-table {
+                font-size: 0.875rem;
+            }
+            
+            .period-tabs {
+                flex-wrap: wrap;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 <%= title %></h1>
+            <p>Detailed sales analysis for <%= stats.date %></p>
+            <div class="nav-tabs">
+                <a href="/admin" class="nav-tab">Dashboard</a>
+                <a href="/admin/sales" class="nav-tab">Sales Overview</a>
+                <a href="/admin/sales/daily" class="nav-tab <%= period === 'daily' ? 'active' : '' %>">Daily</a>
+                <a href="/admin/sales/weekly" class="nav-tab <%= period === 'weekly' ? 'active' : '' %>">Weekly</a>
+                <a href="/admin/sales/monthly" class="nav-tab <%= period === 'monthly' ? 'active' : '' %>">Monthly</a>
+                <a href="/admin/sales/yearly" class="nav-tab <%= period === 'yearly' ? 'active' : '' %>">Yearly</a>
+                <a href="/admin/orders" class="nav-tab">Orders</a>
+                <a href="/admin/items" class="nav-tab">Menu Items</a>
+                <a href="/admin/categories" class="nav-tab">Categories</a>
+            </div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3><%= stats.total %></h3>
+                <p>Total Orders</p>
+            </div>
+            <div class="stat-card">
+                <h3>€<%= stats.totalValue.toFixed(2) %></h3>
+                <p>Total Sales</p>
+            </div>
+            <div class="stat-card">
+                <h3>€<%= (stats.totalValue / Math.max(stats.total, 1)).toFixed(2) %></h3>
+                <p>Average Order</p>
+            </div>
+        </div>
+
+        <div class="filters-container">
+            <div class="filters-header">
+                <h3>Search & Filter Orders</h3>
+                <button class="btn btn-secondary" onclick="clearFilters()">Clear Filters</button>
+            </div>
+            
+            <div class="filters-grid">
+                <div class="filter-group search-box">
+                    <label for="searchInput">Search Orders</label>
+                    <span class="search-icon">🔍</span>
+                    <input type="text" id="searchInput" placeholder="Search by customer, order ID, or table..." onkeyup="filterOrders()">
+                </div>
+                
+                <div class="filter-group">
+                    <label for="statusFilter">Order Status</label>
+                    <select id="statusFilter" onchange="filterOrders()">
+                        <option value="">All Statuses</option>
+                        <option value="pending">Pending</option>
+                        <option value="confirmed">Confirmed</option>
+                        <option value="completed">Completed</option>
+                        <option value="cancelled">Cancelled</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label for="orderTypeFilter">Order Type</label>
+                    <select id="orderTypeFilter" onchange="filterOrders()">
+                        <option value="">All Types</option>
+                        <option value="dine-in">Dine In</option>
+                        <option value="takeaway">Takeaway</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label for="sortBy">Sort By</label>
+                    <select id="sortBy" onchange="sortOrders()">
+                        <option value="newest">Newest First</option>
+                        <option value="oldest">Oldest First</option>
+                        <option value="amount-high">Amount (High to Low)</option>
+                        <option value="amount-low">Amount (Low to High)</option>
+                        <option value="customer">Customer Name</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <h3>Sales Chart</h3>
+            <div class="period-tabs">
+                <button class="period-tab active" onclick="updateChart('hourly')">Hourly</button>
+                <button class="period-tab" onclick="updateChart('daily')">Daily</button>
+                <button class="period-tab" onclick="updateChart('weekly')">Weekly</button>
+            </div>
+            <div class="chart-wrapper">
+                <canvas id="salesChart"></canvas>
+            </div>
+        </div>
+
+        <div class="orders-container">
+            <div class="orders-header">
+                <h3>Orders (<span id="orderCount"><%= orders.length %></span>)</h3>
+                <a href="/admin/sales" class="btn btn-primary">Back to Sales</a>
+            </div>
+
+            <div id="ordersTable">
+                <% if (orders.length === 0) { %>
+                    <div class="no-orders">
+                        <h3>No orders found</h3>
+                        <p>There are no orders for this period.</p>
+                    </div>
+                <% } else { %>
+                    <div class="orders-table">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Order ID</th>
+                                    <th>Customer</th>
+                                    <th>Table</th>
+                                    <th>Items</th>
+                                    <th>Total</th>
+                                    <th>Status</th>
+                                    <th>Time</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ordersTableBody">
+                                <% orders.forEach(order => { %>
+                                <tr class="order-row" data-order-id="<%= order.id %>" data-customer="<%= order.customerName %>" data-status="<%= order.status %>" data-type="<%= order.orderType %>" data-amount="<%= order.total || 0 %>">
+                                    <td>#<%= order.id %></td>
+                                    <td><%= order.customerName %></td>
+                                    <td><%= order.tableNumber || 'N/A' %></td>
+                                    <td class="order-details">
+                                        <%= order.items.length %> items
+                                        <br><small><%= order.items.map(item => item.name.en || item.name).join(', ') %></small>
+                                    </td>
+                                    <td>€<%= (order.total || 0).toFixed(2) %></td>
+                                    <td>
+                                        <span class="status-badge status-<%= order.status %>">
+                                            <%= order.status.charAt(0).toUpperCase() + order.status.slice(1) %>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <%= new Date(order.timestamp || order.createdAt).toLocaleString() %>
+                                    </td>
+                                    <td>
+                                        <% if (order.status === 'pending') { %>
+                                            <button class="btn btn-primary btn-sm" onclick="updateOrderStatus(<%= order.id %>, 'confirmed')">Confirm</button>
+                                        <% } else if (order.status === 'confirmed') { %>
+                                            <button class="btn btn-success btn-sm" onclick="updateOrderStatus(<%= order.id %>, 'completed')">Complete</button>
+                                        <% } %>
+                                        <button class="btn btn-danger btn-sm" onclick="updateOrderStatus(<%= order.id %>, 'cancelled')">Cancel</button>
+                                    </td>
+                                </tr>
+                                <% }); %>
+                            </tbody>
+                        </table>
+                    </div>
+                <% } %>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let salesChart = null;
+        const ordersData = <%- JSON.stringify(orders) %>;
+
+        // Initialize chart
+        function initChart() {
+            updateChart('hourly');
+        }
+
+        function updateChart(period) {
+            // Update active button
+            document.querySelectorAll('.period-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // Destroy existing chart
+            if (salesChart) {
+                salesChart.destroy();
+            }
+
+            const ctx = document.getElementById('salesChart').getContext('2d');
+            
+            // Generate chart data based on period and actual orders
+            let labels, data;
+            switch(period) {
+                case 'hourly':
+                    labels = generateHourlyLabels();
+                    data = generateHourlyData();
+                    break;
+                case 'daily':
+                    labels = generateDailyLabels();
+                    data = generateDailyData();
+                    break;
+                case 'weekly':
+                    labels = generateWeeklyLabels();
+                    data = generateWeeklyData();
+                    break;
+            }
+
+            salesChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Sales (€)',
+                        data: data,
+                        borderColor: '#4f46e5',
+                        backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.1)'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.1)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function generateHourlyLabels() {
+            const labels = [];
+            for (let i = 0; i < 24; i++) {
+                labels.push(`${i}:00`);
+            }
+            return labels;
+        }
+
+        function generateHourlyData() {
+            const data = new Array(24).fill(0);
+            ordersData.forEach(order => {
+                const hour = new Date(order.timestamp || order.createdAt).getHours();
+                data[hour] += order.total || 0;
+            });
+            return data;
+        }
+
+        function generateDailyLabels() {
+            const labels = [];
+            const today = new Date();
+            for (let i = 6; i >= 0; i--) {
+                const date = new Date(today.getTime() - (i * 24 * 60 * 60 * 1000));
+                labels.push(date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+            }
+            return labels;
+        }
+
+        function generateDailyData() {
+            const data = new Array(7).fill(0);
+            const today = new Date();
+            ordersData.forEach(order => {
+                const orderDate = new Date(order.timestamp || order.createdAt);
+                const daysDiff = Math.floor((today - orderDate) / (24 * 60 * 60 * 1000));
+                if (daysDiff >= 0 && daysDiff < 7) {
+                    data[6 - daysDiff] += order.total || 0;
+                }
+            });
+            return data;
+        }
+
+        function generateWeeklyLabels() {
+            const labels = [];
+            const today = new Date();
+            for (let i = 3; i >= 0; i--) {
+                const weekStart = new Date(today.getTime() - (i * 7 * 24 * 60 * 60 * 1000));
+                labels.push(`Week ${4-i}`);
+            }
+            return labels;
+        }
+
+        function generateWeeklyData() {
+            const data = new Array(4).fill(0);
+            const today = new Date();
+            ordersData.forEach(order => {
+                const orderDate = new Date(order.timestamp || order.createdAt);
+                const weeksDiff = Math.floor((today - orderDate) / (7 * 24 * 60 * 60 * 1000));
+                if (weeksDiff >= 0 && weeksDiff < 4) {
+                    data[3 - weeksDiff] += order.total || 0;
+                }
+            });
+            return data;
+        }
+
+        function filterOrders() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const statusFilter = document.getElementById('statusFilter').value;
+            const orderTypeFilter = document.getElementById('orderTypeFilter').value;
+            
+            const rows = document.querySelectorAll('.order-row');
+            let visibleCount = 0;
+            
+            rows.forEach(row => {
+                const customer = row.dataset.customer.toLowerCase();
+                const orderId = row.querySelector('td:first-child').textContent.toLowerCase();
+                const status = row.dataset.status;
+                const type = row.dataset.type;
+                
+                const matchesSearch = !searchTerm || 
+                    customer.includes(searchTerm) || 
+                    orderId.includes(searchTerm);
+                
+                const matchesStatus = !statusFilter || status === statusFilter;
+                const matchesType = !orderTypeFilter || type === orderTypeFilter;
+                
+                if (matchesSearch && matchesStatus && matchesType) {
+                    row.style.display = '';
+                    visibleCount++;
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+            
+            document.getElementById('orderCount').textContent = visibleCount;
+        }
+
+        function sortOrders() {
+            const sortBy = document.getElementById('sortBy').value;
+            const tbody = document.getElementById('ordersTableBody');
+            const rows = Array.from(tbody.querySelectorAll('.order-row'));
+            
+            rows.sort((a, b) => {
+                switch(sortBy) {
+                    case 'newest':
+                        return new Date(b.dataset.timestamp || b.querySelector('td:nth-child(7)').textContent) - 
+                               new Date(a.dataset.timestamp || a.querySelector('td:nth-child(7)').textContent);
+                    case 'oldest':
+                        return new Date(a.dataset.timestamp || a.querySelector('td:nth-child(7)').textContent) - 
+                               new Date(b.dataset.timestamp || b.querySelector('td:nth-child(7)').textContent);
+                    case 'amount-high':
+                        return parseFloat(b.dataset.amount) - parseFloat(a.dataset.amount);
+                    case 'amount-low':
+                        return parseFloat(a.dataset.amount) - parseFloat(b.dataset.amount);
+                    case 'customer':
+                        return a.dataset.customer.localeCompare(b.dataset.customer);
+                    default:
+                        return 0;
+                }
+            });
+            
+            rows.forEach(row => tbody.appendChild(row));
+        }
+
+        function clearFilters() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('statusFilter').value = '';
+            document.getElementById('orderTypeFilter').value = '';
+            document.getElementById('sortBy').value = 'newest';
+            filterOrders();
+            sortOrders();
+        }
+
+        function updateOrderStatus(orderId, newStatus) {
+            if (confirm('Are you sure you want to update this order status?')) {
+                fetch(`/admin/orders/${orderId}/status`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ status: newStatus })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert('Error updating order: ' + data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error updating order');
+                });
+            }
+        }
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', initChart);
+    </script>
+</body>
+</html>
