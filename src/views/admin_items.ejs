@@ -630,25 +630,132 @@
         }
 
         function editItem(itemId) {
-            // This would be implemented to load item data
-            console.log('Edit item:', itemId);
+            currentItemId = itemId;
+            document.getElementById('modalTitle').textContent = 'Edit Item';
+            
+            // Find the item data (this would normally come from the server)
+            var itemData = null;
+            var items = <%- JSON.stringify(items) %>;
+            for (var i = 0; i < items.length; i++) {
+                if (items[i].id == itemId) {
+                    itemData = items[i];
+                    break;
+                }
+            }
+            
+            if (itemData) {
+                document.getElementById('itemName').value = itemData.name.en || '';
+                document.getElementById('itemDescription').value = itemData.description.en || '';
+                document.getElementById('itemPrice').value = itemData.price || '';
+                document.getElementById('itemCategory').value = itemData.category_id || '';
+                document.getElementById('itemImage').value = itemData.image || '';
+                document.getElementById('itemVideo').value = itemData.video || '';
+                document.getElementById('itemPrepTime').value = itemData.prepTime.en || '';
+                document.getElementById('itemAllergies').value = itemData.allergies.en || '';
+                document.getElementById('itemActive').checked = itemData.active !== false;
+            }
+            
+            document.getElementById('itemModal').style.display = 'block';
         }
 
         function toggleItemStatus(itemId, newStatus) {
-            // This would be implemented to toggle item status
-            console.log('Toggle item status:', itemId, newStatus);
+            fetch('/api/menu/items/' + itemId, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    active: newStatus
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Item status updated successfully!');
+                    location.reload();
+                } else {
+                    alert('Error updating item status: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error updating item status: ' + error.message);
+            });
         }
 
         function deleteItem(itemId) {
             if (confirm('Are you sure you want to delete this item?')) {
-                // This would be implemented to delete item
-                console.log('Delete item:', itemId);
+                fetch('/api/menu/items/' + itemId, {
+                    method: 'DELETE'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Item deleted successfully!');
+                        location.reload();
+                    } else {
+                        alert('Error deleting item: ' + (data.error || 'Unknown error'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error deleting item: ' + error.message);
+                });
             }
         }
 
         function closeModal() {
             document.getElementById('itemModal').style.display = 'none';
         }
+
+        // Form submission handler
+        document.getElementById('itemForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            var formData = {
+                name: {
+                    en: document.getElementById('itemName').value
+                },
+                description: {
+                    en: document.getElementById('itemDescription').value
+                },
+                price: parseFloat(document.getElementById('itemPrice').value),
+                category_id: parseInt(document.getElementById('itemCategory').value),
+                image: document.getElementById('itemImage').value,
+                video: document.getElementById('itemVideo').value,
+                prepTime: {
+                    en: document.getElementById('itemPrepTime').value
+                },
+                allergies: {
+                    en: document.getElementById('itemAllergies').value
+                },
+                active: document.getElementById('itemActive').checked
+            };
+            
+            var url = currentItemId ? '/api/menu/items/' + currentItemId : '/api/menu/items';
+            var method = currentItemId ? 'PUT' : 'POST';
+            
+            fetch(url, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Item saved successfully!');
+                    location.reload();
+                } else {
+                    alert('Error saving item: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error saving item: ' + error.message);
+            });
+        });
 
         // Close modal when clicking outside
         window.onclick = function(event) {
