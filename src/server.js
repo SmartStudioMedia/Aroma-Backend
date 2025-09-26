@@ -782,6 +782,127 @@ app.get('/admin/sales', authMiddleware, (req, res) => {
   }
 });
 
+// Daily Sales Breakdown
+app.get('/admin/sales/daily', authMiddleware, (req, res) => {
+  try {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
+    
+    const dailyOrders = orders.filter(o => {
+      const orderDate = new Date(o.timestamp || o.createdAt);
+      return orderDate >= today && orderDate < tomorrow;
+    }).sort((a, b) => new Date(b.timestamp || b.createdAt) - new Date(a.timestamp || a.createdAt));
+    
+    const totalSales = dailyOrders.reduce((sum, order) => sum + (order.total || 0), 0);
+    
+    res.render('admin_sales_breakdown', {
+      title: 'Daily Sales Breakdown',
+      period: 'daily',
+      orders: dailyOrders,
+      stats: {
+        total: dailyOrders.length,
+        totalValue: totalSales,
+        date: today.toLocaleDateString()
+      }
+    });
+  } catch (error) {
+    console.error('Daily sales error:', error);
+    res.status(500).send('Internal Server Error');
+  }
+});
+
+// Weekly Sales Breakdown
+app.get('/admin/sales/weekly', authMiddleware, (req, res) => {
+  try {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const weekStart = new Date(today.getTime() - (today.getDay() * 24 * 60 * 60 * 1000));
+    const weekEnd = new Date(weekStart.getTime() + (7 * 24 * 60 * 60 * 1000));
+    
+    const weeklyOrders = orders.filter(o => {
+      const orderDate = new Date(o.timestamp || o.createdAt);
+      return orderDate >= weekStart && orderDate < weekEnd;
+    }).sort((a, b) => new Date(b.timestamp || b.createdAt) - new Date(a.timestamp || a.createdAt));
+    
+    const totalSales = weeklyOrders.reduce((sum, order) => sum + (order.total || 0), 0);
+    
+    res.render('admin_sales_breakdown', {
+      title: 'Weekly Sales Breakdown',
+      period: 'weekly',
+      orders: weeklyOrders,
+      stats: {
+        total: weeklyOrders.length,
+        totalValue: totalSales,
+        date: `${weekStart.toLocaleDateString()} - ${new Date(weekEnd.getTime() - 1).toLocaleDateString()}`
+      }
+    });
+  } catch (error) {
+    console.error('Weekly sales error:', error);
+    res.status(500).send('Internal Server Error');
+  }
+});
+
+// Monthly Sales Breakdown
+app.get('/admin/sales/monthly', authMiddleware, (req, res) => {
+  try {
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    
+    const monthlyOrders = orders.filter(o => {
+      const orderDate = new Date(o.timestamp || o.createdAt);
+      return orderDate >= monthStart && orderDate < nextMonth;
+    }).sort((a, b) => new Date(b.timestamp || b.createdAt) - new Date(a.timestamp || a.createdAt));
+    
+    const totalSales = monthlyOrders.reduce((sum, order) => sum + (order.total || 0), 0);
+    
+    res.render('admin_sales_breakdown', {
+      title: 'Monthly Sales Breakdown',
+      period: 'monthly',
+      orders: monthlyOrders,
+      stats: {
+        total: monthlyOrders.length,
+        totalValue: totalSales,
+        date: monthStart.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+      }
+    });
+  } catch (error) {
+    console.error('Monthly sales error:', error);
+    res.status(500).send('Internal Server Error');
+  }
+});
+
+// Yearly Sales Breakdown
+app.get('/admin/sales/yearly', authMiddleware, (req, res) => {
+  try {
+    const now = new Date();
+    const yearStart = new Date(now.getFullYear(), 0, 1);
+    const nextYear = new Date(now.getFullYear() + 1, 0, 1);
+    
+    const yearlyOrders = orders.filter(o => {
+      const orderDate = new Date(o.timestamp || o.createdAt);
+      return orderDate >= yearStart && orderDate < nextYear;
+    }).sort((a, b) => new Date(b.timestamp || b.createdAt) - new Date(a.timestamp || a.createdAt));
+    
+    const totalSales = yearlyOrders.reduce((sum, order) => sum + (order.total || 0), 0);
+    
+    res.render('admin_sales_breakdown', {
+      title: 'Yearly Sales Breakdown',
+      period: 'yearly',
+      orders: yearlyOrders,
+      stats: {
+        total: yearlyOrders.length,
+        totalValue: totalSales,
+        date: yearStart.getFullYear().toString()
+      }
+    });
+  } catch (error) {
+    console.error('Yearly sales error:', error);
+    res.status(500).send('Internal Server Error');
+  }
+});
+
 // API endpoints for admin
 app.get('/admin/api/orders', authMiddleware, (req, res) => {
   res.json(orders);
