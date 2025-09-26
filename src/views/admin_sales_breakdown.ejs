@@ -334,6 +334,24 @@
             color: white;
         }
         
+        .calendar-section {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+        }
+        
+        .calendar-section h4 {
+            color: #374151;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+        }
+        
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+        
         @media (max-width: 768px) {
             .stats-grid {
                 grid-template-columns: 1fr;
@@ -434,6 +452,34 @@
                         <option value="amount-low">Amount (Low to High)</option>
                         <option value="customer">Customer Name</option>
                     </select>
+                </div>
+            </div>
+            
+            <div class="calendar-section">
+                <h4>Date Range Filter</h4>
+                <div class="calendar-grid">
+                    <div class="filter-group">
+                        <label for="dateFrom">From Date</label>
+                        <input type="date" id="dateFrom" onchange="filterByDateRange()">
+                    </div>
+                    <div class="filter-group">
+                        <label for="dateTo">To Date</label>
+                        <input type="date" id="dateTo" onchange="filterByDateRange()">
+                    </div>
+                    <div class="filter-group">
+                        <label for="quickDateFilter">Quick Filter</label>
+                        <select id="quickDateFilter" onchange="applyQuickDateFilter()">
+                            <option value="">Select Period</option>
+                            <option value="today">Today</option>
+                            <option value="yesterday">Yesterday</option>
+                            <option value="thisWeek">This Week</option>
+                            <option value="lastWeek">Last Week</option>
+                            <option value="thisMonth">This Month</option>
+                            <option value="lastMonth">Last Month</option>
+                            <option value="thisYear">This Year</option>
+                            <option value="lastYear">Last Year</option>
+                        </select>
+                    </div>
                 </div>
             </div>
         </div>
@@ -720,8 +766,109 @@
             document.getElementById('statusFilter').value = '';
             document.getElementById('orderTypeFilter').value = '';
             document.getElementById('sortBy').value = 'newest';
+            document.getElementById('dateFrom').value = '';
+            document.getElementById('dateTo').value = '';
+            document.getElementById('quickDateFilter').value = '';
             filterOrders();
             sortOrders();
+        }
+
+        function filterByDateRange() {
+            const dateFrom = document.getElementById('dateFrom').value;
+            const dateTo = document.getElementById('dateTo').value;
+            
+            if (!dateFrom && !dateTo) {
+                filterOrders();
+                return;
+            }
+            
+            const rows = document.querySelectorAll('.order-row');
+            let visibleCount = 0;
+            
+            rows.forEach(row => {
+                const orderTime = row.querySelector('td:nth-child(7)').textContent;
+                const orderDate = new Date(orderTime);
+                
+                let showRow = true;
+                
+                if (dateFrom) {
+                    const fromDate = new Date(dateFrom);
+                    showRow = showRow && orderDate >= fromDate;
+                }
+                
+                if (dateTo) {
+                    const toDate = new Date(dateTo);
+                    toDate.setHours(23, 59, 59, 999); // End of day
+                    showRow = showRow && orderDate <= toDate;
+                }
+                
+                if (showRow) {
+                    row.style.display = '';
+                    visibleCount++;
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+            
+            document.getElementById('orderCount').textContent = visibleCount;
+        }
+
+        function applyQuickDateFilter() {
+            const quickFilter = document.getElementById('quickDateFilter').value;
+            const today = new Date();
+            let dateFrom = '';
+            let dateTo = '';
+            
+            switch(quickFilter) {
+                case 'today':
+                    dateFrom = today.toISOString().split('T')[0];
+                    dateTo = today.toISOString().split('T')[0];
+                    break;
+                case 'yesterday':
+                    const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+                    dateFrom = yesterday.toISOString().split('T')[0];
+                    dateTo = yesterday.toISOString().split('T')[0];
+                    break;
+                case 'thisWeek':
+                    const weekStart = new Date(today.getTime() - (today.getDay() * 24 * 60 * 60 * 1000));
+                    dateFrom = weekStart.toISOString().split('T')[0];
+                    dateTo = today.toISOString().split('T')[0];
+                    break;
+                case 'lastWeek':
+                    const lastWeekStart = new Date(today.getTime() - ((today.getDay() + 7) * 24 * 60 * 60 * 1000));
+                    const lastWeekEnd = new Date(today.getTime() - (today.getDay() * 24 * 60 * 60 * 1000));
+                    dateFrom = lastWeekStart.toISOString().split('T')[0];
+                    dateTo = lastWeekEnd.toISOString().split('T')[0];
+                    break;
+                case 'thisMonth':
+                    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+                    dateFrom = monthStart.toISOString().split('T')[0];
+                    dateTo = today.toISOString().split('T')[0];
+                    break;
+                case 'lastMonth':
+                    const lastMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+                    const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0);
+                    dateFrom = lastMonthStart.toISOString().split('T')[0];
+                    dateTo = lastMonthEnd.toISOString().split('T')[0];
+                    break;
+                case 'thisYear':
+                    const yearStart = new Date(today.getFullYear(), 0, 1);
+                    dateFrom = yearStart.toISOString().split('T')[0];
+                    dateTo = today.toISOString().split('T')[0];
+                    break;
+                case 'lastYear':
+                    const lastYearStart = new Date(today.getFullYear() - 1, 0, 1);
+                    const lastYearEnd = new Date(today.getFullYear() - 1, 11, 31);
+                    dateFrom = lastYearStart.toISOString().split('T')[0];
+                    dateTo = lastYearEnd.toISOString().split('T')[0];
+                    break;
+            }
+            
+            if (dateFrom && dateTo) {
+                document.getElementById('dateFrom').value = dateFrom;
+                document.getElementById('dateTo').value = dateTo;
+                filterByDateRange();
+            }
         }
 
         function updateOrderStatus(orderId, newStatus) {
