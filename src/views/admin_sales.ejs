@@ -79,11 +79,31 @@
             padding: 25px;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
             text-align: center;
-            transition: transform 0.3s ease;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+            display: block;
         }
         
         .stat-card:hover {
             transform: translateY(-5px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+        }
+        
+        .stat-card.clickable {
+            border: 2px solid transparent;
+        }
+        
+        .stat-card.clickable:hover {
+            border-color: #4f46e5;
+        }
+        
+        .stat-card small {
+            color: #6b7280;
+            font-size: 0.8rem;
+            margin-top: 5px;
+            display: block;
         }
         
         .stat-card h3 {
@@ -233,25 +253,29 @@
         </div>
 
         <div class="stats-grid">
+            <a href="/admin/sales/daily" class="stat-card clickable">
+                <h3>€<%= stats.daily.toFixed(2) %></h3>
+                <p>Today's Sales</p>
+                <small>Click to view details</small>
+            </a>
+            <a href="/admin/sales/weekly" class="stat-card clickable">
+                <h3>€<%= stats.weekly.toFixed(2) %></h3>
+                <p>This Week</p>
+                <small>Click to view details</small>
+            </a>
+            <a href="/admin/sales/monthly" class="stat-card clickable">
+                <h3>€<%= stats.monthly.toFixed(2) %></h3>
+                <p>This Month</p>
+                <small>Click to view details</small>
+            </a>
+            <a href="/admin/sales/yearly" class="stat-card clickable">
+                <h3>€<%= stats.yearly.toFixed(2) %></h3>
+                <p>This Year</p>
+                <small>Click to view details</small>
+            </a>
             <div class="stat-card">
                 <h3>€<%= stats.total.toFixed(2) %></h3>
                 <p>Total Sales</p>
-            </div>
-            <div class="stat-card">
-                <h3>€<%= stats.daily.toFixed(2) %></h3>
-                <p>Today's Sales</p>
-            </div>
-            <div class="stat-card">
-                <h3>€<%= stats.weekly.toFixed(2) %></h3>
-                <p>This Week</p>
-            </div>
-            <div class="stat-card">
-                <h3>€<%= stats.monthly.toFixed(2) %></h3>
-                <p>This Month</p>
-            </div>
-            <div class="stat-card">
-                <h3>€<%= stats.yearly.toFixed(2) %></h3>
-                <p>This Year</p>
             </div>
         </div>
 
