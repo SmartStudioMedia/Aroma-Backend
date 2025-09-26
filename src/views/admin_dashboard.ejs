@@ -78,11 +78,24 @@
             border-radius: 15px;
             padding: 25px;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-            transition: transform 0.3s ease;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+            display: block;
         }
         
         .stat-card:hover {
             transform: translateY(-5px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+        }
+        
+        .stat-card.clickable {
+            border: 2px solid transparent;
+        }
+        
+        .stat-card.clickable:hover {
+            border-color: #4f46e5;
         }
         
         .stat-card h3 {
@@ -229,22 +242,26 @@
         </div>
 
         <div class="stats-grid">
-            <div class="stat-card">
+            <a href="/admin/orders/pending" class="stat-card clickable">
                 <h3><%= stats.pending %></h3>
                 <p>Pending Orders</p>
-            </div>
-            <div class="stat-card">
+                <small>Click to view details</small>
+            </a>
+            <a href="/admin/orders/confirmed" class="stat-card clickable">
                 <h3><%= stats.confirmed %></h3>
                 <p>Confirmed Orders</p>
-            </div>
-            <div class="stat-card">
+                <small>Click to view details</small>
+            </a>
+            <a href="/admin/orders/completed" class="stat-card clickable">
                 <h3><%= stats.completed %></h3>
                 <p>Completed Orders</p>
-            </div>
-            <div class="stat-card">
+                <small>Click to view details</small>
+            </a>
+            <a href="/admin/sales" class="stat-card clickable">
                 <h3>€<%= stats.totalSales.toFixed(2) %></h3>
                 <p>Total Sales</p>
-            </div>
+                <small>Click to view analytics</small>
+            </a>
         </div>
 
         <div class="charts-grid">
