@@ -384,7 +384,6 @@
             <p>Detailed sales analysis for <%= stats.date %></p>
             <div class="nav-tabs">
                 <a href="/admin" class="nav-tab">Dashboard</a>
-                <a href="/admin/sales" class="nav-tab">Sales Overview</a>
                 <a href="/admin/sales/daily" class="nav-tab <%= period === 'daily' ? 'active' : '' %>">Daily</a>
                 <a href="/admin/sales/weekly" class="nav-tab <%= period === 'weekly' ? 'active' : '' %>">Weekly</a>
                 <a href="/admin/sales/monthly" class="nav-tab <%= period === 'monthly' ? 'active' : '' %>">Monthly</a>
@@ -499,7 +498,7 @@
         <div class="orders-container">
             <div class="orders-header">
                 <h3>Orders (<span id="orderCount"><%= orders.length %></span>)</h3>
-                <a href="/admin/sales" class="btn btn-primary">Back to Sales</a>
+                <a href="/admin" class="btn btn-primary">Back to Dashboard</a>
             </div>
 
             <div id="ordersTable">
