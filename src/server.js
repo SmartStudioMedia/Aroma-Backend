@@ -650,7 +650,10 @@ app.get('/admin/items', authMiddleware, (req, res) => {
 
 app.get('/admin/categories', authMiddleware, (req, res) => {
   try {
-    res.render('admin_categories', { categories: menuData.categories || [] });
+    res.render('admin_categories', { 
+      categories: menuData.categories || [],
+      items: menuData.items || []
+    });
   } catch (error) {
     console.error('Admin categories error:', error);
     res.status(500).json({ error: 'Internal server error', details: error.message });
