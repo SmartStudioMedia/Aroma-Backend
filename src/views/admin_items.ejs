@@ -345,6 +345,42 @@
             display: none;
         }
         
+        .category-section {
+            margin-bottom: 40px;
+        }
+        
+        .category-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 20px;
+            background: #f8fafc;
+            border-radius: 10px;
+            border-left: 4px solid #4f46e5;
+        }
+        
+        .category-header h3 {
+            color: #2d3748;
+            font-size: 1.5rem;
+            margin: 0;
+        }
+        
+        .category-stats {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .stat-badge {
+            background: #4f46e5;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+        
         @media (max-width: 768px) {
             .items-grid {
                 grid-template-columns: 1fr;
@@ -378,14 +414,14 @@
 
         <div class="items-container">
             <div class="items-header">
-                <h3>Menu Items</h3>
+                <h3>Menu Items Management</h3>
                 <button class="btn btn-primary" onclick="openAddItemModal()">+ Add New Item</button>
             </div>
 
             <!-- Category Tabs -->
             <div class="category-tabs" style="margin-bottom: 30px; display: flex; gap: 10px; flex-wrap: wrap;">
                 <button class="category-tab active" onclick="filterByCategory('all')" data-category="all">
-                    All Items (<%= items.length %>)
+                    📋 All Items (<%= items.length %>)
                 </button>
                 <% categories.forEach(category => { %>
                 <button class="category-tab" onclick="filterByCategory(<%= category.id %>)" data-category="<%= category.id %>">
@@ -395,58 +431,126 @@
                 <% }); %>
             </div>
 
-            <div class="items-grid" id="itemsGrid">
-                <% items.forEach(item => { %>
-                <div class="item-card" data-category-id="<%= item.category_id %>">
-                    <% if (item.video) { %>
-                        <video class="item-image" controls>
-                            <source src="<%= item.video %>" type="video/mp4">
-                            Your browser does not support the video tag.
-                        </video>
-                    <% } else { %>
-                        <img src="<%= item.image %>" alt="<%= item.name.en %>" class="item-image" onerror="this.src='https://via.placeholder.com/300x200?text=No+Image'">
-                    <% } %>
-                    
-                    <div class="item-name"><%= item.name.en %></div>
-                    <div class="item-description"><%= item.description.en %></div>
-                    
-                    <div class="item-details">
-                        <div class="detail-item">
-                            <div class="detail-label">Category</div>
-                            <div class="detail-value">
-                                <% const category = categories.find(c => c.id === item.category_id); %>
-                                <%= category ? category.icon + ' ' + category.name : 'Unknown' %>
-                            </div>
-                        </div>
-                        <div class="detail-item">
-                            <div class="detail-label">Status</div>
-                            <div class="detail-value">
-                                <span class="status-badge status-<%= item.active ? 'active' : 'inactive' %>">
-                                    <%= item.active ? 'Active' : 'Inactive' %>
-                                </span>
-                            </div>
-                        </div>
-                        <div class="detail-item">
-                            <div class="detail-label">Prep Time</div>
-                            <div class="detail-value"><%= item.prepTime.en %></div>
-                        </div>
-                        <div class="detail-item">
-                            <div class="detail-label">Allergies</div>
-                            <div class="detail-value"><%= item.allergies.en %></div>
-                        </div>
-                    </div>
-                    
-                    <div class="item-price">€<%= (item.price || 0).toFixed(2) %></div>
-                    
-                    <div class="item-actions">
-                        <button class="btn btn-primary btn-sm" onclick="editItem(<%= item.id %>)">Edit</button>
-                        <button class="btn btn-<%= item.active ? 'danger' : 'success' %> btn-sm" onclick="toggleItemStatus(<%= item.id %>, <%= !item.active %>)">
-                            <%= item.active ? 'Deactivate' : 'Activate' %>
-                        </button>
-                        <button class="btn btn-danger btn-sm" onclick="deleteItem(<%= item.id %>)">Delete</button>
+            <!-- Category Sections -->
+            <% categories.forEach(category => { %>
+            <div class="category-section" id="category-<%= category.id %>" style="display: none;">
+                <div class="category-header">
+                    <h3><%= category.icon %> <%= category.name %> Items</h3>
+                    <div class="category-stats">
+                        <span class="stat-badge"><%= items.filter(item => item.category_id === category.id).length %> items</span>
+                        <button class="btn btn-primary btn-sm" onclick="openAddItemModal(<%= category.id %>)">+ Add to <%= category.name %></button>
                     </div>
                 </div>
-                <% }); %>
+                <div class="items-grid">
+                    <% items.filter(item => item.category_id === category.id).forEach(item => { %>
+                    <div class="item-card">
+                        <% if (item.video) { %>
+                            <video class="item-image" controls>
+                                <source src="<%= item.video %>" type="video/mp4">
+                                Your browser does not support the video tag.
+                            </video>
+                        <% } else { %>
+                            <img src="<%= item.image %>" alt="<%= item.name.en %>" class="item-image" onerror="this.src='https://via.placeholder.com/300x200?text=No+Image'">
+                        <% } %>
+                        
+                        <div class="item-name"><%= item.name.en %></div>
+                        <div class="item-description"><%= item.description.en %></div>
+                        
+                        <div class="item-details">
+                            <div class="detail-item">
+                                <div class="detail-label">Status</div>
+                                <div class="detail-value">
+                                    <span class="status-badge status-<%= item.active ? 'active' : 'inactive' %>">
+                                        <%= item.active ? 'Active' : 'Inactive' %>
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Prep Time</div>
+                                <div class="detail-value"><%= item.prepTime.en %></div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Allergies</div>
+                                <div class="detail-value"><%= item.allergies.en %></div>
+                            </div>
+                        </div>
+                        
+                        <div class="item-price">€<%= (item.price || 0).toFixed(2) %></div>
+                        
+                        <div class="item-actions">
+                            <button class="btn btn-primary btn-sm" onclick="editItem(<%= item.id %>)">Edit</button>
+                            <button class="btn btn-<%= item.active ? 'danger' : 'success' %> btn-sm" onclick="toggleItemStatus(<%= item.id %>, <%= !item.active %>)">
+                                <%= item.active ? 'Deactivate' : 'Activate' %>
+                            </button>
+                            <button class="btn btn-danger btn-sm" onclick="deleteItem(<%= item.id %>)">Delete</button>
+                        </div>
+                    </div>
+                    <% }); %>
+                </div>
+            </div>
+            <% }); %>
+
+            <!-- All Items Section -->
+            <div class="category-section" id="category-all">
+                <div class="category-header">
+                    <h3>📋 All Menu Items</h3>
+                    <div class="category-stats">
+                        <span class="stat-badge"><%= items.length %> items</span>
+                    </div>
+                </div>
+                <div class="items-grid">
+                    <% items.forEach(item => { %>
+                    <div class="item-card" data-category-id="<%= item.category_id %>">
+                        <% if (item.video) { %>
+                            <video class="item-image" controls>
+                                <source src="<%= item.video %>" type="video/mp4">
+                                Your browser does not support the video tag.
+                            </video>
+                        <% } else { %>
+                            <img src="<%= item.image %>" alt="<%= item.name.en %>" class="item-image" onerror="this.src='https://via.placeholder.com/300x200?text=No+Image'">
+                        <% } %>
+                        
+                        <div class="item-name"><%= item.name.en %></div>
+                        <div class="item-description"><%= item.description.en %></div>
+                        
+                        <div class="item-details">
+                            <div class="detail-item">
+                                <div class="detail-label">Category</div>
+                                <div class="detail-value">
+                                    <% const category = categories.find(c => c.id === item.category_id); %>
+                                    <%= category ? category.icon + ' ' + category.name : 'Unknown' %>
+                                </div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Status</div>
+                                <div class="detail-value">
+                                    <span class="status-badge status-<%= item.active ? 'active' : 'inactive' %>">
+                                        <%= item.active ? 'Active' : 'Inactive' %>
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Prep Time</div>
+                                <div class="detail-value"><%= item.prepTime.en %></div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Allergies</div>
+                                <div class="detail-value"><%= item.allergies.en %></div>
+                            </div>
+                        </div>
+                        
+                        <div class="item-price">€<%= (item.price || 0).toFixed(2) %></div>
+                        
+                        <div class="item-actions">
+                            <button class="btn btn-primary btn-sm" onclick="editItem(<%= item.id %>)">Edit</button>
+                            <button class="btn btn-<%= item.active ? 'danger' : 'success' %> btn-sm" onclick="toggleItemStatus(<%= item.id %>, <%= !item.active %>)">
+                                <%= item.active ? 'Deactivate' : 'Activate' %>
+                            </button>
+                            <button class="btn btn-danger btn-sm" onclick="deleteItem(<%= item.id %>)">Delete</button>
+                        </div>
+                    </div>
+                    <% }); %>
+                </div>
             </div>
         </div>
     </div>
@@ -668,20 +772,30 @@
             });
             document.querySelector(`[data-category="${categoryId}"]`).classList.add('active');
             
-            // Filter items
-            const itemCards = document.querySelectorAll('.item-card');
-            itemCards.forEach(card => {
-                if (categoryId === 'all') {
-                    card.classList.remove('hidden');
-                } else {
-                    const cardCategoryId = card.getAttribute('data-category-id');
-                    if (cardCategoryId == categoryId) {
-                        card.classList.remove('hidden');
-                    } else {
-                        card.classList.add('hidden');
-                    }
-                }
+            // Show/hide category sections
+            document.querySelectorAll('.category-section').forEach(section => {
+                section.style.display = 'none';
             });
+            
+            if (categoryId === 'all') {
+                document.getElementById('category-all').style.display = 'block';
+            } else {
+                document.getElementById(`category-${categoryId}`).style.display = 'block';
+            }
+        }
+        
+        // Open add item modal with pre-selected category
+        function openAddItemModal(categoryId = null) {
+            currentItemId = null;
+            document.getElementById('modalTitle').textContent = 'Add New Item';
+            document.getElementById('itemForm').reset();
+            document.getElementById('itemActive').checked = true;
+            
+            if (categoryId) {
+                document.getElementById('itemCategory').value = categoryId;
+            }
+            
+            document.getElementById('itemModal').style.display = 'block';
         }
         
         // Close modal when clicking outside
