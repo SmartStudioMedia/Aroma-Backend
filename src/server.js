@@ -619,7 +619,8 @@ app.get('/admin', authMiddleware, (req, res) => {
       stats: { pending, confirmed, completed, cancelled, totalSales },
       recentOrders: orders.slice(-10).reverse(),
       categoryStats,
-      orders: orders
+      orders: orders,
+      menuData: menuData
     });
   } catch (error) {
     console.error('Admin dashboard error:', error);
