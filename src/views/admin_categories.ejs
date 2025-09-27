@@ -451,7 +451,15 @@
             document.getElementById('modalTitle').textContent = 'Edit Category';
             
             // Find the category data
-            const category = <%= JSON.stringify(categories) %>.find(c => c.id === categoryId);
+            var categories = <%- JSON.stringify(categories) %>;
+            var category = null;
+            for (var i = 0; i < categories.length; i++) {
+                if (categories[i].id === categoryId) {
+                    category = categories[i];
+                    break;
+                }
+            }
+            
             if (category) {
                 document.getElementById('categoryId').value = category.id;
                 document.getElementById('categoryName').value = category.name || '';
@@ -470,7 +478,7 @@
         
         function toggleCategoryStatus(categoryId, newStatus) {
             if (confirm('Are you sure you want to ' + (newStatus ? 'activate' : 'deactivate') + ' this category?')) {
-                fetch(`/api/menu/categories/${categoryId}`, {
+                fetch('/api/menu/categories/' + categoryId, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
@@ -479,15 +487,15 @@
                         active: newStatus
                     })
                 })
-                .then(response => response.json())
-                .then(data => {
+                .then(function(response) { return response.json(); })
+                .then(function(data) {
                     if (data.success) {
                         location.reload();
                     } else {
                         alert('Error updating category: ' + data.error);
                     }
                 })
-                .catch(error => {
+                .catch(function(error) {
                     console.error('Error:', error);
                     alert('Error updating category');
                 });
@@ -496,18 +504,18 @@
         
         function deleteCategory(categoryId) {
             if (confirm('Are you sure you want to delete this category? This action cannot be undone.')) {
-                fetch(`/api/menu/categories/${categoryId}`, {
+                fetch('/api/menu/categories/' + categoryId, {
                     method: 'DELETE'
                 })
-                .then(response => response.json())
-                .then(data => {
+                .then(function(response) { return response.json(); })
+                .then(function(data) {
                     if (data.success) {
                         location.reload();
                     } else {
                         alert('Error deleting category: ' + data.error);
                     }
                 })
-                .catch(error => {
+                .catch(function(error) {
                     console.error('Error:', error);
                     alert('Error deleting category');
                 });
@@ -516,22 +524,22 @@
         
         // Icon preview
         document.getElementById('categoryIcon').addEventListener('input', function() {
-            const icon = this.value || '🍔';
+            var icon = this.value || '🍔';
             document.getElementById('iconPreview').textContent = icon;
         });
         
         document.getElementById('categoryForm').addEventListener('submit', function(e) {
             e.preventDefault();
             
-            const formData = {
+            var formData = {
                 name: document.getElementById('categoryName').value,
                 icon: document.getElementById('categoryIcon').value,
                 sort_order: parseInt(document.getElementById('categorySort').value),
                 active: document.getElementById('categoryActive').checked
             };
             
-            const url = currentCategoryId ? `/api/menu/categories/${currentCategoryId}` : '/api/menu/categories';
-            const method = currentCategoryId ? 'PUT' : 'POST';
+            var url = currentCategoryId ? '/api/menu/categories/' + currentCategoryId : '/api/menu/categories';
+            var method = currentCategoryId ? 'PUT' : 'POST';
             
             fetch(url, {
                 method: method,
@@ -540,8 +548,8 @@
                 },
                 body: JSON.stringify(formData)
             })
-            .then(response => response.json())
-            .then(data => {
+            .then(function(response) { return response.json(); })
+            .then(function(data) {
                 if (data.success) {
                     alert('Category saved successfully!');
                     location.reload();
@@ -549,7 +557,7 @@
                     alert('Error saving category: ' + (data.error || 'Unknown error'));
                 }
             })
-            .catch(error => {
+            .catch(function(error) {
                 console.error('Error:', error);
                 alert('Error saving category: ' + error.message);
             });
@@ -557,7 +565,7 @@
         
         // Close modal when clicking outside
         window.onclick = function(event) {
-            const modal = document.getElementById('categoryModal');
+            var modal = document.getElementById('categoryModal');
             if (event.target === modal) {
                 closeModal();
             }
