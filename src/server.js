@@ -634,22 +634,38 @@ app.get('/admin', authMiddleware, (req, res) => {
     const confirmed = orders.filter(o => o.status === 'confirmed').length;
     const completed = orders.filter(o => o.status === 'completed').length;
     const cancelled = orders.filter(o => o.status === 'cancelled').length;
-    const totalSales = orders.reduce((sum, order) => sum + (order.total || 0), 0);
+    const totalSales = orders.filter(o => o.status === 'completed').reduce((sum, order) => sum + (order.total || 0), 0);
     
-    // Calculate analytics data
+    // Calculate accurate analytics data based on individual items
     const categoryStats = {};
     menuData.categories.forEach(cat => {
+      let categoryRevenue = 0;
+      let categoryOrders = 0;
+      
+      // Calculate revenue based on individual items, not total order
+      orders.forEach(order => {
+        if (order.status === 'completed' && order.items) {
+          let hasItemsInCategory = false;
+          order.items.forEach(orderItem => {
+            const menuItem = menuData.items.find(i => i.id === orderItem.id);
+            if (menuItem && menuItem.category_id === cat.id) {
+              categoryRevenue += (orderItem.price * orderItem.qty);
+              hasItemsInCategory = true;
+            }
+          });
+          if (hasItemsInCategory) {
+            categoryOrders++;
+          }
+        }
+      });
+      
       categoryStats[cat.name] = {
-        orders: orders.filter(o => o.items && o.items.some(item => {
-          const menuItem = menuData.items.find(i => i.id === item.id);
-          return menuItem && menuItem.category_id === cat.id;
-        })).length,
-        revenue: orders.filter(o => o.items && o.items.some(item => {
-          const menuItem = menuData.items.find(i => i.id === item.id);
-          return menuItem && menuItem.category_id === cat.id;
-        })).reduce((sum, order) => sum + (order.total || 0), 0)
+        orders: categoryOrders,
+        revenue: categoryRevenue
       };
     });
+    
+    console.log('📊 Category Performance Stats:', categoryStats);
     
     res.render('admin_dashboard', {
       stats: { pending, confirmed, completed, cancelled, totalSales },
