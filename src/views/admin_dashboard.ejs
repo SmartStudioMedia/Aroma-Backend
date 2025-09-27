@@ -429,62 +429,16 @@
         
         // Calculate accurate category performance based on individual items
         function calculateCategoryPerformance() {
-            var categories = <%- JSON.stringify(Object.keys(categoryStats)) %>;
-            var orders = <%- JSON.stringify(orders) %>;
-            var menuItems = <%- JSON.stringify(menuData.items) %>;
-            
-            var categoryRevenue = {};
+            var categoryStats = <%- JSON.stringify(categoryStats) %>;
             var categoryLabels = [];
             var categoryData = [];
             var categoryColors = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
             
-            // Initialize category revenue
-            for (var i = 0; i < categories.length; i++) {
-                categoryRevenue[categories[i]] = 0;
-            }
-            
-            // Calculate revenue for each category based on individual items
-            for (var i = 0; i < orders.length; i++) {
-                var order = orders[i];
-                if (order.status === 'completed' && order.items) {
-                    for (var j = 0; j < order.items.length; j++) {
-                        var orderItem = order.items[j];
-                        var menuItem = null;
-                        
-                        // Find the menu item
-                        for (var k = 0; k < menuItems.length; k++) {
-                            if (menuItems[k].id === orderItem.id) {
-                                menuItem = menuItems[k];
-                                break;
-                            }
-                        }
-                        
-                        if (menuItem && menuItem.category_id) {
-                            var categoryName = '';
-                            // Find category name
-                            for (var l = 0; l < categories.length; l++) {
-                                var category = menuData.categories.find(function(cat) {
-                                    return cat.name === categories[l];
-                                });
-                                if (category && category.id === menuItem.category_id) {
-                                    categoryName = categories[l];
-                                    break;
-                                }
-                            }
-                            
-                            if (categoryName && categoryRevenue[categoryName] !== undefined) {
-                                categoryRevenue[categoryName] += (orderItem.price * orderItem.qty);
-                            }
-                        }
-                    }
-                }
-            }
-            
-            // Prepare data for chart
-            for (var i = 0; i < categories.length; i++) {
-                if (categoryRevenue[categories[i]] > 0) {
-                    categoryLabels.push(categories[i]);
-                    categoryData.push(categoryRevenue[categories[i]]);
+            // Use the existing categoryStats from server
+            for (var categoryName in categoryStats) {
+                if (categoryStats[categoryName].revenue > 0) {
+                    categoryLabels.push(categoryName);
+                    categoryData.push(categoryStats[categoryName].revenue);
                 }
             }
             
@@ -502,7 +456,8 @@
             }
             
             // Update button states
-            var buttons = document.querySelectorAll('#statusChart').parentElement.querySelectorAll('.chart-type-btn');
+            var statusContainer = document.querySelector('#statusChart').closest('.chart-container');
+            var buttons = statusContainer.querySelectorAll('.chart-type-btn');
             for (var i = 0; i < buttons.length; i++) {
                 buttons[i].classList.remove('active');
             }
@@ -547,7 +502,8 @@
             }
             
             // Update button states
-            var buttons = document.querySelectorAll('#categoryChart').parentElement.querySelectorAll('.chart-type-btn');
+            var categoryContainer = document.querySelector('#categoryChart').closest('.chart-container');
+            var buttons = categoryContainer.querySelectorAll('.chart-type-btn');
             for (var i = 0; i < buttons.length; i++) {
                 buttons[i].classList.remove('active');
             }
