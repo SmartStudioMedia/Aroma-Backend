@@ -434,11 +434,14 @@
             var categoryData = [];
             var categoryColors = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
             
+            console.log('Raw categoryStats from server:', categoryStats);
+            
             // Use the accurate categoryStats from server (now calculated per individual items)
             for (var categoryName in categoryStats) {
-                if (categoryStats[categoryName].revenue > 0) {
+                var revenue = parseFloat(categoryStats[categoryName].revenue);
+                if (revenue > 0) {
                     categoryLabels.push(categoryName);
-                    categoryData.push(categoryStats[categoryName].revenue.toFixed(2));
+                    categoryData.push(revenue);
                 }
             }
             
@@ -447,6 +450,13 @@
                 data: categoryData,
                 stats: categoryStats
             });
+            
+            // If no data, show placeholder
+            if (categoryLabels.length === 0) {
+                categoryLabels = ['No Data'];
+                categoryData = [1];
+                categoryColors = ['#e5e7eb'];
+            }
             
             return {
                 labels: categoryLabels,
