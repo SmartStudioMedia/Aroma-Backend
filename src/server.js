@@ -140,7 +140,7 @@ function saveOrdersData() {
       orderIdCounter: orderIdCounter
     };
     fs.writeFileSync(ORDERS_DATA_FILE, JSON.stringify(ordersData, null, 2));
-    console.log('✅ Orders data saved to file');
+    console.log('✅ Orders data saved to file:', orders.length, 'orders, next ID:', orderIdCounter);
   } catch (error) {
     console.error('❌ Error saving orders data:', error);
   }
@@ -154,6 +154,8 @@ function loadOrdersData() {
       orders = loadedData.orders || [];
       orderIdCounter = loadedData.orderIdCounter || 1;
       console.log('✅ Orders data loaded from file:', orders.length, 'orders');
+      console.log('📊 Sample orders:', orders.slice(0, 2));
+      console.log('🔢 Next order ID will be:', orderIdCounter);
     } else {
       console.log('📝 No existing orders data file, starting fresh');
       orders = [];
@@ -635,9 +637,12 @@ app.get('/admin', authMiddleware, (req, res) => {
     const completed = orders.filter(o => o.status === 'completed').length;
     const cancelled = orders.filter(o => o.status === 'cancelled').length;
     const totalSales = orders.filter(o => o.status === 'completed').reduce((sum, order) => sum + (order.total || 0), 0);
+    console.log('💰 Total Sales (completed orders only):', totalSales);
     
     // Calculate accurate analytics data based on individual items
     const categoryStats = {};
+    console.log('🔍 Calculating category stats for', orders.length, 'orders');
+    
     menuData.categories.forEach(cat => {
       let categoryRevenue = 0;
       let categoryOrders = 0;
@@ -651,6 +656,7 @@ app.get('/admin', authMiddleware, (req, res) => {
             if (menuItem && menuItem.category_id === cat.id) {
               categoryRevenue += (orderItem.price * orderItem.qty);
               hasItemsInCategory = true;
+              console.log(`💰 ${cat.name}: +${orderItem.price * orderItem.qty} (${orderItem.qty}x ${orderItem.price})`);
             }
           });
           if (hasItemsInCategory) {
@@ -663,6 +669,8 @@ app.get('/admin', authMiddleware, (req, res) => {
         orders: categoryOrders,
         revenue: categoryRevenue
       };
+      
+      console.log(`📊 ${cat.name}: ${categoryRevenue} revenue, ${categoryOrders} orders`);
     });
     
     console.log('📊 Category Performance Stats:', categoryStats);
