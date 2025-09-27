@@ -673,8 +673,10 @@ app.get('/admin', authMiddleware, (req, res) => {
     const confirmed = orders.filter(o => o.status === 'confirmed').length;
     const completed = orders.filter(o => o.status === 'completed').length;
     const cancelled = orders.filter(o => o.status === 'cancelled').length;
-    const totalSales = orders.filter(o => o.status === 'completed').reduce((sum, order) => sum + (order.total || 0), 0);
-    console.log('💰 Total Sales (completed orders only):', totalSales);
+    const totalSales = orders.reduce((sum, order) => sum + (order.total || 0), 0);
+    const completedSales = orders.filter(o => o.status === 'completed').reduce((sum, order) => sum + (order.total || 0), 0);
+    console.log('💰 Total Sales (all orders):', totalSales);
+    console.log('💰 Completed Sales only:', completedSales);
     
     // Calculate accurate analytics data based on individual items
     const categoryStats = {};
@@ -691,7 +693,7 @@ app.get('/admin', authMiddleware, (req, res) => {
       // Calculate revenue based on individual items, not total order
       orders.forEach((order, orderIndex) => {
         console.log(`\n📦 Order ${order.id} (${order.status}):`);
-        if (order.status === 'completed' && order.items) {
+        if (order.items) { // Show ALL orders, not just completed
           let hasItemsInCategory = false;
           order.items.forEach((orderItem, itemIndex) => {
             console.log(`  Item ${itemIndex}: ID ${orderItem.id}, Price ${orderItem.price}, Qty ${orderItem.qty}`);
@@ -728,7 +730,7 @@ app.get('/admin', authMiddleware, (req, res) => {
     console.log('📊 Category Performance Stats:', categoryStats);
     
     res.render('admin_dashboard', {
-      stats: { pending, confirmed, completed, cancelled, totalSales },
+      stats: { pending, confirmed, completed, cancelled, totalSales, completedSales },
       recentOrders: orders.slice(-10).reverse(),
       categoryStats,
       orders: orders,
