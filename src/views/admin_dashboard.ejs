@@ -130,6 +130,43 @@
             font-size: 1.5rem;
         }
         
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .chart-type-switcher {
+            display: flex;
+            gap: 5px;
+            background: #f3f4f6;
+            border-radius: 8px;
+            padding: 4px;
+        }
+        
+        .chart-type-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            background: transparent;
+            color: #6b7280;
+        }
+        
+        .chart-type-btn.active {
+            background: #4f46e5;
+            color: white;
+        }
+        
+        .chart-type-btn:hover:not(.active) {
+            background: #e5e7eb;
+            color: #374151;
+        }
+        
         .orders-table {
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
@@ -266,11 +303,23 @@
 
         <div class="charts-grid">
             <div class="chart-container">
-                <h3>Order Status Distribution</h3>
+                <div class="chart-header">
+                    <h3>Order Status Distribution</h3>
+                    <div class="chart-type-switcher">
+                        <button class="chart-type-btn active" onclick="switchStatusChart('doughnut')">Pie</button>
+                        <button class="chart-type-btn" onclick="switchStatusChart('bar')">Bar</button>
+                    </div>
+                </div>
                 <canvas id="statusChart"></canvas>
             </div>
             <div class="chart-container">
-                <h3>Category Performance</h3>
+                <div class="chart-header">
+                    <h3>Category Performance</h3>
+                    <div class="chart-type-switcher">
+                        <button class="chart-type-btn" onclick="switchCategoryChart('pie')">Pie</button>
+                        <button class="chart-type-btn active" onclick="switchCategoryChart('bar')">Bar</button>
+                    </div>
+                </div>
                 <canvas id="categoryChart"></canvas>
             </div>
         </div>
@@ -318,70 +367,250 @@
     </div>
 
     <script>
-        // Order Status Chart
-        const statusCtx = document.getElementById('statusChart').getContext('2d');
-        new Chart(statusCtx, {
-            type: 'doughnut',
-            data: {
-                labels: ['Pending', 'Confirmed', 'Completed', 'Cancelled'],
-                datasets: [{
-                    data: [<%= stats.pending %>, <%= stats.confirmed %>, <%= stats.completed %>, <%= stats.cancelled %>],
-                    backgroundColor: ['#f59e0b', '#10b981', '#3b82f6', '#ef4444']
-                }]
-            },
-            options: {
+        // Global chart variables
+        var statusChart = null;
+        var categoryChart = null;
+        
+        // Chart data
+        var statusData = {
+            labels: ['Pending', 'Confirmed', 'Completed', 'Cancelled'],
+            data: [<%= stats.pending %>, <%= stats.confirmed %>, <%= stats.completed %>, <%= stats.cancelled %>],
+            backgroundColor: ['#f59e0b', '#10b981', '#3b82f6', '#ef4444']
+        };
+        
+        // Calculate accurate category performance
+        var categoryData = calculateCategoryPerformance();
+        
+        // Initialize charts
+        function initializeCharts() {
+            // Status Chart
+            var statusCtx = document.getElementById('statusChart').getContext('2d');
+            statusChart = new Chart(statusCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: statusData.labels,
+                    datasets: [{
+                        data: statusData.data,
+                        backgroundColor: statusData.backgroundColor
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+
+            // Category Chart
+            var categoryCtx = document.getElementById('categoryChart').getContext('2d');
+            categoryChart = new Chart(categoryCtx, {
+                type: 'bar',
+                data: {
+                    labels: categoryData.labels,
+                    datasets: [{
+                        label: 'Revenue (€)',
+                        data: categoryData.data,
+                        backgroundColor: categoryData.backgroundColor
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Calculate accurate category performance based on individual items
+        function calculateCategoryPerformance() {
+            var categories = <%- JSON.stringify(Object.keys(categoryStats)) %>;
+            var orders = <%- JSON.stringify(orders) %>;
+            var menuItems = <%- JSON.stringify(menuData.items) %>;
+            
+            var categoryRevenue = {};
+            var categoryLabels = [];
+            var categoryData = [];
+            var categoryColors = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
+            
+            // Initialize category revenue
+            for (var i = 0; i < categories.length; i++) {
+                categoryRevenue[categories[i]] = 0;
+            }
+            
+            // Calculate revenue for each category based on individual items
+            for (var i = 0; i < orders.length; i++) {
+                var order = orders[i];
+                if (order.status === 'completed' && order.items) {
+                    for (var j = 0; j < order.items.length; j++) {
+                        var orderItem = order.items[j];
+                        var menuItem = null;
+                        
+                        // Find the menu item
+                        for (var k = 0; k < menuItems.length; k++) {
+                            if (menuItems[k].id === orderItem.id) {
+                                menuItem = menuItems[k];
+                                break;
+                            }
+                        }
+                        
+                        if (menuItem && menuItem.category_id) {
+                            var categoryName = '';
+                            // Find category name
+                            for (var l = 0; l < categories.length; l++) {
+                                var category = menuData.categories.find(function(cat) {
+                                    return cat.name === categories[l];
+                                });
+                                if (category && category.id === menuItem.category_id) {
+                                    categoryName = categories[l];
+                                    break;
+                                }
+                            }
+                            
+                            if (categoryName && categoryRevenue[categoryName] !== undefined) {
+                                categoryRevenue[categoryName] += (orderItem.price * orderItem.qty);
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Prepare data for chart
+            for (var i = 0; i < categories.length; i++) {
+                if (categoryRevenue[categories[i]] > 0) {
+                    categoryLabels.push(categories[i]);
+                    categoryData.push(categoryRevenue[categories[i]]);
+                }
+            }
+            
+            return {
+                labels: categoryLabels,
+                data: categoryData,
+                backgroundColor: categoryColors.slice(0, categoryLabels.length)
+            };
+        }
+        
+        // Switch status chart type
+        function switchStatusChart(type) {
+            if (statusChart) {
+                statusChart.destroy();
+            }
+            
+            // Update button states
+            var buttons = document.querySelectorAll('#statusChart').parentElement.querySelectorAll('.chart-type-btn');
+            for (var i = 0; i < buttons.length; i++) {
+                buttons[i].classList.remove('active');
+            }
+            event.target.classList.add('active');
+            
+            var statusCtx = document.getElementById('statusChart').getContext('2d');
+            var chartOptions = {
                 responsive: true,
                 plugins: {
                     legend: {
                         position: 'bottom'
                     }
                 }
-            }
-        });
-
-        // Category Performance Chart
-        const categoryCtx = document.getElementById('categoryChart').getContext('2d');
-        new Chart(categoryCtx, {
-            type: 'bar',
-            data: {
-                labels: [<% Object.keys(categoryStats).forEach((cat, index) => { %>'<%= cat %>'<%= index < Object.keys(categoryStats).length - 1 ? ',' : '' %><% }); %>],
-                datasets: [{
-                    label: 'Revenue (€)',
-                    data: [<% Object.values(categoryStats).forEach((stat, index) => { %>'<%= stat.revenue.toFixed(2) %>'<%= index < Object.values(categoryStats).length - 1 ? ',' : '' %><% }); %>],
-                    backgroundColor: '#4f46e5'
-                }]
-            },
-            options: {
-                responsive: true,
-                scales: {
+            };
+            
+            if (type === 'bar') {
+                chartOptions.scales = {
                     y: {
                         beginAtZero: true
                     }
-                }
+                };
             }
-        });
+            
+            statusChart = new Chart(statusCtx, {
+                type: type,
+                data: {
+                    labels: statusData.labels,
+                    datasets: [{
+                        label: type === 'bar' ? 'Orders' : '',
+                        data: statusData.data,
+                        backgroundColor: statusData.backgroundColor
+                    }]
+                },
+                options: chartOptions
+            });
+        }
+        
+        // Switch category chart type
+        function switchCategoryChart(type) {
+            if (categoryChart) {
+                categoryChart.destroy();
+            }
+            
+            // Update button states
+            var buttons = document.querySelectorAll('#categoryChart').parentElement.querySelectorAll('.chart-type-btn');
+            for (var i = 0; i < buttons.length; i++) {
+                buttons[i].classList.remove('active');
+            }
+            event.target.classList.add('active');
+            
+            var categoryCtx = document.getElementById('categoryChart').getContext('2d');
+            var chartOptions = {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            };
+            
+            if (type === 'bar') {
+                chartOptions.scales = {
+                    y: {
+                        beginAtZero: true
+                    }
+                };
+            }
+            
+            categoryChart = new Chart(categoryCtx, {
+                type: type,
+                data: {
+                    labels: categoryData.labels,
+                    datasets: [{
+                        label: type === 'bar' ? 'Revenue (€)' : '',
+                        data: categoryData.data,
+                        backgroundColor: categoryData.backgroundColor
+                    }]
+                },
+                options: chartOptions
+            });
+        }
 
         function updateOrderStatus(orderId, status) {
-            fetch(`/admin/orders/${orderId}/status`, {
+            fetch('/admin/orders/' + orderId + '/status', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({ status: status })
             })
-            .then(response => response.json())
-            .then(data => {
+            .then(function(response) { return response.json(); })
+            .then(function(data) {
                 if (data.success) {
                     location.reload();
                 } else {
                     alert('Failed to update order status');
                 }
             })
-            .catch(error => {
+            .catch(function(error) {
                 console.error('Error:', error);
                 alert('Error updating order status');
             });
         }
+        
+        // Initialize charts when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeCharts();
+        });
     </script>
 </body>
 </html>
