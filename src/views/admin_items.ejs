@@ -361,6 +361,28 @@
         .checkbox-group input[type="checkbox"] {
             width: auto;
         }
+        
+        .radio-group {
+            display: flex;
+            gap: 20px;
+            margin-top: 8px;
+        }
+        
+        .radio-label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        
+        .radio-label input[type="radio"] {
+            margin-right: 8px;
+            accent-color: #4f46e5;
+        }
+        
+        .radio-label:hover {
+            color: #4f46e5;
+        }
     </style>
 </head>
 <body>
@@ -488,12 +510,26 @@
                 </div>
                 
                 <div class="form-group">
+                    <label>Media Type</label>
+                    <div class="radio-group">
+                        <label class="radio-label">
+                            <input type="radio" name="mediaType" value="image" checked onchange="toggleMediaFields()">
+                            <span>Image</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="mediaType" value="video" onchange="toggleMediaFields()">
+                            <span>Video</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="form-group" id="imageField">
                     <label for="itemImage">Image URL</label>
                     <input type="url" id="itemImage" name="image" placeholder="https://example.com/image.jpg">
                 </div>
                 
-                <div class="form-group">
-                    <label for="itemVideo">Video URL (optional)</label>
+                <div class="form-group" id="videoField" style="display: none;">
+                    <label for="itemVideo">Video URL</label>
                     <input type="url" id="itemVideo" name="video" placeholder="https://example.com/video.mp4">
                 </div>
                 
@@ -615,12 +651,39 @@
             filterByCategory('all');
         });
 
+        // Media type toggle function
+        function toggleMediaFields() {
+            var mediaType = document.querySelector('input[name="mediaType"]:checked').value;
+            var imageField = document.getElementById('imageField');
+            var videoField = document.getElementById('videoField');
+            var imageInput = document.getElementById('itemImage');
+            var videoInput = document.getElementById('itemVideo');
+            
+            if (mediaType === 'video') {
+                imageField.style.display = 'none';
+                videoField.style.display = 'block';
+                imageInput.value = ''; // Clear image field
+                imageInput.required = false;
+                videoInput.required = true;
+            } else {
+                imageField.style.display = 'block';
+                videoField.style.display = 'none';
+                videoInput.value = ''; // Clear video field
+                videoInput.required = false;
+                imageInput.required = true;
+            }
+        }
+
         // Modal functions
         function openAddItemModal(categoryId) {
             currentItemId = null;
             document.getElementById('modalTitle').textContent = 'Add New Item';
             document.getElementById('itemForm').reset();
             document.getElementById('itemActive').checked = true;
+            
+            // Reset media type to image
+            document.querySelector('input[name="mediaType"][value="image"]').checked = true;
+            toggleMediaFields();
             
             if (categoryId) {
                 document.getElementById('itemCategory').value = categoryId;
@@ -653,6 +716,14 @@
                 document.getElementById('itemPrepTime').value = itemData.prepTime.en || '';
                 document.getElementById('itemAllergies').value = itemData.allergies.en || '';
                 document.getElementById('itemActive').checked = itemData.active !== false;
+                
+                // Set media type based on what exists
+                if (itemData.video && itemData.video.trim() !== '') {
+                    document.querySelector('input[name="mediaType"][value="video"]').checked = true;
+                } else {
+                    document.querySelector('input[name="mediaType"][value="image"]').checked = true;
+                }
+                toggleMediaFields();
             }
             
             document.getElementById('itemModal').style.display = 'block';
@@ -712,6 +783,7 @@
         document.getElementById('itemForm').addEventListener('submit', function(e) {
             e.preventDefault();
             
+            var mediaType = document.querySelector('input[name="mediaType"]:checked').value;
             var formData = {
                 name: {
                     en: document.getElementById('itemName').value
@@ -721,8 +793,6 @@
                 },
                 price: parseFloat(document.getElementById('itemPrice').value),
                 category_id: parseInt(document.getElementById('itemCategory').value),
-                image: document.getElementById('itemImage').value,
-                video: document.getElementById('itemVideo').value,
                 prepTime: {
                     en: document.getElementById('itemPrepTime').value
                 },
@@ -731,6 +801,15 @@
                 },
                 active: document.getElementById('itemActive').checked
             };
+            
+            // Only include the selected media type
+            if (mediaType === 'video') {
+                formData.video = document.getElementById('itemVideo').value;
+                formData.image = ''; // Clear image field
+            } else {
+                formData.image = document.getElementById('itemImage').value;
+                formData.video = ''; // Clear video field
+            }
             
             var url = currentItemId ? '/api/menu/items/' + currentItemId : '/api/menu/items';
             var method = currentItemId ? 'PUT' : 'POST';
