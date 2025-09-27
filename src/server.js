@@ -103,9 +103,11 @@ let menuData = {
 let orders = [];
 let orderIdCounter = 1;
 
-// Data persistence files - using absolute paths for better reliability
+// Data persistence files - using multiple backup locations for reliability
 const MENU_DATA_FILE = path.join(__dirname, 'data', 'menu-data.json');
 const ORDERS_DATA_FILE = path.join(__dirname, 'data', 'orders-data.json');
+const MENU_DATA_BACKUP = path.join(__dirname, 'menu-data.json');
+const ORDERS_DATA_BACKUP = path.join(__dirname, 'orders-data.json');
 
 // Ensure data directory exists
 const dataDir = path.join(__dirname, 'data');
@@ -116,8 +118,10 @@ if (!fs.existsSync(dataDir)) {
 
 function saveMenuData() {
   try {
-    fs.writeFileSync(MENU_DATA_FILE, JSON.stringify(menuData, null, 2));
-    console.log('✅ Menu data saved to file');
+    const data = JSON.stringify(menuData, null, 2);
+    fs.writeFileSync(MENU_DATA_FILE, data);
+    fs.writeFileSync(MENU_DATA_BACKUP, data); // Backup in root directory
+    console.log('✅ Menu data saved to file (with backup)');
   } catch (error) {
     console.error('❌ Error saving menu data:', error);
   }
@@ -125,8 +129,16 @@ function saveMenuData() {
 
 function loadMenuData() {
   try {
+    let dataFile = null;
     if (fs.existsSync(MENU_DATA_FILE)) {
-      const data = fs.readFileSync(MENU_DATA_FILE, 'utf8');
+      dataFile = MENU_DATA_FILE;
+    } else if (fs.existsSync(MENU_DATA_BACKUP)) {
+      dataFile = MENU_DATA_BACKUP;
+      console.log('📁 Loading menu data from backup location');
+    }
+    
+    if (dataFile) {
+      const data = fs.readFileSync(dataFile, 'utf8');
       const loadedData = JSON.parse(data);
       menuData.categories = loadedData.categories || menuData.categories;
       menuData.items = loadedData.items || menuData.items;
@@ -146,8 +158,10 @@ function saveOrdersData() {
       orders: orders,
       orderIdCounter: orderIdCounter
     };
-    fs.writeFileSync(ORDERS_DATA_FILE, JSON.stringify(ordersData, null, 2));
-    console.log('✅ Orders data saved to file:', orders.length, 'orders, next ID:', orderIdCounter);
+    const data = JSON.stringify(ordersData, null, 2);
+    fs.writeFileSync(ORDERS_DATA_FILE, data);
+    fs.writeFileSync(ORDERS_DATA_BACKUP, data); // Backup in root directory
+    console.log('✅ Orders data saved to file (with backup):', orders.length, 'orders, next ID:', orderIdCounter);
   } catch (error) {
     console.error('❌ Error saving orders data:', error);
   }
@@ -155,8 +169,16 @@ function saveOrdersData() {
 
 function loadOrdersData() {
   try {
+    let dataFile = null;
     if (fs.existsSync(ORDERS_DATA_FILE)) {
-      const data = fs.readFileSync(ORDERS_DATA_FILE, 'utf8');
+      dataFile = ORDERS_DATA_FILE;
+    } else if (fs.existsSync(ORDERS_DATA_BACKUP)) {
+      dataFile = ORDERS_DATA_BACKUP;
+      console.log('📁 Loading orders data from backup location');
+    }
+    
+    if (dataFile) {
+      const data = fs.readFileSync(dataFile, 'utf8');
       const loadedData = JSON.parse(data);
       orders = loadedData.orders || [];
       orderIdCounter = loadedData.orderIdCounter || 1;
@@ -360,8 +382,12 @@ app.get('/api/debug', (req, res) => {
     dataFiles: {
       menuDataExists: fs.existsSync(MENU_DATA_FILE),
       ordersDataExists: fs.existsSync(ORDERS_DATA_FILE),
+      menuDataBackupExists: fs.existsSync(MENU_DATA_BACKUP),
+      ordersDataBackupExists: fs.existsSync(ORDERS_DATA_BACKUP),
       menuDataPath: MENU_DATA_FILE,
-      ordersDataPath: ORDERS_DATA_FILE
+      ordersDataPath: ORDERS_DATA_FILE,
+      menuDataBackupPath: MENU_DATA_BACKUP,
+      ordersDataBackupPath: ORDERS_DATA_BACKUP
     }
   });
 });
@@ -673,9 +699,11 @@ app.get('/admin', authMiddleware, (req, res) => {
     const confirmed = orders.filter(o => o.status === 'confirmed').length;
     const completed = orders.filter(o => o.status === 'completed').length;
     const cancelled = orders.filter(o => o.status === 'cancelled').length;
-    const totalSales = orders.reduce((sum, order) => sum + (order.total || 0), 0);
+    // Calculate sales excluding cancelled orders
+    const activeOrders = orders.filter(o => o.status !== 'cancelled');
+    const totalSales = activeOrders.reduce((sum, order) => sum + (order.total || 0), 0);
     const completedSales = orders.filter(o => o.status === 'completed').reduce((sum, order) => sum + (order.total || 0), 0);
-    console.log('💰 Total Sales (all orders):', totalSales);
+    console.log('💰 Total Sales (excluding cancelled):', totalSales);
     console.log('💰 Completed Sales only:', completedSales);
     
     // Calculate accurate analytics data based on individual items
@@ -690,10 +718,10 @@ app.get('/admin', authMiddleware, (req, res) => {
       
       console.log(`\n🔍 Processing category: ${cat.name} (ID: ${cat.id})`);
       
-      // Calculate revenue based on individual items, not total order
+      // Calculate revenue based on individual items, excluding cancelled orders
       orders.forEach((order, orderIndex) => {
         console.log(`\n📦 Order ${order.id} (${order.status}):`);
-        if (order.items) { // Show ALL orders, not just completed
+        if (order.items && order.status !== 'cancelled') { // Exclude cancelled orders
           let hasItemsInCategory = false;
           order.items.forEach((orderItem, itemIndex) => {
             console.log(`  Item ${itemIndex}: ID ${orderItem.id}, Price ${orderItem.price}, Qty ${orderItem.qty}`);
