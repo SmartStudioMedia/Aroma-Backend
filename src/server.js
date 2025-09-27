@@ -103,9 +103,16 @@ let menuData = {
 let orders = [];
 let orderIdCounter = 1;
 
-// Data persistence files
-const MENU_DATA_FILE = path.join(__dirname, 'menu-data.json');
-const ORDERS_DATA_FILE = path.join(__dirname, 'orders-data.json');
+// Data persistence files - using absolute paths for better reliability
+const MENU_DATA_FILE = path.join(__dirname, 'data', 'menu-data.json');
+const ORDERS_DATA_FILE = path.join(__dirname, 'data', 'orders-data.json');
+
+// Ensure data directory exists
+const dataDir = path.join(__dirname, 'data');
+if (!fs.existsSync(dataDir)) {
+  fs.mkdirSync(dataDir, { recursive: true });
+  console.log('📁 Created data directory:', dataDir);
+}
 
 function saveMenuData() {
   try {
@@ -345,9 +352,38 @@ app.get('/api/debug', (req, res) => {
     message: 'Backend is working!',
     categories: menuData.categories.length,
     items: menuData.items.length,
+    orders: orders.length,
+    orderIdCounter: orderIdCounter,
     timestamp: new Date().toISOString(),
-    sampleItem: menuData.items[0] || 'No items'
+    sampleItem: menuData.items[0] || 'No items',
+    sampleOrder: orders[0] || 'No orders',
+    dataFiles: {
+      menuDataExists: fs.existsSync(MENU_DATA_FILE),
+      ordersDataExists: fs.existsSync(ORDERS_DATA_FILE),
+      menuDataPath: MENU_DATA_FILE,
+      ordersDataPath: ORDERS_DATA_FILE
+    }
   });
+});
+
+// Manual save endpoint for testing
+app.post('/api/save-data', (req, res) => {
+  try {
+    saveMenuData();
+    saveOrdersData();
+    res.json({
+      success: true,
+      message: 'Data saved successfully',
+      ordersCount: orders.length,
+      menuItemsCount: menuData.items.length,
+      categoriesCount: menuData.categories.length
+    });
+  } catch (error) {
+    res.json({
+      success: false,
+      error: error.message
+    });
+  }
 });
 
 // Test email endpoint
@@ -610,6 +646,7 @@ app.post('/api/orders', async (req, res) => {
     orders.push(newOrder);
     saveOrdersData(); // Save orders to file
     console.log('New order created:', newOrder);
+    console.log('📊 Current orders count:', orders.length);
     console.log('📧 Marketing consent:', marketingConsent ? 'Yes' : 'No');
     
     // Send email confirmation
@@ -642,26 +679,41 @@ app.get('/admin', authMiddleware, (req, res) => {
     // Calculate accurate analytics data based on individual items
     const categoryStats = {};
     console.log('🔍 Calculating category stats for', orders.length, 'orders');
+    console.log('📋 Available categories:', menuData.categories.map(c => c.name));
+    console.log('📋 Available menu items:', menuData.items.map(i => `${i.name.en} (cat: ${i.category_id})`));
     
     menuData.categories.forEach(cat => {
       let categoryRevenue = 0;
       let categoryOrders = 0;
       
+      console.log(`\n🔍 Processing category: ${cat.name} (ID: ${cat.id})`);
+      
       // Calculate revenue based on individual items, not total order
-      orders.forEach(order => {
+      orders.forEach((order, orderIndex) => {
+        console.log(`\n📦 Order ${order.id} (${order.status}):`);
         if (order.status === 'completed' && order.items) {
           let hasItemsInCategory = false;
-          order.items.forEach(orderItem => {
+          order.items.forEach((orderItem, itemIndex) => {
+            console.log(`  Item ${itemIndex}: ID ${orderItem.id}, Price ${orderItem.price}, Qty ${orderItem.qty}`);
             const menuItem = menuData.items.find(i => i.id === orderItem.id);
-            if (menuItem && menuItem.category_id === cat.id) {
-              categoryRevenue += (orderItem.price * orderItem.qty);
-              hasItemsInCategory = true;
-              console.log(`💰 ${cat.name}: +${orderItem.price * orderItem.qty} (${orderItem.qty}x ${orderItem.price})`);
+            if (menuItem) {
+              console.log(`    Menu item found: ${menuItem.name.en} (category_id: ${menuItem.category_id})`);
+              if (menuItem.category_id === cat.id) {
+                const itemRevenue = orderItem.price * orderItem.qty;
+                categoryRevenue += itemRevenue;
+                hasItemsInCategory = true;
+                console.log(`    ✅ ${cat.name}: +€${itemRevenue} (${orderItem.qty}x €${orderItem.price})`);
+              }
+            } else {
+              console.log(`    ❌ Menu item not found for ID ${orderItem.id}`);
             }
           });
           if (hasItemsInCategory) {
             categoryOrders++;
+            console.log(`    📊 Order ${order.id} counted for ${cat.name}`);
           }
+        } else {
+          console.log(`  Skipped: status=${order.status}, hasItems=${!!order.items}`);
         }
       });
       
@@ -670,7 +722,7 @@ app.get('/admin', authMiddleware, (req, res) => {
         revenue: categoryRevenue
       };
       
-      console.log(`📊 ${cat.name}: ${categoryRevenue} revenue, ${categoryOrders} orders`);
+      console.log(`\n📊 FINAL ${cat.name}: €${categoryRevenue} revenue, ${categoryOrders} orders`);
     });
     
     console.log('📊 Category Performance Stats:', categoryStats);
