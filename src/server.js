@@ -140,9 +140,14 @@ function loadMenuData() {
     if (dataFile) {
       const data = fs.readFileSync(dataFile, 'utf8');
       const loadedData = JSON.parse(data);
-      menuData.categories = loadedData.categories || menuData.categories;
-      menuData.items = loadedData.items || menuData.items;
-      console.log('✅ Menu data loaded from file');
+      // Only use defaults if loaded data is empty or missing
+      if (loadedData.categories && loadedData.categories.length > 0) {
+        menuData.categories = loadedData.categories;
+      }
+      if (loadedData.items && loadedData.items.length > 0) {
+        menuData.items = loadedData.items;
+      }
+      console.log('✅ Menu data loaded from file - Categories:', menuData.categories.length, 'Items:', menuData.items.length);
     } else {
       console.log('📝 No existing menu data file, using defaults');
       saveMenuData(); // Save initial data
