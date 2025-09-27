@@ -103,8 +103,9 @@ let menuData = {
 let orders = [];
 let orderIdCounter = 1;
 
-// Menu data persistence
+// Data persistence files
 const MENU_DATA_FILE = path.join(__dirname, 'menu-data.json');
+const ORDERS_DATA_FILE = path.join(__dirname, 'orders-data.json');
 
 function saveMenuData() {
   try {
@@ -132,8 +133,42 @@ function loadMenuData() {
   }
 }
 
-// Load menu data on startup
+function saveOrdersData() {
+  try {
+    const ordersData = {
+      orders: orders,
+      orderIdCounter: orderIdCounter
+    };
+    fs.writeFileSync(ORDERS_DATA_FILE, JSON.stringify(ordersData, null, 2));
+    console.log('✅ Orders data saved to file');
+  } catch (error) {
+    console.error('❌ Error saving orders data:', error);
+  }
+}
+
+function loadOrdersData() {
+  try {
+    if (fs.existsSync(ORDERS_DATA_FILE)) {
+      const data = fs.readFileSync(ORDERS_DATA_FILE, 'utf8');
+      const loadedData = JSON.parse(data);
+      orders = loadedData.orders || [];
+      orderIdCounter = loadedData.orderIdCounter || 1;
+      console.log('✅ Orders data loaded from file:', orders.length, 'orders');
+    } else {
+      console.log('📝 No existing orders data file, starting fresh');
+      orders = [];
+      orderIdCounter = 1;
+    }
+  } catch (error) {
+    console.error('❌ Error loading orders data:', error);
+    orders = [];
+    orderIdCounter = 1;
+  }
+}
+
+// Load data on startup
 loadMenuData();
+loadOrdersData();
 
 const app = express();
 
@@ -571,6 +606,7 @@ app.post('/api/orders', async (req, res) => {
     };
     
     orders.push(newOrder);
+    saveOrdersData(); // Save orders to file
     console.log('New order created:', newOrder);
     console.log('📧 Marketing consent:', marketingConsent ? 'Yes' : 'No');
     
@@ -916,7 +952,7 @@ app.get('/admin/api/orders', authMiddleware, (req, res) => {
 app.post('/admin/orders/:id/status', authMiddleware, (req, res) => {
   try {
     const orderId = parseInt(req.params.id);
-    const { status } = req.body;
+  const { status } = req.body;
     
     const orderIndex = orders.findIndex(o => o.id === orderId);
     if (orderIndex === -1) {
@@ -925,6 +961,7 @@ app.post('/admin/orders/:id/status', authMiddleware, (req, res) => {
     
     orders[orderIndex].status = status;
     orders[orderIndex].updatedAt = new Date().toISOString();
+    saveOrdersData(); // Save orders to file
     
     console.log(`Order ${orderId} status updated to: ${status}`);
     res.json({ success: true, order: orders[orderIndex] });
@@ -970,6 +1007,7 @@ app.post('/kitchen/orders/:id/status', kitchenAuthMiddleware, (req, res) => {
     const order = orders.find(o => o.id === parseInt(id));
     if (order) {
       order.status = status;
+      saveOrdersData(); // Save orders to file
       res.json({ success: true });
     } else {
       res.status(404).json({ success: false, error: 'Order not found' });
