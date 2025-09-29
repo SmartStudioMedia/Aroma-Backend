@@ -659,18 +659,22 @@
             var imageInput = document.getElementById('itemImage');
             var videoInput = document.getElementById('itemVideo');
             
+            console.log('toggleMediaFields called, mediaType:', mediaType);
+            
             if (mediaType === 'video') {
                 imageField.style.display = 'none';
                 videoField.style.display = 'block';
                 imageInput.value = ''; // Clear image field
                 imageInput.required = false;
                 videoInput.required = true;
+                console.log('Switched to video mode');
             } else {
                 imageField.style.display = 'block';
                 videoField.style.display = 'none';
                 videoInput.value = ''; // Clear video field
                 videoInput.required = false;
                 imageInput.required = true;
+                console.log('Switched to image mode');
             }
         }
 
@@ -718,10 +722,13 @@
                 document.getElementById('itemActive').checked = itemData.active !== false;
                 
                 // Set media type based on what exists
+                console.log('editItem - itemData.video:', itemData.video);
                 if (itemData.video && itemData.video.trim() !== '') {
                     document.querySelector('input[name="mediaType"][value="video"]').checked = true;
+                    console.log('Setting video mode for editing');
                 } else {
                     document.querySelector('input[name="mediaType"][value="image"]').checked = true;
+                    console.log('Setting image mode for editing');
                 }
                 toggleMediaFields();
             }
@@ -806,10 +813,14 @@
             if (mediaType === 'video') {
                 formData.video = document.getElementById('itemVideo').value;
                 formData.image = ''; // Clear image field
+                console.log('Form submission - Video mode:', formData.video);
             } else {
                 formData.image = document.getElementById('itemImage').value;
                 formData.video = ''; // Clear video field
+                console.log('Form submission - Image mode:', formData.image);
             }
+            
+            console.log('Form data being submitted:', formData);
             
             var url = currentItemId ? '/api/menu/items/' + currentItemId : '/api/menu/items';
             var method = currentItemId ? 'PUT' : 'POST';
