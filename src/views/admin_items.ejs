@@ -436,7 +436,7 @@
             <div class="items-grid" id="itemsGrid">
                 <% items.forEach(function(item) { %>
                 <div class="item-card" data-category-id="<%= item.category_id %>">
-                    <% if (item.video) { %>
+                    <% if (item.video && item.video.trim() !== '') { %>
                         <% if (item.thumbnail) { %>
                             <img src="<%= item.thumbnail %>" alt="<%= item.name.en %>" class="item-image" onerror="this.src='<%= item.image %>'">
                             <div class="video-indicator">🎥 Video Available</div>
