@@ -83,21 +83,33 @@ const Client = mongoose.model('Client', clientSchema);
 // Connect to MongoDB
 async function connectToDatabase() {
   try {
+    console.log('🔍 Checking MongoDB configuration...');
+    console.log('MONGODB_URI exists:', !!MONGODB_URI);
+    console.log('MONGODB_URI value:', MONGODB_URI ? MONGODB_URI.substring(0, 20) + '...' : 'undefined');
+    
     // Only connect if MONGODB_URI is properly configured
     if (!MONGODB_URI || MONGODB_URI === 'mongodb://localhost:27017/aroma-restaurant' || MONGODB_URI.includes('localhost')) {
       console.log('🔄 No MongoDB Atlas URI configured, using file-based storage');
+      console.log('💡 To enable permanent data storage, set MONGODB_URI environment variable');
       return;
     }
     
+    console.log('🔄 Attempting to connect to MongoDB Atlas...');
     await mongoose.connect(MONGODB_URI);
     console.log('✅ Connected to MongoDB Atlas successfully');
     console.log('🗄️ Your data is now stored permanently in the cloud!');
+    
+    // Test the connection by checking if we can access the database
+    const db = mongoose.connection.db;
+    const collections = await db.listCollections().toArray();
+    console.log('📊 Available collections:', collections.map(c => c.name));
     
     // Initialize default data if collections are empty
     await initializeDefaultData();
   } catch (error) {
     console.error('❌ MongoDB connection error:', error);
     console.log('🔄 Falling back to file-based storage...');
+    console.log('💡 Check your MONGODB_URI environment variable in Railway');
   }
 }
 
@@ -436,10 +448,16 @@ function saveOrdersData() {
 
 async function loadOrdersData() {
   try {
+    console.log('🔄 Loading orders data...');
+    console.log('MongoDB connection state:', mongoose.connection.readyState);
+    
     // First try to load from MongoDB if connected
     if (mongoose.connection.readyState === 1) {
       try {
+        console.log('🔄 Attempting to load orders from MongoDB Atlas...');
         const mongoOrders = await Order.find().sort({ createdAt: -1 });
+        console.log('📊 Found orders in MongoDB:', mongoOrders.length);
+        
         if (mongoOrders.length > 0) {
           orders = mongoOrders.map(order => order.toObject());
           orderIdCounter = Math.max(...orders.map(o => o.id), 0) + 1;
@@ -447,10 +465,15 @@ async function loadOrdersData() {
           console.log('📊 Sample orders:', orders.slice(0, 2));
           console.log('🔢 Next order ID will be:', orderIdCounter);
           return;
+        } else {
+          console.log('📝 No orders found in MongoDB Atlas, checking files...');
         }
       } catch (error) {
         console.error('❌ Error loading orders from MongoDB:', error);
+        console.log('🔄 Falling back to file-based storage...');
       }
+    } else {
+      console.log('🔄 MongoDB not connected, using file-based storage');
     }
     
     // Fallback to file-based storage
