@@ -93,7 +93,8 @@ async function connectToDatabase() {
       useNewUrlParser: true,
       useUnifiedTopology: true,
     });
-    console.log('✅ Connected to MongoDB successfully');
+    console.log('✅ Connected to MongoDB Atlas successfully');
+    console.log('🗄️ Your data is now stored permanently in the cloud!');
     
     // Initialize default data if collections are empty
     await initializeDefaultData();
