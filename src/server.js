@@ -275,9 +275,14 @@ function initializeDataFiles() {
       saveMenuData();
     }
     
-    if (!fs.existsSync(ORDERS_DATA_FILE) && !fs.existsSync(ORDERS_DATA_BACKUP)) {
-      console.log('📝 Creating initial orders data file...');
-      saveOrdersData();
+    // Only create orders data files if MongoDB is not configured
+    if (!process.env.MONGODB_URI || process.env.MONGODB_URI.includes('localhost')) {
+      if (!fs.existsSync(ORDERS_DATA_FILE) && !fs.existsSync(ORDERS_DATA_BACKUP)) {
+        console.log('📝 Creating initial orders data file...');
+        saveOrdersData();
+      }
+    } else {
+      console.log('📝 MongoDB configured, skipping orders data file creation');
     }
     
     console.log('✅ Data files initialized');
@@ -1006,17 +1011,25 @@ app.post('/api/orders', async (req, res) => {
     };
     
     orders.push(newOrder);
-    saveOrdersData(); // Save orders to file
     
-    // Also save to MongoDB if connected
+    // Save to MongoDB if connected, otherwise save to files
     try {
       if (mongoose.connection.readyState === 1) {
         const orderDoc = new Order(newOrder);
         await orderDoc.save();
         console.log('✅ Order saved to MongoDB Atlas');
+        // Also save to files as backup
+        saveOrdersData();
+      } else {
+        // MongoDB not connected, save to files only
+        saveOrdersData();
+        console.log('✅ Order saved to file storage');
       }
     } catch (error) {
       console.error('❌ Error saving order to MongoDB:', error);
+      // Fallback to file storage
+      saveOrdersData();
+      console.log('✅ Order saved to file storage (fallback)');
     }
     
     console.log('New order created:', newOrder);
@@ -1449,9 +1462,8 @@ app.post('/admin/orders/:id/status', authMiddleware, async (req, res) => {
     
     orders[orderIndex].status = status;
     orders[orderIndex].updatedAt = new Date().toISOString();
-    saveOrdersData(); // Save orders to file
     
-    // Also save to MongoDB if connected
+    // Save to MongoDB if connected, otherwise save to files
     try {
       if (mongoose.connection.readyState === 1) {
         // Use the MongoDB _id if available, otherwise find by order id
@@ -1466,9 +1478,18 @@ app.post('/admin/orders/:id/status', authMiddleware, async (req, res) => {
             { status: status, updatedAt: new Date().toISOString() });
           console.log('✅ Order status updated in MongoDB Atlas (by order id)');
         }
+        // Also save to files as backup
+        saveOrdersData();
+      } else {
+        // MongoDB not connected, save to files only
+        saveOrdersData();
+        console.log('✅ Order status updated in file storage');
       }
     } catch (error) {
       console.error('❌ Error updating order status in MongoDB:', error);
+      // Fallback to file storage
+      saveOrdersData();
+      console.log('✅ Order status updated in file storage (fallback)');
     }
     
     console.log(`Order ${orderId} status updated to: ${status}`);
