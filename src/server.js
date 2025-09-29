@@ -721,6 +721,23 @@ app.get('/api/cors-test', (req, res) => {
   });
 });
 
+// Test endpoint for menu data structure
+app.get('/api/test-menu-data', (req, res) => {
+  try {
+    res.json({
+      success: true,
+      menuData: {
+        itemsCount: menuData.items ? menuData.items.length : 0,
+        categoriesCount: menuData.categories ? menuData.categories.length : 0,
+        sampleItem: menuData.items && menuData.items.length > 0 ? menuData.items[0] : null,
+        sampleCategory: menuData.categories && menuData.categories.length > 0 ? menuData.categories[0] : null
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Test endpoint error', details: error.message });
+  }
+});
+
 // Debug endpoint to test menu data
 app.get('/api/debug', async (req, res) => {
   try {
@@ -1303,12 +1320,25 @@ app.get('/admin/clients', authMiddleware, (req, res) => {
 
 app.get('/admin/items', authMiddleware, (req, res) => {
   try {
+    console.log('🔄 Loading admin items page...');
+    console.log('📊 Menu data items count:', menuData.items ? menuData.items.length : 'undefined');
+    console.log('📊 Menu data categories count:', menuData.categories ? menuData.categories.length : 'undefined');
+    
+    if (menuData.items && menuData.items.length > 0) {
+      console.log('📋 Sample item:', menuData.items[0]);
+    }
+    if (menuData.categories && menuData.categories.length > 0) {
+      console.log('📋 Sample category:', menuData.categories[0]);
+    }
+    
     res.render('admin_items', { 
       items: menuData.items || [],
       categories: menuData.categories || []
     });
   } catch (error) {
-    console.error('Admin items error:', error);
+    console.error('❌ Admin items error:', error);
+    console.error('❌ Error details:', error.message);
+    console.error('❌ Error stack:', error.stack);
     res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
