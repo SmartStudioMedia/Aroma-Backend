@@ -103,13 +103,16 @@ let menuData = {
 };
 
 let orders = [];
+let clients = [];
 let orderIdCounter = 1;
 
 // Data persistence files - using multiple backup locations for reliability
 const MENU_DATA_FILE = path.join(__dirname, 'data', 'menu-data.json');
 const ORDERS_DATA_FILE = path.join(__dirname, 'data', 'orders-data.json');
+const CLIENTS_DATA_FILE = path.join(__dirname, 'data', 'clients-data.json');
 const MENU_DATA_BACKUP = path.join(__dirname, 'menu-data.json');
 const ORDERS_DATA_BACKUP = path.join(__dirname, 'orders-data.json');
+const CLIENTS_DATA_BACKUP = path.join(__dirname, 'clients-data.json');
 
 // Ensure data directory exists
 const dataDir = path.join(__dirname, 'data');
@@ -833,6 +836,31 @@ app.post('/api/orders', async (req, res) => {
     console.log('📊 Current orders count:', orders.length);
     console.log('📧 Marketing consent:', marketingConsent ? 'Yes' : 'No');
     
+    // Save client if marketing consent is given
+    if (marketingConsent) {
+      const existingClient = clients.find(c => c.email === customerEmail);
+      if (!existingClient) {
+        const newClient = {
+          id: clients.length > 0 ? Math.max(...clients.map(c => c.id)) + 1 : 1,
+          name: customerName,
+          email: customerEmail,
+          marketingConsent: true,
+          totalOrders: 1,
+          totalSpent: parseFloat(total),
+          createdAt: new Date().toISOString()
+        };
+        clients.push(newClient);
+        saveClientsData();
+        console.log('✅ New client added to marketing list:', newClient);
+      } else {
+        // Update existing client
+        existingClient.totalOrders = (existingClient.totalOrders || 0) + 1;
+        existingClient.totalSpent = (existingClient.totalSpent || 0) + parseFloat(total);
+        saveClientsData();
+        console.log('✅ Existing client updated:', existingClient);
+      }
+    }
+    
     // Send email confirmation
     console.log('📧 Attempting to send email to:', customerEmail);
     const emailResult = await sendOrderConfirmation(newOrder, customerEmail, customerName);
@@ -933,6 +961,15 @@ app.get('/admin/orders', authMiddleware, (req, res) => {
     res.render('admin_orders', { orders: orders || [] });
   } catch (error) {
     console.error('Admin orders error:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+});
+
+app.get('/admin/clients', authMiddleware, (req, res) => {
+  try {
+    res.render('admin_clients', { clients: clients || [] });
+  } catch (error) {
+    console.error('Admin clients error:', error);
     res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
@@ -1269,6 +1306,32 @@ app.post('/admin/orders/:id/edit', authMiddleware, (req, res) => {
   }
 });
 
+// Clients API endpoints
+app.get('/admin/api/clients', authMiddleware, (req, res) => {
+  res.json(clients);
+});
+
+// Delete client
+app.delete('/admin/clients/:id', authMiddleware, (req, res) => {
+  try {
+    const clientId = parseInt(req.params.id);
+    const clientIndex = clients.findIndex(c => c.id === clientId);
+    
+    if (clientIndex === -1) {
+      return res.status(404).json({ success: false, error: 'Client not found' });
+    }
+    
+    clients.splice(clientIndex, 1);
+    saveClientsData();
+    
+    console.log(`Client ${clientId} deleted successfully`);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting client:', error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
 
 // Kitchen Staff Routes
 app.get('/kitchen', kitchenAuthMiddleware, (req, res) => {
@@ -1339,6 +1402,47 @@ app.use((req, res) => {
     timestamp: new Date().toISOString()
   });
 });
+
+// Save clients data to file
+function saveClientsData() {
+  try {
+    const clientsData = JSON.stringify(clients, null, 2);
+    
+    // Ensure data directory exists before writing
+    const dataDir = path.dirname(CLIENTS_DATA_FILE);
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
+    }
+    
+    fs.writeFileSync(CLIENTS_DATA_FILE, clientsData, 'utf8');
+    fs.writeFileSync(CLIENTS_DATA_BACKUP, clientsData, 'utf8');
+    console.log(`✅ Clients data saved successfully (${clients.length} clients, ${clientsData.length} bytes)`);
+  } catch (error) {
+    console.error('❌ Error saving clients data:', error);
+  }
+}
+
+// Load clients data from file
+function loadClientsData() {
+  try {
+    let data;
+    if (fs.existsSync(CLIENTS_DATA_FILE)) {
+      data = fs.readFileSync(CLIENTS_DATA_FILE, 'utf8');
+    } else if (fs.existsSync(CLIENTS_DATA_BACKUP)) {
+      data = fs.readFileSync(CLIENTS_DATA_BACKUP, 'utf8');
+    } else {
+      console.log('📝 No clients data file found, starting with empty array');
+      return;
+    }
+    
+    const parsedData = JSON.parse(data);
+    clients = parsedData || [];
+    console.log(`✅ Clients data loaded successfully (${clients.length} clients)`);
+  } catch (error) {
+    console.error('❌ Error loading clients data:', error);
+    clients = [];
+  }
+}
 
 // Start server
 app.listen(PORT, '0.0.0.0', () => {
