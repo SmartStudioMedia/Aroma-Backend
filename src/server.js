@@ -83,6 +83,12 @@ const Client = mongoose.model('Client', clientSchema);
 // Connect to MongoDB
 async function connectToDatabase() {
   try {
+    // Only connect if MONGODB_URI is properly configured
+    if (!MONGODB_URI || MONGODB_URI === 'mongodb://localhost:27017/aroma-restaurant' || MONGODB_URI.includes('localhost')) {
+      console.log('🔄 No MongoDB Atlas URI configured, using file-based storage');
+      return;
+    }
+    
     await mongoose.connect(MONGODB_URI, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
@@ -709,11 +715,9 @@ app.get('/api/test-email', async (req, res) => {
 });
 
 // API Routes
-app.get('/api/menu', async (req, res) => {
+app.get('/api/menu', (req, res) => {
   try {
-    const items = await MenuItem.find({ active: true }).sort({ id: 1 });
-    const categories = await Category.find({ active: true }).sort({ sort_order: 1 });
-    res.json({ items, categories });
+    res.json(menuData);
   } catch (error) {
     console.error('Error fetching menu:', error);
     res.status(500).json({ error: 'Failed to fetch menu data' });
