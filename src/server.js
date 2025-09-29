@@ -1143,7 +1143,7 @@ app.post('/api/orders', async (req, res) => {
         const menuItem = menuData.items.find(i => i.id === item.id);
         return {
           id: item.id || 0,
-          name: menuItem ? menuItem.name : { en: 'Unknown Item' },
+          name: menuItem ? (typeof menuItem.name === 'string' ? menuItem.name : menuItem.name.en) : 'Unknown Item',
           price: menuItem ? (menuItem.price || 0) : 0,
           qty: item.qty || 1
         };
@@ -1263,7 +1263,8 @@ app.get('/admin', authMiddleware, (req, res) => {
         }
       });
       
-      categoryStats[cat.name] = {
+      const categoryName = typeof cat.name === 'string' ? cat.name : cat.name.en;
+      categoryStats[categoryName] = {
         orders: categoryOrders,
         revenue: categoryRevenue
       };
