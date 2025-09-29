@@ -445,18 +445,18 @@
                     <div class="item-image-container">
                         <% if (item.video && item.video.trim() !== '' && (item.video.includes('youtube.com') || item.video.includes('youtu.be') || item.video.includes('vimeo.com') || item.video.includes('.mp4') || item.video.includes('.webm'))) { %>
                             <% if (item.thumbnail) { %>
-                                <img src="<%= item.thumbnail %>" alt="<%= item.name.en %>" class="item-image" onerror="this.src='<%= item.image %>'">
+                                <img src="<%= item.thumbnail %>" alt="<%= item.name && item.name.en ? item.name.en : (item.name || 'Item') %>" class="item-image" onerror="this.src='<%= item.image %>'">
                             <% } else { %>
-                                <img src="<%= item.image %>" alt="<%= item.name.en %>" class="item-image" onerror="this.src='https://via.placeholder.com/300x200?text=No+Image'">
+                                <img src="<%= item.image %>" alt="<%= item.name && item.name.en ? item.name.en : (item.name || 'Item') %>" class="item-image" onerror="this.src='https://via.placeholder.com/300x200?text=No+Image'">
                             <% } %>
                             <div class="video-indicator">🎥 Video Available</div>
                         <% } else { %>
-                            <img src="<%= item.image %>" alt="<%= item.name.en %>" class="item-image" onerror="this.src='https://via.placeholder.com/300x200?text=No+Image'">
+                            <img src="<%= item.image %>" alt="<%= item.name && item.name.en ? item.name.en : (item.name || 'Item') %>" class="item-image" onerror="this.src='https://via.placeholder.com/300x200?text=No+Image'">
                         <% } %>
                     </div>
                     
-                    <div class="item-name"><%= item.name.en %></div>
-                    <div class="item-description"><%= item.description.en %></div>
+                    <div class="item-name"><%= item.name && item.name.en ? item.name.en : (item.name || 'Item') %></div>
+                    <div class="item-description"><%= item.description && item.description.en ? item.description.en : (item.description || 'No description') %></div>
                     
                     <div class="item-details">
                         <div class="detail-item">
@@ -476,11 +476,11 @@
                         </div>
                         <div class="detail-item">
                             <div class="detail-label">Prep Time</div>
-                            <div class="detail-value"><%= item.prepTime.en %></div>
+                            <div class="detail-value"><%= item.prepTime && item.prepTime.en ? item.prepTime.en : (item.prepTime || 'N/A') %></div>
                         </div>
                         <div class="detail-item">
                             <div class="detail-label">Allergies</div>
-                            <div class="detail-value"><%= item.allergies.en %></div>
+                            <div class="detail-value"><%= item.allergies && item.allergies.en ? item.allergies.en : (item.allergies || 'None') %></div>
                         </div>
                     </div>
                     
@@ -957,4 +957,3 @@
     </script>
 </body>
 </html>
-
