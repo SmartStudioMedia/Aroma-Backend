@@ -19,7 +19,8 @@
     "express-basic-auth": "^1.2.1",
     "@sendgrid/mail": "^8.1.0",
     "qrcode": "^1.5.3",
-    "stripe": "^14.5.0"
+    "stripe": "^14.5.0",
+    "mongoose": "^8.0.3"
   },
   "engines": {
     "node": ">=18.0.0"
