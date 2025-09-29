@@ -89,10 +89,7 @@ async function connectToDatabase() {
       return;
     }
     
-    await mongoose.connect(MONGODB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
+    await mongoose.connect(MONGODB_URI);
     console.log('✅ Connected to MongoDB Atlas successfully');
     console.log('🗄️ Your data is now stored permanently in the cloud!');
     
@@ -437,8 +434,26 @@ function saveOrdersData() {
   }
 }
 
-function loadOrdersData() {
+async function loadOrdersData() {
   try {
+    // First try to load from MongoDB if connected
+    if (mongoose.connection.readyState === 1) {
+      try {
+        const mongoOrders = await Order.find().sort({ createdAt: -1 });
+        if (mongoOrders.length > 0) {
+          orders = mongoOrders.map(order => order.toObject());
+          orderIdCounter = Math.max(...orders.map(o => o.id), 0) + 1;
+          console.log('✅ Orders data loaded from MongoDB Atlas:', orders.length, 'orders');
+          console.log('📊 Sample orders:', orders.slice(0, 2));
+          console.log('🔢 Next order ID will be:', orderIdCounter);
+          return;
+        }
+      } catch (error) {
+        console.error('❌ Error loading orders from MongoDB:', error);
+      }
+    }
+    
+    // Fallback to file-based storage
     let dataFile = null;
     if (fs.existsSync(ORDERS_DATA_FILE)) {
       dataFile = ORDERS_DATA_FILE;
@@ -967,6 +982,18 @@ app.post('/api/orders', async (req, res) => {
     
     orders.push(newOrder);
     saveOrdersData(); // Save orders to file
+    
+    // Also save to MongoDB if connected
+    try {
+      if (mongoose.connection.readyState === 1) {
+        const orderDoc = new Order(newOrder);
+        await orderDoc.save();
+        console.log('✅ Order saved to MongoDB Atlas');
+      }
+    } catch (error) {
+      console.error('❌ Error saving order to MongoDB:', error);
+    }
+    
     console.log('New order created:', newOrder);
     console.log('📊 Current orders count:', orders.length);
     console.log('📧 Marketing consent:', marketingConsent ? 'Yes' : 'No');
@@ -1399,6 +1426,17 @@ app.post('/admin/orders/:id/status', authMiddleware, (req, res) => {
     orders[orderIndex].updatedAt = new Date().toISOString();
     saveOrdersData(); // Save orders to file
     
+    // Also save to MongoDB if connected
+    try {
+      if (mongoose.connection.readyState === 1) {
+        await Order.findByIdAndUpdate(orders[orderIndex]._id || orders[orderIndex].id, 
+          { status: status, updatedAt: new Date().toISOString() });
+        console.log('✅ Order status updated in MongoDB Atlas');
+      }
+    } catch (error) {
+      console.error('❌ Error updating order status in MongoDB:', error);
+    }
+    
     console.log(`Order ${orderId} status updated to: ${status}`);
     res.json({ success: true, order: orders[orderIndex] });
   } catch (error) {
@@ -1587,6 +1625,12 @@ app.listen(PORT, '0.0.0.0', async () => {
   
   // Connect to database
   await connectToDatabase();
+  
+  // Reload orders from MongoDB if connected
+  if (mongoose.connection.readyState === 1) {
+    console.log('🔄 Reloading orders from MongoDB Atlas...');
+    await loadOrdersData();
+  }
 });
 
 // Handle graceful shutdown
