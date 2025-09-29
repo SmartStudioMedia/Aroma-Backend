@@ -395,10 +395,20 @@ async function loadMenuData() {
     if (mongoose.connection.readyState === 1) {
       try {
         console.log('🔄 Attempting to load menu data from MongoDB Atlas...');
+        console.log('🔍 MongoDB connection state:', mongoose.connection.readyState);
+        console.log('🔍 MongoDB connection name:', mongoose.connection.name);
+        
         const mongoCategories = await Category.find().sort({ sort_order: 1 });
         const mongoItems = await MenuItem.find().sort({ id: 1 });
         console.log('📊 Found categories in MongoDB:', mongoCategories.length);
         console.log('📊 Found items in MongoDB:', mongoItems.length);
+        
+        if (mongoCategories.length > 0) {
+          console.log('📋 Sample category from MongoDB:', mongoCategories[0].name);
+        }
+        if (mongoItems.length > 0) {
+          console.log('📋 Sample item from MongoDB:', mongoItems[0].name);
+        }
         
         // Always use MongoDB when connected, even if empty
         menuData.categories = mongoCategories.map(cat => cat.toObject());
@@ -407,10 +417,12 @@ async function loadMenuData() {
         return;
       } catch (error) {
         console.error('❌ Error loading menu data from MongoDB:', error);
+        console.error('❌ Error details:', error.message);
+        console.error('❌ Error stack:', error.stack);
         console.log('🔄 Falling back to file-based storage...');
       }
     } else {
-      console.log('🔄 MongoDB not connected, using file-based storage');
+      console.log('🔄 MongoDB not connected (state:', mongoose.connection.readyState, '), using file-based storage');
     }
     
     // Fallback to file-based storage
@@ -710,31 +722,54 @@ app.get('/api/cors-test', (req, res) => {
 });
 
 // Debug endpoint to test menu data
-app.get('/api/debug', (req, res) => {
-  res.json({
-    message: 'Backend is working!',
-    categories: menuData.categories.length,
-    items: menuData.items.length,
-    orders: orders.length,
-    orderIdCounter: orderIdCounter,
-    timestamp: new Date().toISOString(),
-    sampleItem: menuData.items[0] || 'No items',
-    sampleOrder: orders[0] || 'No orders',
-    mongodb: {
-      connected: mongoose.connection.readyState === 1,
-      state: mongoose.connection.readyState
-    },
-    dataFiles: {
-      menuDataExists: fs.existsSync(MENU_DATA_FILE),
-      ordersDataExists: fs.existsSync(ORDERS_DATA_FILE),
-      menuDataBackupExists: fs.existsSync(MENU_DATA_BACKUP),
-      ordersDataBackupExists: fs.existsSync(ORDERS_DATA_BACKUP),
-      menuDataPath: MENU_DATA_FILE,
-      ordersDataPath: ORDERS_DATA_FILE,
-      menuDataBackupPath: MENU_DATA_BACKUP,
-      ordersDataBackupPath: ORDERS_DATA_BACKUP
+app.get('/api/debug', async (req, res) => {
+  try {
+    let mongoCategories = [];
+    let mongoItems = [];
+    let mongoOrders = [];
+    
+    if (mongoose.connection.readyState === 1) {
+      try {
+        mongoCategories = await Category.find();
+        mongoItems = await MenuItem.find();
+        mongoOrders = await Order.find();
+      } catch (error) {
+        console.error('Error fetching from MongoDB:', error);
+      }
     }
-  });
+    
+    res.json({
+      message: 'Backend is working!',
+      categories: menuData.categories.length,
+      items: menuData.items.length,
+      orders: orders.length,
+      orderIdCounter: orderIdCounter,
+      timestamp: new Date().toISOString(),
+      sampleItem: menuData.items[0] || 'No items',
+      sampleOrder: orders[0] || 'No orders',
+      mongodb: {
+        connected: mongoose.connection.readyState === 1,
+        state: mongoose.connection.readyState,
+        categoriesInMongo: mongoCategories.length,
+        itemsInMongo: mongoItems.length,
+        ordersInMongo: mongoOrders.length,
+        sampleMongoCategory: mongoCategories[0] || 'No categories in MongoDB',
+        sampleMongoItem: mongoItems[0] || 'No items in MongoDB'
+      },
+      dataFiles: {
+        menuDataExists: fs.existsSync(MENU_DATA_FILE),
+        ordersDataExists: fs.existsSync(ORDERS_DATA_FILE),
+        menuDataBackupExists: fs.existsSync(MENU_DATA_BACKUP),
+        ordersDataBackupExists: fs.existsSync(ORDERS_DATA_BACKUP),
+        menuDataPath: MENU_DATA_FILE,
+        ordersDataPath: ORDERS_DATA_FILE,
+        menuDataBackupPath: MENU_DATA_BACKUP,
+        ordersDataBackupPath: ORDERS_DATA_BACKUP
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Debug endpoint error', details: error.message });
+  }
 });
 
 // Manual save endpoint for testing
@@ -836,19 +871,26 @@ app.post('/api/menu/items', async (req, res) => {
     
     // Save to MongoDB if connected, otherwise save to files
     try {
+      console.log('🔍 MongoDB connection state:', mongoose.connection.readyState);
+      console.log('🔍 MongoDB connection name:', mongoose.connection.name);
+      
       if (mongoose.connection.readyState === 1) {
+        console.log('🔄 Attempting to save menu item to MongoDB Atlas...');
         const menuItemDoc = new MenuItem(newItem);
-        await menuItemDoc.save();
-        console.log('✅ Menu item saved to MongoDB Atlas');
+        const savedItem = await menuItemDoc.save();
+        console.log('✅ Menu item saved to MongoDB Atlas with ID:', savedItem._id);
         // Also save to files as backup
         saveMenuData();
+        console.log('✅ Menu item also saved to file storage as backup');
       } else {
-        // MongoDB not connected, save to files only
+        console.log('❌ MongoDB not connected (state:', mongoose.connection.readyState, '), saving to files only');
         saveMenuData();
         console.log('✅ Menu item saved to file storage');
       }
     } catch (error) {
       console.error('❌ Error saving menu item to MongoDB:', error);
+      console.error('❌ Error details:', error.message);
+      console.error('❌ Error stack:', error.stack);
       // Fallback to file storage
       saveMenuData();
       console.log('✅ Menu item saved to file storage (fallback)');
