@@ -775,7 +775,7 @@ app.get('/api/menu', (req, res) => {
 });
 
 // Menu Management API Routes
-app.post('/api/menu/items', (req, res) => {
+app.post('/api/menu/items', async (req, res) => {
   try {
     const { name, description, price, image, category_id, ingredients, nutrition, allergies, prepTime, video } = req.body;
     console.log('POST /api/menu/items - Received data:', { name, video, image, category_id });
@@ -808,7 +808,27 @@ app.post('/api/menu/items', (req, res) => {
     };
     
     menuData.items.push(newItem);
-    saveMenuData(); // Save to file
+    
+    // Save to MongoDB if connected, otherwise save to files
+    try {
+      if (mongoose.connection.readyState === 1) {
+        const menuItemDoc = new MenuItem(newItem);
+        await menuItemDoc.save();
+        console.log('✅ Menu item saved to MongoDB Atlas');
+        // Also save to files as backup
+        saveMenuData();
+      } else {
+        // MongoDB not connected, save to files only
+        saveMenuData();
+        console.log('✅ Menu item saved to file storage');
+      }
+    } catch (error) {
+      console.error('❌ Error saving menu item to MongoDB:', error);
+      // Fallback to file storage
+      saveMenuData();
+      console.log('✅ Menu item saved to file storage (fallback)');
+    }
+    
     console.log('New menu item created:', newItem);
     res.json({ success: true, item: newItem });
   } catch (error) {
@@ -817,7 +837,7 @@ app.post('/api/menu/items', (req, res) => {
   }
 });
 
-app.put('/api/menu/items/:id', (req, res) => {
+app.put('/api/menu/items/:id', async (req, res) => {
   try {
     const itemId = parseInt(req.params.id);
     const { name, description, price, image, category_id, ingredients, nutrition, allergies, prepTime, video, active } = req.body;
@@ -854,7 +874,26 @@ app.put('/api/menu/items/:id', (req, res) => {
     };
     
     menuData.items[itemIndex] = updatedItem;
-    saveMenuData(); // Save to file
+    
+    // Save to MongoDB if connected, otherwise save to files
+    try {
+      if (mongoose.connection.readyState === 1) {
+        await MenuItem.findOneAndUpdate({ id: itemId }, updatedItem, { upsert: true });
+        console.log('✅ Menu item updated in MongoDB Atlas');
+        // Also save to files as backup
+        saveMenuData();
+      } else {
+        // MongoDB not connected, save to files only
+        saveMenuData();
+        console.log('✅ Menu item updated in file storage');
+      }
+    } catch (error) {
+      console.error('❌ Error updating menu item in MongoDB:', error);
+      // Fallback to file storage
+      saveMenuData();
+      console.log('✅ Menu item updated in file storage (fallback)');
+    }
+    
     console.log('Menu item updated:', updatedItem);
     res.json({ success: true, item: updatedItem });
   } catch (error) {
@@ -883,7 +922,7 @@ app.delete('/api/menu/items/:id', (req, res) => {
 });
 
 // Category Management API Routes
-app.post('/api/menu/categories', (req, res) => {
+app.post('/api/menu/categories', async (req, res) => {
   try {
     const { name, icon, sort_order } = req.body;
     
@@ -900,7 +939,27 @@ app.post('/api/menu/categories', (req, res) => {
     };
     
     menuData.categories.push(newCategory);
-    saveMenuData(); // Save to file
+    
+    // Save to MongoDB if connected, otherwise save to files
+    try {
+      if (mongoose.connection.readyState === 1) {
+        const categoryDoc = new Category(newCategory);
+        await categoryDoc.save();
+        console.log('✅ Category saved to MongoDB Atlas');
+        // Also save to files as backup
+        saveMenuData();
+      } else {
+        // MongoDB not connected, save to files only
+        saveMenuData();
+        console.log('✅ Category saved to file storage');
+      }
+    } catch (error) {
+      console.error('❌ Error saving category to MongoDB:', error);
+      // Fallback to file storage
+      saveMenuData();
+      console.log('✅ Category saved to file storage (fallback)');
+    }
+    
     console.log('New category created:', newCategory);
     res.json({ success: true, category: newCategory });
   } catch (error) {
@@ -909,7 +968,7 @@ app.post('/api/menu/categories', (req, res) => {
   }
 });
 
-app.put('/api/menu/categories/:id', (req, res) => {
+app.put('/api/menu/categories/:id', async (req, res) => {
   try {
     const categoryId = parseInt(req.params.id);
     const { name, icon, sort_order, active } = req.body;
@@ -928,7 +987,26 @@ app.put('/api/menu/categories/:id', (req, res) => {
     };
     
     menuData.categories[categoryIndex] = updatedCategory;
-    saveMenuData(); // Save to file
+    
+    // Save to MongoDB if connected, otherwise save to files
+    try {
+      if (mongoose.connection.readyState === 1) {
+        await Category.findOneAndUpdate({ id: categoryId }, updatedCategory, { upsert: true });
+        console.log('✅ Category updated in MongoDB Atlas');
+        // Also save to files as backup
+        saveMenuData();
+      } else {
+        // MongoDB not connected, save to files only
+        saveMenuData();
+        console.log('✅ Category updated in file storage');
+      }
+    } catch (error) {
+      console.error('❌ Error updating category in MongoDB:', error);
+      // Fallback to file storage
+      saveMenuData();
+      console.log('✅ Category updated in file storage (fallback)');
+    }
+    
     console.log('Category updated:', updatedCategory);
     res.json({ success: true, category: updatedCategory });
   } catch (error) {
