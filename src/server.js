@@ -935,14 +935,16 @@ app.get('/admin', authMiddleware, (req, res) => {
     // Calculate accurate analytics data based on individual items
     const categoryStats = {};
     console.log('🔍 Calculating category stats for', orders.length, 'orders');
-    console.log('📋 Available categories:', menuData.categories.map(c => c.name));
+    console.log('📋 Available categories:', menuData.categories.map(c => typeof c.name === 'string' ? c.name : c.name.en));
     console.log('📋 Available menu items:', menuData.items.map(i => `${i.name.en} (cat: ${i.category_id})`));
     
     menuData.categories.forEach(cat => {
       let categoryRevenue = 0;
       let categoryOrders = 0;
       
-      console.log(`\n🔍 Processing category: ${cat.name} (ID: ${cat.id})`);
+      // Get category name for display (use English as default)
+      const categoryName = typeof cat.name === 'string' ? cat.name : cat.name.en;
+      console.log(`\n🔍 Processing category: ${categoryName} (ID: ${cat.id})`);
       
       // Calculate revenue based on individual items, excluding cancelled orders
       orders.forEach((order, orderIndex) => {
@@ -958,7 +960,7 @@ app.get('/admin', authMiddleware, (req, res) => {
                 const itemRevenue = orderItem.price * orderItem.qty;
                 categoryRevenue += itemRevenue;
                 hasItemsInCategory = true;
-                console.log(`    ✅ ${cat.name}: +€${itemRevenue} (${orderItem.qty}x €${orderItem.price})`);
+                console.log(`    ✅ ${categoryName}: +€${itemRevenue} (${orderItem.qty}x €${orderItem.price})`);
               }
             } else {
               console.log(`    ❌ Menu item not found for ID ${orderItem.id}`);
@@ -966,19 +968,19 @@ app.get('/admin', authMiddleware, (req, res) => {
           });
           if (hasItemsInCategory) {
             categoryOrders++;
-            console.log(`    📊 Order ${order.id} counted for ${cat.name}`);
+            console.log(`    📊 Order ${order.id} counted for ${categoryName}`);
           }
         } else {
           console.log(`  Skipped: status=${order.status}, hasItems=${!!order.items}`);
         }
       });
       
-      categoryStats[cat.name] = {
+      categoryStats[categoryName] = {
         orders: categoryOrders,
         revenue: categoryRevenue
       };
       
-      console.log(`\n📊 FINAL ${cat.name}: €${categoryRevenue} revenue, ${categoryOrders} orders`);
+      console.log(`\n📊 FINAL ${categoryName}: €${categoryRevenue} revenue, ${categoryOrders} orders`);
     });
     
     console.log('📊 Category Performance Stats:', categoryStats);
