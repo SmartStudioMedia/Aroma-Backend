@@ -386,8 +386,34 @@ function saveMenuData() {
   }
 }
 
-function loadMenuData() {
+async function loadMenuData() {
   try {
+    console.log('🔄 Loading menu data...');
+    console.log('MongoDB connection state:', mongoose.connection.readyState);
+    
+    // First try to load from MongoDB if connected
+    if (mongoose.connection.readyState === 1) {
+      try {
+        console.log('🔄 Attempting to load menu data from MongoDB Atlas...');
+        const mongoCategories = await Category.find().sort({ sort_order: 1 });
+        const mongoItems = await MenuItem.find().sort({ id: 1 });
+        console.log('📊 Found categories in MongoDB:', mongoCategories.length);
+        console.log('📊 Found items in MongoDB:', mongoItems.length);
+        
+        // Always use MongoDB when connected, even if empty
+        menuData.categories = mongoCategories.map(cat => cat.toObject());
+        menuData.items = mongoItems.map(item => item.toObject());
+        console.log('✅ Menu data loaded from MongoDB Atlas - Categories:', menuData.categories.length, 'Items:', menuData.items.length);
+        return;
+      } catch (error) {
+        console.error('❌ Error loading menu data from MongoDB:', error);
+        console.log('🔄 Falling back to file-based storage...');
+      }
+    } else {
+      console.log('🔄 MongoDB not connected, using file-based storage');
+    }
+    
+    // Fallback to file-based storage
     let dataFile = null;
     if (fs.existsSync(MENU_DATA_FILE)) {
       dataFile = MENU_DATA_FILE;
@@ -514,8 +540,7 @@ async function loadOrdersData() {
 
 // Initialize data files and load data on startup
 initializeDataFiles();
-loadMenuData();
-// Note: loadOrdersData() is called after MongoDB connection in app.listen()
+// Note: loadMenuData() and loadOrdersData() are called after MongoDB connection in app.listen()
 
 const app = express();
 
@@ -1742,9 +1767,13 @@ app.listen(PORT, '0.0.0.0', async () => {
   
   // Load data after MongoDB connection
   if (mongoose.connection.readyState === 1) {
+    console.log('🔄 Loading menu data from MongoDB Atlas...');
+    await loadMenuData();
     console.log('🔄 Loading orders from MongoDB Atlas...');
     await loadOrdersData();
   } else {
+    console.log('🔄 Loading menu data from file storage...');
+    await loadMenuData();
     console.log('🔄 Loading orders from file storage...');
     await loadOrdersData();
   }
