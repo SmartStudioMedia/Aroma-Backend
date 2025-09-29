@@ -39,6 +39,7 @@ let menuData = {
       price: 12.99,
       image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400',
       video: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+      thumbnail: 'https://img.youtube.com/vi/dQw4w9WgXcQ/maxresdefault.jpg',
       category_id: 1,
       active: true,
       ingredients: { en: 'Beef patty, lettuce, tomato, onion, bun', mt: 'Patty tal-baħar, lettuce, tadam, basal, bun', it: 'Polpetta di manzo, lattuga, pomodoro, cipolla, panino', fr: 'Steak de bœuf, laitue, tomate, oignon, pain', es: 'Hamburguesa de carne, lechuga, tomate, cebolla, pan', de: 'Rindersteak, Salat, Tomate, Zwiebel, Brötchen', ru: 'Говяжья котлета, салат, помидор, лук, булочка', pt: 'Hambúrguer de carne, alface, tomate, cebola, pão', nl: 'Rundvleesburger, sla, tomaat, ui, broodje', pl: 'Wołowina, sałata, pomidor, cebula, bułka' },
@@ -117,22 +118,84 @@ if (!fs.existsSync(dataDir)) {
   console.log('📁 Created data directory:', dataDir);
 }
 
+// Helper function to extract YouTube video ID
+function getYouTubeVideoId(url) {
+  if (!url || typeof url !== 'string') return '';
+  
+  try {
+    // Handle regular YouTube URLs: https://www.youtube.com/watch?v=VIDEO_ID
+    if (url.includes('youtube.com/watch?v=')) {
+      const parts = url.split('v=');
+      if (parts.length > 1) {
+        return parts[1].split('&')[0];
+      }
+    }
+    // Handle YouTube Shorts URLs: https://www.youtube.com/shorts/VIDEO_ID
+    else if (url.includes('youtube.com/shorts/')) {
+      const parts = url.split('youtube.com/shorts/');
+      if (parts.length > 1) {
+        return parts[1].split('?')[0];
+      }
+    }
+    // Handle youtu.be URLs: https://youtu.be/VIDEO_ID
+    else if (url.includes('youtu.be/')) {
+      const parts = url.split('youtu.be/');
+      if (parts.length > 1) {
+        return parts[1].split('?')[0];
+      }
+    }
+    
+    return '';
+  } catch (error) {
+    console.error('Error extracting YouTube video ID:', error);
+    return '';
+  }
+}
+
+// Helper function to generate YouTube thumbnail URL
+function generateYouTubeThumbnail(videoUrl) {
+  const videoId = getYouTubeVideoId(videoUrl);
+  if (!videoId) return null;
+  
+  // Return high quality thumbnail URL
+  return `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+}
+
 function saveMenuData() {
   try {
     const data = JSON.stringify(menuData, null, 2);
+    
+    // Ensure data directory exists before writing
+    const dataDir = path.dirname(MENU_DATA_FILE);
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
+      console.log('📁 Created data directory:', dataDir);
+    }
+    
+    // Write to primary location
     fs.writeFileSync(MENU_DATA_FILE, data);
-    fs.writeFileSync(MENU_DATA_BACKUP, data); // Backup in root directory
-    console.log('✅ Menu data saved to file (with backup)');
+    console.log('✅ Menu data saved to primary location:', MENU_DATA_FILE);
+    
+    // Write to backup location
+    fs.writeFileSync(MENU_DATA_BACKUP, data);
+    console.log('✅ Menu data saved to backup location:', MENU_DATA_BACKUP);
+    
+    // Verify the files were written
+    const primaryExists = fs.existsSync(MENU_DATA_FILE);
+    const backupExists = fs.existsSync(MENU_DATA_BACKUP);
+    console.log('📁 File verification - Primary:', primaryExists, 'Backup:', backupExists);
     
     // Log items with video URLs
     const itemsWithVideo = menuData.items.filter(item => item.video && item.video.trim() !== '');
     if (itemsWithVideo.length > 0) {
-      console.log('Items with video URLs:', itemsWithVideo.map(item => ({ id: item.id, name: item.name.en, video: item.video })));
+      console.log('Items with video URLs:', itemsWithVideo.map(item => ({ id: item.id, name: item.name.en, video: item.video, thumbnail: item.thumbnail })));
     } else {
       console.log('No items with video URLs found');
     }
   } catch (error) {
     console.error('❌ Error saving menu data:', error);
+    console.error('Error details:', error.message);
+    console.error('Stack trace:', error.stack);
   }
 }
 
@@ -173,11 +236,31 @@ function saveOrdersData() {
       orderIdCounter: orderIdCounter
     };
     const data = JSON.stringify(ordersData, null, 2);
+    
+    // Ensure data directory exists before writing
+    const dataDir = path.dirname(ORDERS_DATA_FILE);
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
+      console.log('📁 Created data directory:', dataDir);
+    }
+    
+    // Write to primary location
     fs.writeFileSync(ORDERS_DATA_FILE, data);
-    fs.writeFileSync(ORDERS_DATA_BACKUP, data); // Backup in root directory
-    console.log('✅ Orders data saved to file (with backup):', orders.length, 'orders, next ID:', orderIdCounter);
+    console.log('✅ Orders data saved to primary location:', ORDERS_DATA_FILE);
+    
+    // Write to backup location
+    fs.writeFileSync(ORDERS_DATA_BACKUP, data);
+    console.log('✅ Orders data saved to backup location:', ORDERS_DATA_BACKUP);
+    
+    // Verify the files were written
+    const primaryExists = fs.existsSync(ORDERS_DATA_FILE);
+    const backupExists = fs.existsSync(ORDERS_DATA_BACKUP);
+    console.log('📁 File verification - Primary:', primaryExists, 'Backup:', backupExists);
+    console.log('📊 Orders saved:', orders.length, 'orders, next ID:', orderIdCounter);
   } catch (error) {
     console.error('❌ Error saving orders data:', error);
+    console.error('Error details:', error.message);
+    console.error('Stack trace:', error.stack);
   }
 }
 
@@ -473,6 +556,13 @@ app.post('/api/menu/items', (req, res) => {
       return res.status(400).json({ success: false, error: 'Name, price, and category are required' });
     }
     
+    // Generate thumbnail for video if provided
+    let thumbnail = null;
+    if (video && video.trim() !== '') {
+      thumbnail = generateYouTubeThumbnail(video);
+      console.log('Generated thumbnail for video:', video, '->', thumbnail);
+    }
+
     const newItem = {
       id: Math.max(...menuData.items.map(i => i.id), 0) + 1,
       name: typeof name === 'string' ? { en: name } : name,
@@ -480,6 +570,7 @@ app.post('/api/menu/items', (req, res) => {
       price: parseFloat(price),
       image: image || 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400',
       video: video && video.trim() !== '' ? video : null,
+      thumbnail: thumbnail, // Add thumbnail field
       category_id: parseInt(category_id),
       active: true,
       ingredients: typeof ingredients === 'string' ? { en: ingredients } : ingredients,
@@ -509,6 +600,15 @@ app.put('/api/menu/items/:id', (req, res) => {
       return res.status(404).json({ success: false, error: 'Item not found' });
     }
     
+    // Generate thumbnail for video if provided
+    let thumbnail = menuData.items[itemIndex].thumbnail; // Keep existing thumbnail
+    if (video !== undefined && video && video.trim() !== '') {
+      thumbnail = generateYouTubeThumbnail(video);
+      console.log('Generated thumbnail for updated video:', video, '->', thumbnail);
+    } else if (video === '') {
+      thumbnail = null; // Clear thumbnail if video is removed
+    }
+
     const updatedItem = {
       ...menuData.items[itemIndex],
       name: name || menuData.items[itemIndex].name,
@@ -516,6 +616,7 @@ app.put('/api/menu/items/:id', (req, res) => {
       price: price !== undefined ? parseFloat(price) : menuData.items[itemIndex].price,
       image: image || menuData.items[itemIndex].image,
       video: video !== undefined ? (video === '' ? null : video) : menuData.items[itemIndex].video,
+      thumbnail: thumbnail, // Add/update thumbnail field
       category_id: category_id !== undefined ? parseInt(category_id) : menuData.items[itemIndex].category_id,
       ingredients: ingredients || menuData.items[itemIndex].ingredients,
       nutrition: nutrition || menuData.items[itemIndex].nutrition,
