@@ -156,6 +156,19 @@
             object-fit: cover;
             border-radius: 8px;
             margin-bottom: 15px;
+            position: relative;
+        }
+        
+        .video-indicator {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
         }
         
         .item-name {
@@ -423,10 +436,13 @@
                 <% items.forEach(function(item) { %>
                 <div class="item-card" data-category-id="<%= item.category_id %>">
                     <% if (item.video) { %>
-                        <video class="item-image" controls>
-                            <source src="<%= item.video %>" type="video/mp4">
-                            Your browser does not support the video tag.
-                        </video>
+                        <% if (item.thumbnail) { %>
+                            <img src="<%= item.thumbnail %>" alt="<%= item.name.en %>" class="item-image" onerror="this.src='<%= item.image %>'">
+                            <div class="video-indicator">🎥 Video Available</div>
+                        <% } else { %>
+                            <img src="<%= item.image %>" alt="<%= item.name.en %>" class="item-image" onerror="this.src='https://via.placeholder.com/300x200?text=No+Image'">
+                            <div class="video-indicator">🎥 Video Available</div>
+                        <% } %>
                     <% } else { %>
                         <img src="<%= item.image %>" alt="<%= item.name.en %>" class="item-image" onerror="this.src='https://via.placeholder.com/300x200?text=No+Image'">
                     <% } %>
@@ -531,6 +547,10 @@
                 <div class="form-group" id="videoField" style="display: none;">
                     <label for="itemVideo">Video URL</label>
                     <input type="url" id="itemVideo" name="video" placeholder="https://www.youtube.com/watch?v=... or https://www.youtube.com/shorts/...">
+                    <div id="thumbnailPreview" style="margin-top: 10px; display: none;">
+                        <label>Generated Thumbnail:</label>
+                        <img id="thumbnailImage" src="" alt="Thumbnail" style="width: 200px; height: 120px; object-fit: cover; border-radius: 8px; border: 1px solid #ddd;">
+                    </div>
                 </div>
                 
                 <div class="form-group">
@@ -649,7 +669,79 @@
             // Initialize with all items visible
             console.log('Initializing with all items visible...');
             filterByCategory('all');
+            
+            // Add event listener to video input for thumbnail preview
+            var videoInput = document.getElementById('itemVideo');
+            if (videoInput) {
+                videoInput.addEventListener('input', updateThumbnailPreview);
+                videoInput.addEventListener('paste', function() {
+                    setTimeout(updateThumbnailPreview, 100);
+                });
+            }
         });
+
+        // Helper function to extract YouTube video ID
+        function getYouTubeVideoId(url) {
+            if (!url || typeof url !== 'string') return '';
+            
+            try {
+                // Handle regular YouTube URLs: https://www.youtube.com/watch?v=VIDEO_ID
+                if (url.includes('youtube.com/watch?v=')) {
+                    var parts = url.split('v=');
+                    if (parts.length > 1) {
+                        return parts[1].split('&')[0];
+                    }
+                }
+                // Handle YouTube Shorts URLs: https://www.youtube.com/shorts/VIDEO_ID
+                else if (url.includes('youtube.com/shorts/')) {
+                    var parts = url.split('youtube.com/shorts/');
+                    if (parts.length > 1) {
+                        return parts[1].split('?')[0];
+                    }
+                }
+                // Handle youtu.be URLs: https://youtu.be/VIDEO_ID
+                else if (url.includes('youtu.be/')) {
+                    var parts = url.split('youtu.be/');
+                    if (parts.length > 1) {
+                        return parts[1].split('?')[0];
+                    }
+                }
+                
+                return '';
+            } catch (error) {
+                console.error('Error extracting YouTube video ID:', error);
+                return '';
+            }
+        }
+
+        // Helper function to generate YouTube thumbnail URL
+        function generateYouTubeThumbnail(videoUrl) {
+            var videoId = getYouTubeVideoId(videoUrl);
+            if (!videoId) return null;
+            
+            // Return high quality thumbnail URL
+            return 'https://img.youtube.com/vi/' + videoId + '/maxresdefault.jpg';
+        }
+
+        // Function to update thumbnail preview
+        function updateThumbnailPreview() {
+            var videoInput = document.getElementById('itemVideo');
+            var thumbnailPreview = document.getElementById('thumbnailPreview');
+            var thumbnailImage = document.getElementById('thumbnailImage');
+            
+            if (videoInput.value.trim() !== '') {
+                var thumbnailUrl = generateYouTubeThumbnail(videoInput.value);
+                if (thumbnailUrl) {
+                    thumbnailImage.src = thumbnailUrl;
+                    thumbnailPreview.style.display = 'block';
+                    console.log('Generated thumbnail URL:', thumbnailUrl);
+                } else {
+                    thumbnailPreview.style.display = 'none';
+                }
+            } else {
+                thumbnailPreview.style.display = 'none';
+            }
+        }
 
         // Media type toggle function
         function toggleMediaFields() {
