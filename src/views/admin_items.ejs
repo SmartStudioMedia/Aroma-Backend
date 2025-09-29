@@ -150,13 +150,18 @@
             box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
         }
         
+        .item-image-container {
+            position: relative;
+            width: 100%;
+            height: 200px;
+            margin-bottom: 15px;
+        }
+        
         .item-image {
             width: 100%;
             height: 200px;
             object-fit: cover;
             border-radius: 8px;
-            margin-bottom: 15px;
-            position: relative;
         }
         
         .video-indicator {
@@ -169,6 +174,7 @@
             border-radius: 4px;
             font-size: 12px;
             font-weight: 500;
+            z-index: 10;
         }
         
         .item-name {
@@ -436,17 +442,18 @@
             <div class="items-grid" id="itemsGrid">
                 <% items.forEach(function(item) { %>
                 <div class="item-card" data-category-id="<%= item.category_id %>">
-                    <% if (item.video && item.video.trim() !== '' && (item.video.includes('youtube.com') || item.video.includes('youtu.be') || item.video.includes('vimeo.com') || item.video.includes('.mp4') || item.video.includes('.webm'))) { %>
-                        <% if (item.thumbnail) { %>
-                            <img src="<%= item.thumbnail %>" alt="<%= item.name.en %>" class="item-image" onerror="this.src='<%= item.image %>'">
+                    <div class="item-image-container">
+                        <% if (item.video && item.video.trim() !== '' && (item.video.includes('youtube.com') || item.video.includes('youtu.be') || item.video.includes('vimeo.com') || item.video.includes('.mp4') || item.video.includes('.webm'))) { %>
+                            <% if (item.thumbnail) { %>
+                                <img src="<%= item.thumbnail %>" alt="<%= item.name.en %>" class="item-image" onerror="this.src='<%= item.image %>'">
+                            <% } else { %>
+                                <img src="<%= item.image %>" alt="<%= item.name.en %>" class="item-image" onerror="this.src='https://via.placeholder.com/300x200?text=No+Image'">
+                            <% } %>
                             <div class="video-indicator">🎥 Video Available</div>
                         <% } else { %>
                             <img src="<%= item.image %>" alt="<%= item.name.en %>" class="item-image" onerror="this.src='https://via.placeholder.com/300x200?text=No+Image'">
-                            <div class="video-indicator">🎥 Video Available</div>
                         <% } %>
-                    <% } else { %>
-                        <img src="<%= item.image %>" alt="<%= item.name.en %>" class="item-image" onerror="this.src='https://via.placeholder.com/300x200?text=No+Image'">
-                    <% } %>
+                    </div>
                     
                     <div class="item-name"><%= item.name.en %></div>
                     <div class="item-description"><%= item.description.en %></div>
