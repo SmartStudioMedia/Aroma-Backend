@@ -334,6 +334,69 @@ function generateYouTubeThumbnail(videoUrl) {
   return `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
 }
 
+// Helper function to generate multilingual translations for new items and categories
+function generateMultilingualTranslations(text, type = 'item') {
+  if (typeof text !== 'string') {
+    return text; // Already multilingual
+  }
+  
+  const commonTranslations = {
+    // Food categories
+    'Burgers': { en: 'Burgers', mt: 'Burgers', es: 'Hamburguesas', it: 'Hamburger', fr: 'Hamburgers', de: 'Burger', ru: 'Бургеры', pt: 'Hambúrgueres', nl: 'Burgers', pl: 'Burgery' },
+    'Sides': { en: 'Sides', mt: 'Sides', es: 'Acompañamientos', it: 'Contorni', fr: 'Accompagnements', de: 'Beilagen', ru: 'Гарниры', pt: 'Acompanhamentos', nl: 'Bijgerechten', pl: 'Dodatki' },
+    'Drinks': { en: 'Drinks', mt: 'Xorb', es: 'Bebidas', it: 'Bevande', fr: 'Boissons', de: 'Getränke', ru: 'Напитки', pt: 'Bebidas', nl: 'Dranken', pl: 'Napoje' },
+    'Desserts': { en: 'Desserts', mt: 'Desserts', es: 'Postres', it: 'Dolci', fr: 'Desserts', de: 'Desserts', ru: 'Десерты', pt: 'Sobremesas', nl: 'Desserts', pl: 'Desery' },
+    
+    // Common food items
+    'Burger': { en: 'Burger', mt: 'Burger', es: 'Hamburguesa', it: 'Burger', fr: 'Burger', de: 'Burger', ru: 'Бургер', pt: 'Hambúrguer', nl: 'Burger', pl: 'Burger' },
+    'Pizza': { en: 'Pizza', mt: 'Pizza', es: 'Pizza', it: 'Pizza', fr: 'Pizza', de: 'Pizza', ru: 'Пицца', pt: 'Pizza', nl: 'Pizza', pl: 'Pizza' },
+    'Pasta': { en: 'Pasta', mt: 'Pasta', es: 'Pasta', it: 'Pasta', fr: 'Pâtes', de: 'Pasta', ru: 'Паста', pt: 'Massa', nl: 'Pasta', pl: 'Makaron' },
+    'Salad': { en: 'Salad', mt: 'Insalata', es: 'Ensalada', it: 'Insalata', fr: 'Salade', de: 'Salat', ru: 'Салат', pt: 'Salada', nl: 'Salade', pl: 'Sałatka' },
+    'Soup': { en: 'Soup', mt: 'Soppa', es: 'Sopa', it: 'Zuppa', fr: 'Soupe', de: 'Suppe', ru: 'Суп', pt: 'Sopa', nl: 'Soep', pl: 'Zupa' },
+    'Sandwich': { en: 'Sandwich', mt: 'Sandwich', es: 'Sándwich', it: 'Panino', fr: 'Sandwich', de: 'Sandwich', ru: 'Сэндвич', pt: 'Sanduíche', nl: 'Sandwich', pl: 'Kanapka' },
+    'Chicken': { en: 'Chicken', mt: 'Tiġieġ', es: 'Pollo', it: 'Pollo', fr: 'Poulet', de: 'Hähnchen', ru: 'Курица', pt: 'Frango', nl: 'Kip', pl: 'Kurczak' },
+    'Beef': { en: 'Beef', mt: 'Laħam tal-baqar', es: 'Carne de res', it: 'Manzo', fr: 'Bœuf', de: 'Rindfleisch', ru: 'Говядина', pt: 'Carne bovina', nl: 'Rundvlees', pl: 'Wołowina' },
+    'Fish': { en: 'Fish', mt: 'Ħut', es: 'Pescado', it: 'Pesce', fr: 'Poisson', de: 'Fisch', ru: 'Рыба', pt: 'Peixe', nl: 'Vis', pl: 'Ryba' },
+    'Vegetarian': { en: 'Vegetarian', mt: 'Veġetarjan', es: 'Vegetariano', it: 'Vegetariano', fr: 'Végétarien', de: 'Vegetarisch', ru: 'Вегетарианский', pt: 'Vegetariano', nl: 'Vegetarisch', pl: 'Wegetariański' },
+    'Vegan': { en: 'Vegan', mt: 'Vegan', es: 'Vegano', it: 'Vegano', fr: 'Végan', de: 'Vegan', ru: 'Веганский', pt: 'Vegano', nl: 'Vegan', pl: 'Wegański' },
+    'Spicy': { en: 'Spicy', mt: 'Ħafif', es: 'Picante', it: 'Piccante', fr: 'Épicé', de: 'Scharf', ru: 'Острый', pt: 'Picante', nl: 'Pittig', pl: 'Ostry' },
+    'Sweet': { en: 'Sweet', mt: 'Ħelu', es: 'Dulce', it: 'Dolce', fr: 'Sucré', de: 'Süß', ru: 'Сладкий', pt: 'Doce', nl: 'Zoet', pl: 'Słodki' },
+    'Salty': { en: 'Salty', mt: 'Mielħ', es: 'Salado', it: 'Salato', fr: 'Salé', de: 'Salzig', ru: 'Соленый', pt: 'Salgado', nl: 'Zout', pl: 'Słony' },
+    'Classic': { en: 'Classic', mt: 'Klassiku', es: 'Clásico', it: 'Classico', fr: 'Classique', de: 'Klassisch', ru: 'Классический', pt: 'Clássico', nl: 'Klassiek', pl: 'Klasyczny' },
+    'Special': { en: 'Special', mt: 'Speċjali', es: 'Especial', it: 'Speciale', fr: 'Spécial', de: 'Spezial', ru: 'Особый', pt: 'Especial', nl: 'Speciaal', pl: 'Specjalny' },
+    'Deluxe': { en: 'Deluxe', mt: 'Deluxe', es: 'Deluxe', it: 'Deluxe', fr: 'Deluxe', de: 'Deluxe', ru: 'Делюкс', pt: 'Deluxe', nl: 'Deluxe', pl: 'Deluxe' },
+    'Premium': { en: 'Premium', mt: 'Premium', es: 'Premium', it: 'Premium', fr: 'Premium', de: 'Premium', ru: 'Премиум', pt: 'Premium', nl: 'Premium', pl: 'Premium' },
+    'Fresh': { en: 'Fresh', mt: 'Friska', es: 'Fresco', it: 'Fresco', fr: 'Frais', de: 'Frisch', ru: 'Свежий', pt: 'Fresco', nl: 'Vers', pl: 'Świeży' },
+    'Grilled': { en: 'Grilled', mt: 'Imqalli', es: 'A la parrilla', it: 'Grigliato', fr: 'Grillé', de: 'Gegrillt', ru: 'Жареный', pt: 'Grelhado', nl: 'Gegrild', pl: 'Grillowany' },
+    'Fried': { en: 'Fried', mt: 'Maqtugħ', es: 'Frito', it: 'Fritto', fr: 'Frit', de: 'Gebraten', ru: 'Жареный', pt: 'Frito', nl: 'Gebakken', pl: 'Smażony' },
+    'Baked': { en: 'Baked', mt: 'Imbajjat', es: 'Horneado', it: 'Cotto al forno', fr: 'Cuit au four', de: 'Gebacken', ru: 'Запеченный', pt: 'Assado', nl: 'Gebakken', pl: 'Pieczony' },
+    'Hot': { en: 'Hot', mt: 'Sħun', es: 'Caliente', it: 'Caldo', fr: 'Chaud', de: 'Heiß', ru: 'Горячий', pt: 'Quente', nl: 'Heet', pl: 'Gorący' },
+    'Cold': { en: 'Cold', mt: 'Kesħin', es: 'Frío', it: 'Freddo', fr: 'Froid', de: 'Kalt', ru: 'Холодный', pt: 'Frio', nl: 'Koud', pl: 'Zimny' }
+  };
+  
+  // Try to find exact match first
+  if (commonTranslations[text]) {
+    return commonTranslations[text];
+  }
+  
+  // Try partial matching for compound names
+  const normalizedText = text.toLowerCase();
+  for (const [key, translations] of Object.entries(commonTranslations)) {
+    if (normalizedText.includes(key.toLowerCase())) {
+      return translations;
+    }
+  }
+  
+  // If no translation found, create basic multilingual structure with English as default
+  const languages = ['en', 'mt', 'es', 'it', 'fr', 'de', 'ru', 'pt', 'nl', 'pl'];
+  const result = {};
+  languages.forEach(lang => {
+    result[lang] = text; // Default to original text for all languages
+  });
+  
+  return result;
+}
+
 function saveMenuData() {
   try {
     const data = JSON.stringify(menuData, null, 2);
@@ -677,6 +740,9 @@ app.use((req, res, next) => {
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
+// Serve static files from the frontend build
+app.use(express.static(path.join(__dirname, '../AROMA_FRONTEND/dist')));
+
 // Basic auth for admin routes
 const authMiddleware = basicAuth({
   users: { [ADMIN_USER]: ADMIN_PASS },
@@ -693,23 +759,7 @@ const kitchenAuthMiddleware = basicAuth({
 
 // Root route
 app.get('/', (req, res) => {
-  res.json({
-    message: 'AROMA Restaurant API',
-    status: 'running',
-    version: '1.0.0',
-    endpoints: {
-      menu: '/api/menu',
-      settings: '/api/settings',
-      orders: '/api/orders',
-      admin: '/admin',
-      kitchen: '/kitchen',
-      health: '/health'
-    },
-    access: {
-      admin: 'Username: admin, Password: changeme',
-      kitchen: 'Username: kitchen, Password: kitchen123'
-    }
-  });
+  res.sendFile(path.join(__dirname, '../AROMA_FRONTEND/dist/index.html'));
 });
 
 // CORS test endpoint
@@ -755,7 +805,7 @@ app.get('/api/debug', async (req, res) => {
       }
     }
     
-    res.json({
+  res.json({
       message: 'Backend is working!',
       categories: menuData.categories.length,
       items: menuData.items.length,
@@ -870,18 +920,18 @@ app.post('/api/menu/items', async (req, res) => {
 
     const newItem = {
       id: Math.max(...menuData.items.map(i => i.id), 0) + 1,
-      name: typeof name === 'string' ? { en: name } : name,
-      description: typeof description === 'string' ? { en: description } : description,
+      name: generateMultilingualTranslations(name, 'item'),
+      description: generateMultilingualTranslations(description, 'item'),
       price: parseFloat(price),
       image: image || 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400',
       video: video && video.trim() !== '' ? video : null,
       thumbnail: thumbnail, // Add thumbnail field
       category_id: parseInt(category_id),
       active: true,
-      ingredients: typeof ingredients === 'string' ? { en: ingredients } : ingredients,
-      nutrition: typeof nutrition === 'string' ? { en: nutrition } : nutrition,
-      allergies: typeof allergies === 'string' ? { en: allergies } : allergies,
-      prepTime: typeof prepTime === 'string' ? { en: prepTime } : prepTime
+      ingredients: generateMultilingualTranslations(ingredients, 'item'),
+      nutrition: generateMultilingualTranslations(nutrition, 'item'),
+      allergies: generateMultilingualTranslations(allergies, 'item'),
+      prepTime: generateMultilingualTranslations(prepTime, 'item')
     };
     
     menuData.items.push(newItem);
@@ -943,17 +993,17 @@ app.put('/api/menu/items/:id', async (req, res) => {
 
     const updatedItem = {
       ...menuData.items[itemIndex],
-      name: name || menuData.items[itemIndex].name,
-      description: description || menuData.items[itemIndex].description,
+      name: name ? generateMultilingualTranslations(name, 'item') : menuData.items[itemIndex].name,
+      description: description ? generateMultilingualTranslations(description, 'item') : menuData.items[itemIndex].description,
       price: price !== undefined ? parseFloat(price) : menuData.items[itemIndex].price,
       image: image || menuData.items[itemIndex].image,
       video: video !== undefined ? (video === '' ? null : video) : menuData.items[itemIndex].video,
       thumbnail: thumbnail, // Add/update thumbnail field
       category_id: category_id !== undefined ? parseInt(category_id) : menuData.items[itemIndex].category_id,
-      ingredients: ingredients || menuData.items[itemIndex].ingredients,
-      nutrition: nutrition || menuData.items[itemIndex].nutrition,
-      allergies: allergies || menuData.items[itemIndex].allergies,
-      prepTime: prepTime || menuData.items[itemIndex].prepTime,
+      ingredients: ingredients ? generateMultilingualTranslations(ingredients, 'item') : menuData.items[itemIndex].ingredients,
+      nutrition: nutrition ? generateMultilingualTranslations(nutrition, 'item') : menuData.items[itemIndex].nutrition,
+      allergies: allergies ? generateMultilingualTranslations(allergies, 'item') : menuData.items[itemIndex].allergies,
+      prepTime: prepTime ? generateMultilingualTranslations(prepTime, 'item') : menuData.items[itemIndex].prepTime,
       active: active !== undefined ? active : menuData.items[itemIndex].active
     };
     
@@ -1016,7 +1066,7 @@ app.post('/api/menu/categories', async (req, res) => {
     
     const newCategory = {
       id: Math.max(...menuData.categories.map(c => c.id), 0) + 1,
-      name: name,
+      name: generateMultilingualTranslations(name, 'category'),
       icon: icon || '🍽️',
       sort_order: sort_order || menuData.categories.length + 1,
       active: true
@@ -1064,7 +1114,7 @@ app.put('/api/menu/categories/:id', async (req, res) => {
     
     const updatedCategory = {
       ...menuData.categories[categoryIndex],
-      name: name || menuData.categories[categoryIndex].name,
+      name: name ? generateMultilingualTranslations(name, 'category') : menuData.categories[categoryIndex].name,
       icon: icon || menuData.categories[categoryIndex].icon,
       sort_order: sort_order !== undefined ? parseInt(sort_order) : menuData.categories[categoryIndex].sort_order,
       active: active !== undefined ? active : menuData.categories[categoryIndex].active
