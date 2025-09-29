@@ -118,6 +118,32 @@ if (!fs.existsSync(dataDir)) {
   console.log('📁 Created data directory:', dataDir);
 }
 
+// Force create data directory and files on startup
+function initializeDataFiles() {
+  try {
+    // Create data directory
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
+      console.log('📁 Created data directory:', dataDir);
+    }
+    
+    // Create initial data files if they don't exist
+    if (!fs.existsSync(MENU_DATA_FILE) && !fs.existsSync(MENU_DATA_BACKUP)) {
+      console.log('📝 Creating initial menu data file...');
+      saveMenuData();
+    }
+    
+    if (!fs.existsSync(ORDERS_DATA_FILE) && !fs.existsSync(ORDERS_DATA_BACKUP)) {
+      console.log('📝 Creating initial orders data file...');
+      saveOrdersData();
+    }
+    
+    console.log('✅ Data files initialized');
+  } catch (error) {
+    console.error('❌ Error initializing data files:', error);
+  }
+}
+
 // Helper function to extract YouTube video ID
 function getYouTubeVideoId(url) {
   if (!url || typeof url !== 'string') return '';
@@ -172,18 +198,29 @@ function saveMenuData() {
       console.log('📁 Created data directory:', dataDir);
     }
     
-    // Write to primary location
-    fs.writeFileSync(MENU_DATA_FILE, data);
-    console.log('✅ Menu data saved to primary location:', MENU_DATA_FILE);
+    // Write to primary location with error handling
+    try {
+      fs.writeFileSync(MENU_DATA_FILE, data, 'utf8');
+      console.log('✅ Menu data saved to primary location:', MENU_DATA_FILE);
+    } catch (writeError) {
+      console.error('❌ Failed to write to primary location:', writeError);
+    }
     
-    // Write to backup location
-    fs.writeFileSync(MENU_DATA_BACKUP, data);
-    console.log('✅ Menu data saved to backup location:', MENU_DATA_BACKUP);
+    // Write to backup location with error handling
+    try {
+      fs.writeFileSync(MENU_DATA_BACKUP, data, 'utf8');
+      console.log('✅ Menu data saved to backup location:', MENU_DATA_BACKUP);
+    } catch (writeError) {
+      console.error('❌ Failed to write to backup location:', writeError);
+    }
     
     // Verify the files were written
     const primaryExists = fs.existsSync(MENU_DATA_FILE);
     const backupExists = fs.existsSync(MENU_DATA_BACKUP);
-    console.log('📁 File verification - Primary:', primaryExists, 'Backup:', backupExists);
+    const primarySize = primaryExists ? fs.statSync(MENU_DATA_FILE).size : 0;
+    const backupSize = backupExists ? fs.statSync(MENU_DATA_BACKUP).size : 0;
+    
+    console.log('📁 File verification - Primary:', primaryExists, `(${primarySize} bytes)`, 'Backup:', backupExists, `(${backupSize} bytes)`);
     
     // Log items with video URLs
     const itemsWithVideo = menuData.items.filter(item => item.video && item.video.trim() !== '');
@@ -192,10 +229,13 @@ function saveMenuData() {
     } else {
       console.log('No items with video URLs found');
     }
+    
+    return { success: true, primaryExists, backupExists };
   } catch (error) {
     console.error('❌ Error saving menu data:', error);
     console.error('Error details:', error.message);
     console.error('Stack trace:', error.stack);
+    return { success: false, error: error.message };
   }
 }
 
@@ -294,7 +334,8 @@ function loadOrdersData() {
   }
 }
 
-// Load data on startup
+// Initialize data files and load data on startup
+initializeDataFiles();
 loadMenuData();
 loadOrdersData();
 
