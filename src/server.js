@@ -1235,6 +1235,40 @@ app.post('/admin/orders/:id/status', authMiddleware, (req, res) => {
   }
 });
 
+// Edit order (with discount support)
+app.post('/admin/orders/:id/edit', authMiddleware, (req, res) => {
+  try {
+    const orderId = parseInt(req.params.id);
+    const { customerName, customerEmail, orderType, status, discount, notes } = req.body;
+    
+    const orderIndex = orders.findIndex(o => o.id === orderId);
+    if (orderIndex === -1) {
+      return res.status(404).json({ success: false, error: 'Order not found' });
+    }
+    
+    // Update order details
+    orders[orderIndex].customerName = customerName;
+    orders[orderIndex].customerEmail = customerEmail;
+    orders[orderIndex].orderType = orderType;
+    orders[orderIndex].status = status;
+    orders[orderIndex].discount = parseFloat(discount) || 0;
+    orders[orderIndex].notes = notes || '';
+    orders[orderIndex].updatedAt = new Date().toISOString();
+    
+    // Recalculate total with discount
+    const originalTotal = orders[orderIndex].items.reduce((sum, item) => sum + (item.price * item.qty), 0);
+    orders[orderIndex].total = Math.max(0, originalTotal - (parseFloat(discount) || 0));
+    
+    saveOrdersData(); // Save orders to file
+    
+    console.log(`Order ${orderId} edited: Customer=${customerName}, Discount=€${discount}, New Total=€${orders[orderIndex].total}`);
+    res.json({ success: true, order: orders[orderIndex] });
+  } catch (error) {
+    console.error('Error editing order:', error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
 
 // Kitchen Staff Routes
 app.get('/kitchen', kitchenAuthMiddleware, (req, res) => {
