@@ -436,7 +436,7 @@
             <div class="items-grid" id="itemsGrid">
                 <% items.forEach(function(item) { %>
                 <div class="item-card" data-category-id="<%= item.category_id %>">
-                    <% if (item.video && item.video.trim() !== '') { %>
+                    <% if (item.video && item.video.trim() !== '' && (item.video.includes('youtube.com') || item.video.includes('youtu.be') || item.video.includes('vimeo.com') || item.video.includes('.mp4') || item.video.includes('.webm'))) { %>
                         <% if (item.thumbnail) { %>
                             <img src="<%= item.thumbnail %>" alt="<%= item.name.en %>" class="item-image" onerror="this.src='<%= item.image %>'">
                             <div class="video-indicator">🎥 Video Available</div>
