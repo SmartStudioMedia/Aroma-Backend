@@ -1412,7 +1412,7 @@ app.get('/admin/api/orders', authMiddleware, (req, res) => {
 });
 
 // Update order status
-app.post('/admin/orders/:id/status', authMiddleware, (req, res) => {
+app.post('/admin/orders/:id/status', authMiddleware, async (req, res) => {
   try {
     const orderId = parseInt(req.params.id);
   const { status } = req.body;
