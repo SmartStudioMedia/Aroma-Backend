@@ -26,10 +26,78 @@ if (SENDGRID_API_KEY) {
 // In-memory data storage
 let menuData = {
   categories: [
-    { id: 1, name: 'Burgers', icon: '🍔', sort_order: 1, active: true },
-    { id: 2, name: 'Sides', icon: '🍟', sort_order: 2, active: true },
-    { id: 3, name: 'Drinks', icon: '🥤', sort_order: 3, active: true },
-    { id: 4, name: 'Desserts', icon: '🍰', sort_order: 4, active: true }
+    { 
+      id: 1, 
+      name: { 
+        en: 'Burgers', 
+        mt: 'Burgers', 
+        it: 'Hamburger', 
+        fr: 'Burgers', 
+        es: 'Hamburguesas', 
+        de: 'Burger', 
+        ru: 'Бургеры', 
+        pt: 'Hambúrgueres', 
+        nl: 'Burgers', 
+        pl: 'Burgery' 
+      }, 
+      icon: '🍔', 
+      sort_order: 1, 
+      active: true 
+    },
+    { 
+      id: 2, 
+      name: { 
+        en: 'Sides', 
+        mt: 'Ħut', 
+        it: 'Contorni', 
+        fr: 'Accompagnements', 
+        es: 'Acompañamientos', 
+        de: 'Beilagen', 
+        ru: 'Гарниры', 
+        pt: 'Acompanhamentos', 
+        nl: 'Bijgerechten', 
+        pl: 'Dodatki' 
+      }, 
+      icon: '🍟', 
+      sort_order: 2, 
+      active: true 
+    },
+    { 
+      id: 3, 
+      name: { 
+        en: 'Drinks', 
+        mt: 'Xorbiet', 
+        it: 'Bevande', 
+        fr: 'Boissons', 
+        es: 'Bebidas', 
+        de: 'Getränke', 
+        ru: 'Напитки', 
+        pt: 'Bebidas', 
+        nl: 'Drankjes', 
+        pl: 'Napoje' 
+      }, 
+      icon: '🥤', 
+      sort_order: 3, 
+      active: true 
+    },
+    { 
+      id: 4, 
+      name: { 
+        en: 'Desserts', 
+        mt: 'Dessert', 
+        it: 'Dolci', 
+        fr: 'Desserts', 
+        es: 'Postres', 
+        de: 'Desserts', 
+        ru: 'Десерты', 
+        pt: 'Sobremesas', 
+        nl: 'Desserts', 
+        pl: 'Desery' 
+      }, 
+      icon: '🍰', 
+      sort_order: 4, 
+      active: true 
+    }
   ],
   items: [
     {
@@ -706,7 +774,7 @@ app.post('/api/menu/categories', (req, res) => {
     
     const newCategory = {
       id: Math.max(...menuData.categories.map(c => c.id), 0) + 1,
-      name: name,
+      name: typeof name === 'string' ? { en: name } : name,
       icon: icon || '🍽️',
       sort_order: sort_order || menuData.categories.length + 1,
       active: true
