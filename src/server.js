@@ -508,7 +508,7 @@ async function loadOrdersData() {
 // Initialize data files and load data on startup
 initializeDataFiles();
 loadMenuData();
-loadOrdersData();
+// Note: loadOrdersData() is called after MongoDB connection in app.listen()
 
 const app = express();
 
@@ -1649,11 +1649,17 @@ app.listen(PORT, '0.0.0.0', async () => {
   // Connect to database
   await connectToDatabase();
   
-  // Reload orders from MongoDB if connected
+  // Load data after MongoDB connection
   if (mongoose.connection.readyState === 1) {
-    console.log('🔄 Reloading orders from MongoDB Atlas...');
+    console.log('🔄 Loading orders from MongoDB Atlas...');
+    await loadOrdersData();
+  } else {
+    console.log('🔄 Loading orders from file storage...');
     await loadOrdersData();
   }
+  
+  // Load clients data
+  loadClientsData();
 });
 
 // Handle graceful shutdown
