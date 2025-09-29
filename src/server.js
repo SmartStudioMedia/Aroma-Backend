@@ -1258,9 +1258,16 @@ app.get('/admin', authMiddleware, (req, res) => {
     // Calculate accurate analytics data based on individual items
     const categoryStats = {};
     
+    console.log('🔍 Calculating category performance...');
+    console.log('📊 Total orders:', orders.length);
+    console.log('📊 Total categories:', menuData.categories.length);
+    console.log('📊 Total menu items:', menuData.items.length);
+    
     menuData.categories.forEach(cat => {
       let categoryRevenue = 0;
       let categoryOrders = 0;
+      
+      console.log(`\n🔍 Processing category: ${typeof cat.name === 'string' ? cat.name : cat.name.en} (ID: ${cat.id})`);
       
       // Calculate revenue based on individual items, excluding cancelled orders
       orders.forEach((order, orderIndex) => {
@@ -1272,10 +1279,12 @@ app.get('/admin', authMiddleware, (req, res) => {
               const itemRevenue = orderItem.price * orderItem.qty;
               categoryRevenue += itemRevenue;
               hasItemsInCategory = true;
+              console.log(`  ✅ Found item in category: ${menuItem.name.en || menuItem.name} - €${itemRevenue}`);
             }
           });
           if (hasItemsInCategory) {
             categoryOrders++;
+            console.log(`  📊 Order ${order.id} counted for category`);
           }
         }
       });
@@ -1285,7 +1294,11 @@ app.get('/admin', authMiddleware, (req, res) => {
         orders: categoryOrders,
         revenue: categoryRevenue
       };
+      
+      console.log(`📊 FINAL ${categoryName}: €${categoryRevenue} revenue, ${categoryOrders} orders`);
     });
+    
+    console.log('📊 Category Performance Stats:', categoryStats);
     
     res.render('admin_dashboard', {
       stats: { pending, confirmed, completed, cancelled, totalSales, completedSales },
