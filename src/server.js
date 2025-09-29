@@ -458,16 +458,18 @@ async function loadOrdersData() {
         const mongoOrders = await Order.find().sort({ createdAt: -1 });
         console.log('📊 Found orders in MongoDB:', mongoOrders.length);
         
-        if (mongoOrders.length > 0) {
-          orders = mongoOrders.map(order => order.toObject());
-          orderIdCounter = Math.max(...orders.map(o => o.id), 0) + 1;
-          console.log('✅ Orders data loaded from MongoDB Atlas:', orders.length, 'orders');
-          console.log('📊 Sample orders:', orders.slice(0, 2));
-          console.log('🔢 Next order ID will be:', orderIdCounter);
-          return;
-        } else {
-          console.log('📝 No orders found in MongoDB Atlas, checking files...');
-        }
+        // Always use MongoDB when connected, even if empty
+        orders = mongoOrders.map(order => {
+          const orderObj = order.toObject();
+          // Ensure _id is preserved for MongoDB operations
+          orderObj._id = order._id;
+          return orderObj;
+        });
+        orderIdCounter = mongoOrders.length > 0 ? Math.max(...orders.map(o => o.id), 0) + 1 : 1;
+        console.log('✅ Orders data loaded from MongoDB Atlas:', orders.length, 'orders');
+        console.log('📊 Sample orders:', orders.slice(0, 2));
+        console.log('🔢 Next order ID will be:', orderIdCounter);
+        return;
       } catch (error) {
         console.error('❌ Error loading orders from MongoDB:', error);
         console.log('🔄 Falling back to file-based storage...');
@@ -1452,9 +1454,18 @@ app.post('/admin/orders/:id/status', authMiddleware, async (req, res) => {
     // Also save to MongoDB if connected
     try {
       if (mongoose.connection.readyState === 1) {
-        await Order.findByIdAndUpdate(orders[orderIndex]._id || orders[orderIndex].id, 
-          { status: status, updatedAt: new Date().toISOString() });
-        console.log('✅ Order status updated in MongoDB Atlas');
+        // Use the MongoDB _id if available, otherwise find by order id
+        const mongoId = orders[orderIndex]._id;
+        if (mongoId) {
+          await Order.findByIdAndUpdate(mongoId, 
+            { status: status, updatedAt: new Date().toISOString() });
+          console.log('✅ Order status updated in MongoDB Atlas');
+        } else {
+          // Fallback: find by order id and update
+          await Order.findOneAndUpdate({ id: orderId }, 
+            { status: status, updatedAt: new Date().toISOString() });
+          console.log('✅ Order status updated in MongoDB Atlas (by order id)');
+        }
       }
     } catch (error) {
       console.error('❌ Error updating order status in MongoDB:', error);
