@@ -123,6 +123,14 @@ function saveMenuData() {
     fs.writeFileSync(MENU_DATA_FILE, data);
     fs.writeFileSync(MENU_DATA_BACKUP, data); // Backup in root directory
     console.log('✅ Menu data saved to file (with backup)');
+    
+    // Log items with video URLs
+    const itemsWithVideo = menuData.items.filter(item => item.video && item.video.trim() !== '');
+    if (itemsWithVideo.length > 0) {
+      console.log('Items with video URLs:', itemsWithVideo.map(item => ({ id: item.id, name: item.name.en, video: item.video })));
+    } else {
+      console.log('No items with video URLs found');
+    }
   } catch (error) {
     console.error('❌ Error saving menu data:', error);
   }
@@ -459,6 +467,7 @@ app.get('/api/menu', (req, res) => {
 app.post('/api/menu/items', (req, res) => {
   try {
     const { name, description, price, image, category_id, ingredients, nutrition, allergies, prepTime, video } = req.body;
+    console.log('POST /api/menu/items - Received data:', { name, video, image, category_id });
     
     if (!name || !price || !category_id) {
       return res.status(400).json({ success: false, error: 'Name, price, and category are required' });
@@ -493,6 +502,7 @@ app.put('/api/menu/items/:id', (req, res) => {
   try {
     const itemId = parseInt(req.params.id);
     const { name, description, price, image, category_id, ingredients, nutrition, allergies, prepTime, video, active } = req.body;
+    console.log('PUT /api/menu/items/' + itemId + ' - Received data:', { name, video, image, category_id });
     
     const itemIndex = menuData.items.findIndex(item => item.id === itemId);
     if (itemIndex === -1) {
