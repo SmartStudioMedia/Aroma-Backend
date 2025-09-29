@@ -695,6 +695,10 @@ app.get('/api/debug', (req, res) => {
     timestamp: new Date().toISOString(),
     sampleItem: menuData.items[0] || 'No items',
     sampleOrder: orders[0] || 'No orders',
+    mongodb: {
+      connected: mongoose.connection.readyState === 1,
+      state: mongoose.connection.readyState
+    },
     dataFiles: {
       menuDataExists: fs.existsSync(MENU_DATA_FILE),
       ordersDataExists: fs.existsSync(ORDERS_DATA_FILE),
@@ -1089,47 +1093,28 @@ app.get('/admin', authMiddleware, (req, res) => {
     const activeOrders = orders.filter(o => o.status !== 'cancelled');
     const totalSales = activeOrders.reduce((sum, order) => sum + (order.total || 0), 0);
     const completedSales = orders.filter(o => o.status === 'completed').reduce((sum, order) => sum + (order.total || 0), 0);
-    console.log('💰 Total Sales (excluding cancelled):', totalSales);
-    console.log('💰 Completed Sales only:', completedSales);
-    
     // Calculate accurate analytics data based on individual items
     const categoryStats = {};
-    console.log('🔍 Calculating category stats for', orders.length, 'orders');
-    console.log('📋 Available categories:', menuData.categories.map(c => c.name));
-    console.log('📋 Available menu items:', menuData.items.map(i => `${i.name.en} (cat: ${i.category_id})`));
     
     menuData.categories.forEach(cat => {
       let categoryRevenue = 0;
       let categoryOrders = 0;
       
-      console.log(`\n🔍 Processing category: ${cat.name} (ID: ${cat.id})`);
-      
       // Calculate revenue based on individual items, excluding cancelled orders
       orders.forEach((order, orderIndex) => {
-        console.log(`\n📦 Order ${order.id} (${order.status}):`);
         if (order.items && order.status !== 'cancelled') { // Exclude cancelled orders
           let hasItemsInCategory = false;
           order.items.forEach((orderItem, itemIndex) => {
-            console.log(`  Item ${itemIndex}: ID ${orderItem.id}, Price ${orderItem.price}, Qty ${orderItem.qty}`);
             const menuItem = menuData.items.find(i => i.id === orderItem.id);
-            if (menuItem) {
-              console.log(`    Menu item found: ${menuItem.name.en} (category_id: ${menuItem.category_id})`);
-              if (menuItem.category_id === cat.id) {
-                const itemRevenue = orderItem.price * orderItem.qty;
-                categoryRevenue += itemRevenue;
-                hasItemsInCategory = true;
-                console.log(`    ✅ ${cat.name}: +€${itemRevenue} (${orderItem.qty}x €${orderItem.price})`);
-              }
-            } else {
-              console.log(`    ❌ Menu item not found for ID ${orderItem.id}`);
+            if (menuItem && menuItem.category_id === cat.id) {
+              const itemRevenue = orderItem.price * orderItem.qty;
+              categoryRevenue += itemRevenue;
+              hasItemsInCategory = true;
             }
           });
           if (hasItemsInCategory) {
             categoryOrders++;
-            console.log(`    📊 Order ${order.id} counted for ${cat.name}`);
           }
-        } else {
-          console.log(`  Skipped: status=${order.status}, hasItems=${!!order.items}`);
         }
       });
       
@@ -1137,11 +1122,7 @@ app.get('/admin', authMiddleware, (req, res) => {
         orders: categoryOrders,
         revenue: categoryRevenue
       };
-      
-      console.log(`\n📊 FINAL ${cat.name}: €${categoryRevenue} revenue, ${categoryOrders} orders`);
     });
-    
-    console.log('📊 Category Performance Stats:', categoryStats);
     
     res.render('admin_dashboard', {
       stats: { pending, confirmed, completed, cancelled, totalSales, completedSales },
