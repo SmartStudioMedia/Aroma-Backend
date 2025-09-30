@@ -7,6 +7,7 @@ const path = require('path');
 const sgMail = require('@sendgrid/mail');
 const fs = require('fs');
 const mongoose = require('mongoose');
+const QRCode = require('qrcode');
 
 // Import database module
 const { 
@@ -1026,6 +1027,82 @@ app.get('/api/menu/categories', (req, res) => {
   }
 });
 
+// QR Code Management API Routes
+app.get('/api/qr/generate/:tableNumber', async (req, res) => {
+  try {
+    const { tableNumber } = req.params;
+    
+    if (!tableNumber || isNaN(tableNumber)) {
+      return res.status(400).json({ success: false, error: 'Valid table number is required' });
+    }
+    
+    // Create the URL that the QR code will point to
+    const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const qrUrl = `${baseUrl}?table=${tableNumber}`;
+    
+    // Generate QR code as data URL
+    const qrCodeDataUrl = await QRCode.toDataURL(qrUrl, {
+      width: 300,
+      margin: 2,
+      color: {
+        dark: '#000000',
+        light: '#FFFFFF'
+      }
+    });
+    
+    res.json({
+      success: true,
+      tableNumber: parseInt(tableNumber),
+      qrUrl: qrUrl,
+      qrCode: qrCodeDataUrl
+    });
+  } catch (error) {
+    console.error('Error generating QR code:', error);
+    res.status(500).json({ success: false, error: 'Failed to generate QR code' });
+  }
+});
+
+app.get('/api/qr/batch/:startTable/:endTable', async (req, res) => {
+  try {
+    const { startTable, endTable } = req.params;
+    const start = parseInt(startTable);
+    const end = parseInt(endTable);
+    
+    if (isNaN(start) || isNaN(end) || start > end) {
+      return res.status(400).json({ success: false, error: 'Valid start and end table numbers are required' });
+    }
+    
+    const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const qrCodes = [];
+    
+    for (let tableNum = start; tableNum <= end; tableNum++) {
+      const qrUrl = `${baseUrl}?table=${tableNum}`;
+      const qrCodeDataUrl = await QRCode.toDataURL(qrUrl, {
+        width: 300,
+        margin: 2,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        }
+      });
+      
+      qrCodes.push({
+        tableNumber: tableNum,
+        qrUrl: qrUrl,
+        qrCode: qrCodeDataUrl
+      });
+    }
+    
+    res.json({
+      success: true,
+      qrCodes: qrCodes
+    });
+  } catch (error) {
+    console.error('Error generating batch QR codes:', error);
+    res.status(500).json({ success: false, error: 'Failed to generate QR codes' });
+  }
+});
+
 // Menu Management API Routes
 app.post('/api/menu/items', async (req, res) => {
   try {
@@ -1552,6 +1629,21 @@ app.get('/admin/settings', authMiddleware, (req, res) => {
   } catch (error) {
     console.error('Admin settings error:', error);
     res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+});
+
+// QR Code Management Page
+app.get('/admin/qr', authMiddleware, (req, res) => {
+  try {
+    res.render('admin_qr', { 
+      title: 'QR Code Management',
+      menuData: menuData,
+      orders: orders,
+      clients: clients
+    });
+  } catch (error) {
+    console.error('Error loading QR management page:', error);
+    res.status(500).send('Error loading QR management page');
   }
 });
 
