@@ -195,25 +195,42 @@ async function fixDataSchema() {
       console.log('🔄 Fixing category field to category_id...');
       
       for (const item of itemsWithCategoryField) {
-        // Map category names to category IDs
-        const categoryMapping = {
-          'Burgers': 1,
-          'Sides': 2,
-          'Drinks': 3,
-          'Desserts': 4,
-          'Pizza': 5,
-          'Salads': 6
-        };
-        
-        const categoryName = typeof item.category === 'string' ? item.category : item.category.en || item.category;
-        const categoryId = categoryMapping[categoryName] || 1; // Default to Burgers if not found
-        
-        await MenuItem.findByIdAndUpdate(item._id, {
-          $set: { category_id: categoryId },
-          $unset: { category: 1 }
-        });
-        
-        console.log(`✅ Fixed item ${item.id}: ${categoryName} -> category_id: ${categoryId}`);
+        try {
+          console.log('🔍 Processing item:', item.id, 'category field:', item.category, 'type:', typeof item.category);
+          
+          // Map category names to category IDs
+          const categoryMapping = {
+            'Burgers': 1,
+            'Sides': 2,
+            'Drinks': 3,
+            'Desserts': 4,
+            'Pizza': 5,
+            'Salads': 6
+          };
+          
+          let categoryName = 'Burgers'; // Default fallback
+          
+          if (typeof item.category === 'string') {
+            categoryName = item.category;
+          } else if (item.category && typeof item.category === 'object') {
+            categoryName = item.category.en || item.category.name || 'Burgers';
+          } else if (item.category) {
+            categoryName = String(item.category);
+          }
+          
+          console.log('🔍 Determined category name:', categoryName);
+          const categoryId = categoryMapping[categoryName] || 1; // Default to Burgers if not found
+          
+          await MenuItem.findByIdAndUpdate(item._id, {
+            $set: { category_id: categoryId },
+            $unset: { category: 1 }
+          });
+          
+          console.log(`✅ Fixed item ${item.id}: ${categoryName} -> category_id: ${categoryId}`);
+        } catch (itemError) {
+          console.error(`❌ Error processing item ${item.id}:`, itemError.message);
+          // Continue with next item
+        }
       }
       
       console.log('✅ Data schema fixes completed');
