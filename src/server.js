@@ -23,11 +23,14 @@ const menuItemSchema = new mongoose.Schema({
   name: mongoose.Schema.Types.Mixed, // Can be string or object for multilingual
   description: mongoose.Schema.Types.Mixed,
   price: Number,
-  category: String,
+  category_id: Number, // Fixed: Changed from 'category' to 'category_id'
   image: String,
   video: String,
   thumbnail: String,
   active: { type: Boolean, default: true },
+  ingredients: mongoose.Schema.Types.Mixed,
+  nutrition: mongoose.Schema.Types.Mixed,
+  allergies: mongoose.Schema.Types.Mixed,
   prepTime: mongoose.Schema.Types.Mixed,
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
@@ -35,7 +38,7 @@ const menuItemSchema = new mongoose.Schema({
 
 const categorySchema = new mongoose.Schema({
   id: Number,
-  name: String,
+  name: mongoose.Schema.Types.Mixed, // Can be string or object for multilingual
   icon: String,
   sort_order: Number,
   active: { type: Boolean, default: true },
@@ -111,6 +114,12 @@ async function connectToDatabase() {
     
     // Migrate data from files to MongoDB if needed
     await migrateDataFromFiles();
+    
+    // Fix existing data schema issues
+    await fixDataSchema();
+    
+    // Reload data after schema fixes
+    await loadMenuData();
   } catch (error) {
     console.error('❌ MongoDB connection error:', error);
     console.log('🔄 Falling back to file-based storage...');
@@ -170,6 +179,69 @@ async function migrateDataFromFiles() {
     
   } catch (error) {
     console.error('❌ Error migrating data:', error);
+  }
+}
+
+// Fix existing data schema issues
+async function fixDataSchema() {
+  try {
+    console.log('🔄 Checking for data schema issues...');
+    
+    // Fix menu items that have 'category' instead of 'category_id'
+    const itemsWithCategoryField = await MenuItem.find({ category: { $exists: true }, category_id: { $exists: false } });
+    console.log('📊 Found items with old category field:', itemsWithCategoryField.length);
+    
+    if (itemsWithCategoryField.length > 0) {
+      console.log('🔄 Fixing category field to category_id...');
+      
+      for (const item of itemsWithCategoryField) {
+        // Map category names to category IDs
+        const categoryMapping = {
+          'Burgers': 1,
+          'Sides': 2,
+          'Drinks': 3,
+          'Desserts': 4,
+          'Pizza': 5,
+          'Salads': 6
+        };
+        
+        const categoryName = typeof item.category === 'string' ? item.category : item.category.en || item.category;
+        const categoryId = categoryMapping[categoryName] || 1; // Default to Burgers if not found
+        
+        await MenuItem.findByIdAndUpdate(item._id, {
+          $set: { category_id: categoryId },
+          $unset: { category: 1 }
+        });
+        
+        console.log(`✅ Fixed item ${item.id}: ${categoryName} -> category_id: ${categoryId}`);
+      }
+      
+      console.log('✅ Data schema fixes completed');
+    }
+    
+    // Fix categories that have string names instead of multilingual objects
+    const categoriesWithStringNames = await Category.find({ 
+      name: { $type: 'string' },
+      'name.en': { $exists: false }
+    });
+    
+    if (categoriesWithStringNames.length > 0) {
+      console.log('🔄 Fixing category names to multilingual format...');
+      
+      for (const category of categoriesWithStringNames) {
+        const categoryName = category.name;
+        const multilingualName = generateMultilingualTranslations(categoryName, 'category');
+        
+        await Category.findByIdAndUpdate(category._id, {
+          $set: { name: multilingualName }
+        });
+        
+        console.log(`✅ Fixed category ${category.id}: ${categoryName} -> multilingual`);
+      }
+    }
+    
+  } catch (error) {
+    console.error('❌ Error fixing data schema:', error);
   }
 }
 
