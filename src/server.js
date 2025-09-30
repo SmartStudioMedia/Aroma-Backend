@@ -406,68 +406,7 @@ function generateYouTubeThumbnail(videoUrl) {
   return `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
 }
 
-// Helper function to generate multilingual translations for new items and categories
-function generateMultilingualTranslations(text, type = 'item') {
-  if (typeof text !== 'string') {
-    return text; // Already multilingual
-  }
-  
-  const commonTranslations = {
-    // Food categories
-    'Burgers': { en: 'Burgers', mt: 'Burgers', es: 'Hamburguesas', it: 'Hamburger', fr: 'Hamburgers', de: 'Burger', ru: 'Бургеры', pt: 'Hambúrgueres', nl: 'Burgers', pl: 'Burgery' },
-    'Sides': { en: 'Sides', mt: 'Sides', es: 'Acompañamientos', it: 'Contorni', fr: 'Accompagnements', de: 'Beilagen', ru: 'Гарниры', pt: 'Acompanhamentos', nl: 'Bijgerechten', pl: 'Dodatki' },
-    'Drinks': { en: 'Drinks', mt: 'Xorb', es: 'Bebidas', it: 'Bevande', fr: 'Boissons', de: 'Getränke', ru: 'Напитки', pt: 'Bebidas', nl: 'Dranken', pl: 'Napoje' },
-    'Desserts': { en: 'Desserts', mt: 'Desserts', es: 'Postres', it: 'Dolci', fr: 'Desserts', de: 'Desserts', ru: 'Десерты', pt: 'Sobremesas', nl: 'Desserts', pl: 'Desery' },
-    
-    // Common food items
-    'Burger': { en: 'Burger', mt: 'Burger', es: 'Hamburguesa', it: 'Burger', fr: 'Burger', de: 'Burger', ru: 'Бургер', pt: 'Hambúrguer', nl: 'Burger', pl: 'Burger' },
-    'Pizza': { en: 'Pizza', mt: 'Pizza', es: 'Pizza', it: 'Pizza', fr: 'Pizza', de: 'Pizza', ru: 'Пицца', pt: 'Pizza', nl: 'Pizza', pl: 'Pizza' },
-    'Pasta': { en: 'Pasta', mt: 'Pasta', es: 'Pasta', it: 'Pasta', fr: 'Pâtes', de: 'Pasta', ru: 'Паста', pt: 'Massa', nl: 'Pasta', pl: 'Makaron' },
-    'Salad': { en: 'Salad', mt: 'Insalata', es: 'Ensalada', it: 'Insalata', fr: 'Salade', de: 'Salat', ru: 'Салат', pt: 'Salada', nl: 'Salade', pl: 'Sałatka' },
-    'Soup': { en: 'Soup', mt: 'Soppa', es: 'Sopa', it: 'Zuppa', fr: 'Soupe', de: 'Suppe', ru: 'Суп', pt: 'Sopa', nl: 'Soep', pl: 'Zupa' },
-    'Sandwich': { en: 'Sandwich', mt: 'Sandwich', es: 'Sándwich', it: 'Panino', fr: 'Sandwich', de: 'Sandwich', ru: 'Сэндвич', pt: 'Sanduíche', nl: 'Sandwich', pl: 'Kanapka' },
-    'Chicken': { en: 'Chicken', mt: 'Tiġieġ', es: 'Pollo', it: 'Pollo', fr: 'Poulet', de: 'Hähnchen', ru: 'Курица', pt: 'Frango', nl: 'Kip', pl: 'Kurczak' },
-    'Beef': { en: 'Beef', mt: 'Laħam tal-baqar', es: 'Carne de res', it: 'Manzo', fr: 'Bœuf', de: 'Rindfleisch', ru: 'Говядина', pt: 'Carne bovina', nl: 'Rundvlees', pl: 'Wołowina' },
-    'Fish': { en: 'Fish', mt: 'Ħut', es: 'Pescado', it: 'Pesce', fr: 'Poisson', de: 'Fisch', ru: 'Рыба', pt: 'Peixe', nl: 'Vis', pl: 'Ryba' },
-    'Vegetarian': { en: 'Vegetarian', mt: 'Veġetarjan', es: 'Vegetariano', it: 'Vegetariano', fr: 'Végétarien', de: 'Vegetarisch', ru: 'Вегетарианский', pt: 'Vegetariano', nl: 'Vegetarisch', pl: 'Wegetariański' },
-    'Vegan': { en: 'Vegan', mt: 'Vegan', es: 'Vegano', it: 'Vegano', fr: 'Végan', de: 'Vegan', ru: 'Веганский', pt: 'Vegano', nl: 'Vegan', pl: 'Wegański' },
-    'Spicy': { en: 'Spicy', mt: 'Ħafif', es: 'Picante', it: 'Piccante', fr: 'Épicé', de: 'Scharf', ru: 'Острый', pt: 'Picante', nl: 'Pittig', pl: 'Ostry' },
-    'Sweet': { en: 'Sweet', mt: 'Ħelu', es: 'Dulce', it: 'Dolce', fr: 'Sucré', de: 'Süß', ru: 'Сладкий', pt: 'Doce', nl: 'Zoet', pl: 'Słodki' },
-    'Salty': { en: 'Salty', mt: 'Mielħ', es: 'Salado', it: 'Salato', fr: 'Salé', de: 'Salzig', ru: 'Соленый', pt: 'Salgado', nl: 'Zout', pl: 'Słony' },
-    'Classic': { en: 'Classic', mt: 'Klassiku', es: 'Clásico', it: 'Classico', fr: 'Classique', de: 'Klassisch', ru: 'Классический', pt: 'Clássico', nl: 'Klassiek', pl: 'Klasyczny' },
-    'Special': { en: 'Special', mt: 'Speċjali', es: 'Especial', it: 'Speciale', fr: 'Spécial', de: 'Spezial', ru: 'Особый', pt: 'Especial', nl: 'Speciaal', pl: 'Specjalny' },
-    'Deluxe': { en: 'Deluxe', mt: 'Deluxe', es: 'Deluxe', it: 'Deluxe', fr: 'Deluxe', de: 'Deluxe', ru: 'Делюкс', pt: 'Deluxe', nl: 'Deluxe', pl: 'Deluxe' },
-    'Premium': { en: 'Premium', mt: 'Premium', es: 'Premium', it: 'Premium', fr: 'Premium', de: 'Premium', ru: 'Премиум', pt: 'Premium', nl: 'Premium', pl: 'Premium' },
-    'Fresh': { en: 'Fresh', mt: 'Friska', es: 'Fresco', it: 'Fresco', fr: 'Frais', de: 'Frisch', ru: 'Свежий', pt: 'Fresco', nl: 'Vers', pl: 'Świeży' },
-    'Grilled': { en: 'Grilled', mt: 'Imqalli', es: 'A la parrilla', it: 'Grigliato', fr: 'Grillé', de: 'Gegrillt', ru: 'Жареный', pt: 'Grelhado', nl: 'Gegrild', pl: 'Grillowany' },
-    'Fried': { en: 'Fried', mt: 'Maqtugħ', es: 'Frito', it: 'Fritto', fr: 'Frit', de: 'Gebraten', ru: 'Жареный', pt: 'Frito', nl: 'Gebakken', pl: 'Smażony' },
-    'Baked': { en: 'Baked', mt: 'Imbajjat', es: 'Horneado', it: 'Cotto al forno', fr: 'Cuit au four', de: 'Gebacken', ru: 'Запеченный', pt: 'Assado', nl: 'Gebakken', pl: 'Pieczony' },
-    'Hot': { en: 'Hot', mt: 'Sħun', es: 'Caliente', it: 'Caldo', fr: 'Chaud', de: 'Heiß', ru: 'Горячий', pt: 'Quente', nl: 'Heet', pl: 'Gorący' },
-    'Cold': { en: 'Cold', mt: 'Kesħin', es: 'Frío', it: 'Freddo', fr: 'Froid', de: 'Kalt', ru: 'Холодный', pt: 'Frio', nl: 'Koud', pl: 'Zimny' }
-  };
-  
-  // Try to find exact match first
-  if (commonTranslations[text]) {
-    return commonTranslations[text];
-  }
-  
-  // Try partial matching for compound names
-  const normalizedText = text.toLowerCase();
-  for (const [key, translations] of Object.entries(commonTranslations)) {
-    if (normalizedText.includes(key.toLowerCase())) {
-      return translations;
-    }
-  }
-  
-  // If no translation found, create basic multilingual structure with English as default
-  const languages = ['en', 'mt', 'es', 'it', 'fr', 'de', 'ru', 'pt', 'nl', 'pl'];
-  const result = {};
-  languages.forEach(lang => {
-    result[lang] = text; // Default to original text for all languages
-  });
-  
-  return result;
-}
+// generateMultilingualTranslations function is now imported from database.js
 
 function saveMenuData() {
   try {
