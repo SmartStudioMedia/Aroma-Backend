@@ -1037,7 +1037,7 @@ app.get('/api/qr/generate/:tableNumber', async (req, res) => {
     }
     
     // Create the URL that the QR code will point to
-    const baseUrl = process.env.FRONTEND_URL || 'http://localhost:4000';
+    const baseUrl = process.env.FRONTEND_URL || 'https://aroma-frontend-delta.vercel.app';
     const qrUrl = `${baseUrl}?table=${tableNumber}`;
     
     // Generate QR code as data URL
@@ -1072,7 +1072,7 @@ app.get('/api/qr/batch/:startTable/:endTable', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Valid start and end table numbers are required' });
     }
     
-    const baseUrl = process.env.FRONTEND_URL || 'http://localhost:4000';
+    const baseUrl = process.env.FRONTEND_URL || 'https://aroma-frontend-delta.vercel.app';
     const qrCodes = [];
     
     for (let tableNum = start; tableNum <= end; tableNum++) {
