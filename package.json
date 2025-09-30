@@ -5,7 +5,11 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "nodemon src/server.js"
+    "dev": "nodemon src/server.js",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "migrate": "node scripts/migrate-db.js",
+    "seed": "node scripts/migrate-db.js"
   },
   "keywords": ["restaurant", "api", "backend", "admin", "dashboard"],
   "author": "",
@@ -21,6 +25,11 @@
     "qrcode": "^1.5.3",
     "stripe": "^14.5.0",
     "mongoose": "^8.0.3"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^6.3.3",
+    "nodemon": "^3.0.1"
   },
   "engines": {
     "node": ">=18.0.0"
