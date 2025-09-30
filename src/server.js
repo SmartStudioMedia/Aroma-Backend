@@ -89,9 +89,11 @@ async function connectToDatabase() {
     
     // Only connect if MONGODB_URI is properly configured
     if (!MONGODB_URI || MONGODB_URI === 'mongodb://localhost:27017/aroma-restaurant' || MONGODB_URI.includes('localhost')) {
-      console.log('🔄 No MongoDB Atlas URI configured, using file-based storage');
-      console.log('💡 To enable permanent data storage, set MONGODB_URI environment variable');
-      return;
+    console.log('🔄 No MongoDB Atlas URI configured, using file-based storage');
+    console.log('💡 To enable permanent data storage, set MONGODB_URI environment variable');
+    console.log('💡 Example: MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/database');
+    console.log('⚠️  WARNING: Data will be lost on server restart without MongoDB!');
+    return;
     }
     
     console.log('🔄 Attempting to connect to MongoDB Atlas...');
@@ -106,10 +108,68 @@ async function connectToDatabase() {
     
     // Initialize default data if collections are empty
     await initializeDefaultData();
+    
+    // Migrate data from files to MongoDB if needed
+    await migrateDataFromFiles();
   } catch (error) {
     console.error('❌ MongoDB connection error:', error);
     console.log('🔄 Falling back to file-based storage...');
     console.log('💡 Check your MONGODB_URI environment variable in Railway');
+  }
+}
+
+// Migrate data from files to MongoDB
+async function migrateDataFromFiles() {
+  try {
+    console.log('🔄 Checking for existing file data to migrate...');
+    
+    // Check if we have file data to migrate
+    const hasFileData = fs.existsSync(MENU_DATA_FILE) || fs.existsSync(ORDERS_DATA_FILE);
+    if (!hasFileData) {
+      console.log('📝 No file data found to migrate');
+      return;
+    }
+    
+    // Check if MongoDB already has data
+    const existingItems = await MenuItem.countDocuments();
+    const existingCategories = await Category.countDocuments();
+    const existingOrders = await Order.countDocuments();
+    
+    if (existingItems > 0 || existingCategories > 0 || existingOrders > 0) {
+      console.log('📊 MongoDB already has data, skipping migration');
+      return;
+    }
+    
+    console.log('🔄 Migrating data from files to MongoDB...');
+    
+    // Migrate menu data
+    if (fs.existsSync(MENU_DATA_FILE)) {
+      const fileData = JSON.parse(fs.readFileSync(MENU_DATA_FILE, 'utf8'));
+      
+      if (fileData.categories && fileData.categories.length > 0) {
+        await Category.insertMany(fileData.categories);
+        console.log(`✅ Migrated ${fileData.categories.length} categories to MongoDB`);
+      }
+      
+      if (fileData.items && fileData.items.length > 0) {
+        await MenuItem.insertMany(fileData.items);
+        console.log(`✅ Migrated ${fileData.items.length} menu items to MongoDB`);
+      }
+    }
+    
+    // Migrate orders data
+    if (fs.existsSync(ORDERS_DATA_FILE)) {
+      const ordersData = JSON.parse(fs.readFileSync(ORDERS_DATA_FILE, 'utf8'));
+      if (ordersData && ordersData.length > 0) {
+        await Order.insertMany(ordersData);
+        console.log(`✅ Migrated ${ordersData.length} orders to MongoDB`);
+      }
+    }
+    
+    console.log('✅ Data migration completed successfully!');
+    
+  } catch (error) {
+    console.error('❌ Error migrating data:', error);
   }
 }
 
@@ -446,6 +506,33 @@ function saveMenuData() {
     console.error('Error details:', error.message);
     console.error('Stack trace:', error.stack);
     return { success: false, error: error.message };
+  }
+}
+
+// Enhanced save function that saves to both MongoDB and files
+async function saveMenuDataToMongoDB() {
+  try {
+    if (mongoose.connection.readyState === 1) {
+      // Save categories to MongoDB
+      for (const category of menuData.categories) {
+        await Category.findOneAndUpdate({ id: category.id }, category, { upsert: true });
+      }
+      
+      // Save items to MongoDB
+      for (const item of menuData.items) {
+        await MenuItem.findOneAndUpdate({ id: item.id }, item, { upsert: true });
+      }
+      
+      console.log('✅ Menu data saved to MongoDB Atlas');
+    }
+    
+    // Always save to files as backup
+    saveMenuData();
+    
+  } catch (error) {
+    console.error('❌ Error saving menu data to MongoDB:', error);
+    // Fallback to file storage
+    saveMenuData();
   }
 }
 
@@ -936,32 +1023,8 @@ app.post('/api/menu/items', async (req, res) => {
     
     menuData.items.push(newItem);
     
-    // Save to MongoDB if connected, otherwise save to files
-    try {
-      console.log('🔍 MongoDB connection state:', mongoose.connection.readyState);
-      console.log('🔍 MongoDB connection name:', mongoose.connection.name);
-      
-      if (mongoose.connection.readyState === 1) {
-        console.log('🔄 Attempting to save menu item to MongoDB Atlas...');
-        const menuItemDoc = new MenuItem(newItem);
-        const savedItem = await menuItemDoc.save();
-        console.log('✅ Menu item saved to MongoDB Atlas with ID:', savedItem._id);
-        // Also save to files as backup
-        saveMenuData();
-        console.log('✅ Menu item also saved to file storage as backup');
-      } else {
-        console.log('❌ MongoDB not connected (state:', mongoose.connection.readyState, '), saving to files only');
-        saveMenuData();
-        console.log('✅ Menu item saved to file storage');
-      }
-    } catch (error) {
-      console.error('❌ Error saving menu item to MongoDB:', error);
-      console.error('❌ Error details:', error.message);
-      console.error('❌ Error stack:', error.stack);
-      // Fallback to file storage
-      saveMenuData();
-      console.log('✅ Menu item saved to file storage (fallback)');
-    }
+    // Save to both MongoDB and files
+    await saveMenuDataToMongoDB();
     
     console.log('New menu item created:', newItem);
     res.json({ success: true, item: newItem });
@@ -1009,24 +1072,8 @@ app.put('/api/menu/items/:id', async (req, res) => {
     
     menuData.items[itemIndex] = updatedItem;
     
-    // Save to MongoDB if connected, otherwise save to files
-    try {
-      if (mongoose.connection.readyState === 1) {
-        await MenuItem.findOneAndUpdate({ id: itemId }, updatedItem, { upsert: true });
-        console.log('✅ Menu item updated in MongoDB Atlas');
-        // Also save to files as backup
-        saveMenuData();
-      } else {
-        // MongoDB not connected, save to files only
-        saveMenuData();
-        console.log('✅ Menu item updated in file storage');
-      }
-    } catch (error) {
-      console.error('❌ Error updating menu item in MongoDB:', error);
-      // Fallback to file storage
-      saveMenuData();
-      console.log('✅ Menu item updated in file storage (fallback)');
-    }
+    // Save to both MongoDB and files
+    await saveMenuDataToMongoDB();
     
     console.log('Menu item updated:', updatedItem);
     res.json({ success: true, item: updatedItem });
@@ -1074,25 +1121,8 @@ app.post('/api/menu/categories', async (req, res) => {
     
     menuData.categories.push(newCategory);
     
-    // Save to MongoDB if connected, otherwise save to files
-    try {
-      if (mongoose.connection.readyState === 1) {
-        const categoryDoc = new Category(newCategory);
-        await categoryDoc.save();
-        console.log('✅ Category saved to MongoDB Atlas');
-        // Also save to files as backup
-        saveMenuData();
-      } else {
-        // MongoDB not connected, save to files only
-        saveMenuData();
-        console.log('✅ Category saved to file storage');
-      }
-    } catch (error) {
-      console.error('❌ Error saving category to MongoDB:', error);
-      // Fallback to file storage
-      saveMenuData();
-      console.log('✅ Category saved to file storage (fallback)');
-    }
+    // Save to both MongoDB and files
+    await saveMenuDataToMongoDB();
     
     console.log('New category created:', newCategory);
     res.json({ success: true, category: newCategory });
@@ -1122,24 +1152,8 @@ app.put('/api/menu/categories/:id', async (req, res) => {
     
     menuData.categories[categoryIndex] = updatedCategory;
     
-    // Save to MongoDB if connected, otherwise save to files
-    try {
-      if (mongoose.connection.readyState === 1) {
-        await Category.findOneAndUpdate({ id: categoryId }, updatedCategory, { upsert: true });
-        console.log('✅ Category updated in MongoDB Atlas');
-        // Also save to files as backup
-        saveMenuData();
-      } else {
-        // MongoDB not connected, save to files only
-        saveMenuData();
-        console.log('✅ Category updated in file storage');
-      }
-    } catch (error) {
-      console.error('❌ Error updating category in MongoDB:', error);
-      // Fallback to file storage
-      saveMenuData();
-      console.log('✅ Category updated in file storage (fallback)');
-    }
+    // Save to both MongoDB and files
+    await saveMenuDataToMongoDB();
     
     console.log('Category updated:', updatedCategory);
     res.json({ success: true, category: updatedCategory });
