@@ -257,6 +257,23 @@ async function fixDataSchema() {
       }
     }
     
+    // Also fix any categories that might have inconsistent data types
+    const allCategories = await Category.find({});
+    console.log('🔍 Checking all categories for data consistency...');
+    
+    for (const category of allCategories) {
+      if (typeof category.name === 'string') {
+        console.log(`🔄 Converting category ${category.id} from string to multilingual: ${category.name}`);
+        const multilingualName = generateMultilingualTranslations(category.name, 'category');
+        
+        await Category.findByIdAndUpdate(category._id, {
+          $set: { name: multilingualName }
+        });
+        
+        console.log(`✅ Fixed category ${category.id}: ${category.name} -> multilingual`);
+      }
+    }
+    
   } catch (error) {
     console.error('❌ Error fixing data schema:', error);
   }
