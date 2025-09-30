@@ -1357,26 +1357,58 @@ app.post('/api/orders', async (req, res) => {
     
     // Save client if marketing consent is given
     if (marketingConsent) {
-      const existingClient = clients.find(c => c.email === customerEmail);
-      if (!existingClient) {
-        const newClient = {
-          id: clients.length > 0 ? Math.max(...clients.map(c => c.id)) + 1 : 1,
-          name: customerName,
-          email: customerEmail,
-          marketingConsent: true,
-          totalOrders: 1,
-          totalSpent: parseFloat(total),
-          createdAt: new Date().toISOString()
-        };
-        clients.push(newClient);
-        saveClientsData();
-        console.log('✅ New client added to marketing list:', newClient);
-      } else {
-        // Update existing client
-        existingClient.totalOrders = (existingClient.totalOrders || 0) + 1;
-        existingClient.totalSpent = (existingClient.totalSpent || 0) + parseFloat(total);
-        saveClientsData();
-        console.log('✅ Existing client updated:', existingClient);
+      try {
+        // Check if client exists in MongoDB
+        let existingClient = null;
+        if (mongoose.connection.readyState === 1) {
+          existingClient = await Client.findOne({ email: customerEmail });
+        } else {
+          existingClient = clients.find(c => c.email === customerEmail);
+        }
+        
+        if (!existingClient) {
+          const newClient = {
+            id: clients.length > 0 ? Math.max(...clients.map(c => c.id)) + 1 : 1,
+            name: customerName,
+            email: customerEmail,
+            marketingConsent: true,
+            totalOrders: 1,
+            totalSpent: parseFloat(total),
+            createdAt: new Date().toISOString()
+          };
+          
+          // Save to MongoDB if connected
+          if (mongoose.connection.readyState === 1) {
+            await Client.create(newClient);
+            console.log('✅ New client saved to MongoDB:', newClient);
+          }
+          
+          // Save to file storage
+          clients.push(newClient);
+          saveClientsData();
+          console.log('✅ New client added to marketing list:', newClient);
+        } else {
+          // Update existing client
+          existingClient.totalOrders = (existingClient.totalOrders || 0) + 1;
+          existingClient.totalSpent = (existingClient.totalSpent || 0) + parseFloat(total);
+          
+          // Update in MongoDB if connected
+          if (mongoose.connection.readyState === 1) {
+            await Client.findByIdAndUpdate(existingClient._id, {
+              totalOrders: existingClient.totalOrders,
+              totalSpent: existingClient.totalSpent,
+              updatedAt: new Date()
+            });
+            console.log('✅ Updated client in MongoDB:', existingClient);
+          }
+          
+          // Update in file storage
+          saveClientsData();
+          console.log('✅ Existing client updated:', existingClient);
+        }
+      } catch (error) {
+        console.error('❌ Error saving client:', error);
+        // Continue with order creation even if client saving fails
       }
     }
     
@@ -1492,9 +1524,11 @@ app.get('/admin/items', authMiddleware, (req, res) => {
     
     if (menuData.items && menuData.items.length > 0) {
       console.log('📋 Sample item:', menuData.items[0]);
+      console.log('📋 Sample item category_id:', menuData.items[0].category_id);
     }
     if (menuData.categories && menuData.categories.length > 0) {
       console.log('📋 Sample category:', menuData.categories[0]);
+      console.log('📋 Sample category name type:', typeof menuData.categories[0].name);
     }
     
     res.render('admin_items', { 
@@ -1974,8 +2008,23 @@ function saveClientsData() {
 }
 
 // Load clients data from file
-function loadClientsData() {
+async function loadClientsData() {
   try {
+    // First try to load from MongoDB if connected
+    if (mongoose.connection.readyState === 1) {
+      try {
+        console.log('🔄 Loading clients from MongoDB Atlas...');
+        const mongoClients = await Client.find().sort({ createdAt: -1 });
+        clients = mongoClients.map(client => client.toObject());
+        console.log(`✅ Clients data loaded from MongoDB Atlas (${clients.length} clients)`);
+        return;
+      } catch (error) {
+        console.error('❌ Error loading clients from MongoDB:', error);
+        // Fall back to file storage
+      }
+    }
+    
+    // Load from file storage
     let data;
     if (fs.existsSync(CLIENTS_DATA_FILE)) {
       data = fs.readFileSync(CLIENTS_DATA_FILE, 'utf8');
@@ -1988,7 +2037,7 @@ function loadClientsData() {
     
     const parsedData = JSON.parse(data);
     clients = parsedData || [];
-    console.log(`✅ Clients data loaded successfully (${clients.length} clients)`);
+    console.log(`✅ Clients data loaded from file storage (${clients.length} clients)`);
   } catch (error) {
     console.error('❌ Error loading clients data:', error);
     clients = [];
@@ -2018,7 +2067,7 @@ app.listen(PORT, '0.0.0.0', async () => {
   }
   
   // Load clients data
-  loadClientsData();
+  await loadClientsData();
 });
 
 // Handle graceful shutdown
