@@ -427,6 +427,8 @@
                 <a href="/admin/categories" class="nav-tab">Categories</a>
                 <a href="/admin/orders" class="nav-tab active">Orders</a>
                 <a href="/admin/clients" class="nav-tab">Clients</a>
+                <a href="/admin/qr" class="nav-tab">QR Codes</a>
+                <a href="/admin/settings" class="nav-tab">Settings</a>
             </div>
         </div>
 
@@ -557,7 +559,7 @@
                                 <% order.items.forEach(item => { %>
                                 <div class="item">
                                     <span class="item-name">
-                                        <%= typeof item.name === 'string' ? item.name : (item.name.en || item.name) %> × <%= item.qty %>
+                                        <%= translate(item.name) %> × <%= item.qty %>
                                     </span>
                                     <span class="item-price">€<%= (item.price * item.qty).toFixed(2) %></span>
                                 </div>
@@ -1091,4 +1093,3 @@
     </script>
 </body>
 </html>
-
