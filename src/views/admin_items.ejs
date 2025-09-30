@@ -432,7 +432,12 @@
                 </button>
                 <% categories.forEach(function(category) { %>
                 <button class="category-tab" data-category="<%= category.id %>">
-                    <%= category.icon %> <%= category.name %> 
+                    <%= category.icon %> 
+                    <% if (typeof category.name === 'object' && category.name.en) { %>
+                        <%= category.name.en %>
+                    <% } else { %>
+                        <%= category.name %>
+                    <% } %>
                     (<%= items.filter(function(item) { return item.category_id === category.id; }).length %>)
                 </button>
                 <% }); %>
@@ -617,6 +622,8 @@
                 var card = itemCards[i];
                 var cardCategoryId = card.getAttribute('data-category-id');
                 
+                console.log('Item card', i, 'category_id:', cardCategoryId, 'filtering for:', categoryId);
+                
                 if (categoryId === 'all') {
                     // Show all items
                     card.style.display = 'block';
@@ -628,9 +635,11 @@
                         card.style.display = 'block';
                         card.style.opacity = '1';
                         visibleCount++;
+                        console.log('Showing item with category_id:', cardCategoryId);
                     } else {
                         card.style.display = 'none';
                         card.style.opacity = '0';
+                        console.log('Hiding item with category_id:', cardCategoryId);
                     }
                 }
             }
@@ -645,6 +654,22 @@
             // Add click event listeners to all category tabs
             var categoryTabs = document.querySelectorAll('.category-tab');
             console.log('Found category tabs:', categoryTabs.length);
+            
+            // Debug: Log all category tabs and their data-category attributes
+            for (var i = 0; i < categoryTabs.length; i++) {
+                var tab = categoryTabs[i];
+                console.log('Category tab', i, ':', tab.textContent.trim(), 'data-category:', tab.getAttribute('data-category'));
+            }
+            
+            // Debug: Log all item cards and their category IDs
+            var itemCards = document.querySelectorAll('.item-card');
+            console.log('Total item cards found on page load:', itemCards.length);
+            for (var i = 0; i < itemCards.length; i++) {
+                var card = itemCards[i];
+                var cardCategoryId = card.getAttribute('data-category-id');
+                var itemName = card.querySelector('.item-name') ? card.querySelector('.item-name').textContent.trim() : 'Unknown';
+                console.log('Item card', i, ':', itemName, 'category_id:', cardCategoryId);
+            }
             
             for (var i = 0; i < categoryTabs.length; i++) {
                 var tab = categoryTabs[i];
