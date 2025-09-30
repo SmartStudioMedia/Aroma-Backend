@@ -433,11 +433,17 @@
                 <% categories.forEach(function(category) { %>
                 <button class="category-tab" data-category="<%= category.id %>">
                     <%= category.icon %> 
-                    <% if (typeof category.name === 'object' && category.name.en) { %>
-                        <%= category.name.en %>
-                    <% } else { %>
-                        <%= category.name %>
-                    <% } %>
+                    <% 
+                        var categoryName = '';
+                        if (category.name && typeof category.name === 'object' && category.name.en) {
+                            categoryName = category.name.en;
+                        } else if (typeof category.name === 'string') {
+                            categoryName = category.name;
+                        } else {
+                            categoryName = 'Unknown';
+                        }
+                    %>
+                    <%= categoryName %>
                     (<%= items.filter(function(item) { return item.category_id === category.id; }).length %>)
                 </button>
                 <% }); %>
@@ -470,11 +476,17 @@
                                 <% var category = categories.find(function(c) { return c.id === item.category_id; }); %>
                                 <% if (category) { %>
                                     <%= category.icon %> 
-                                    <% if (typeof category.name === 'object' && category.name.en) { %>
-                                        <%= category.name.en %>
-                                    <% } else { %>
-                                        <%= category.name %>
-                                    <% } %>
+                                    <% 
+                                        var categoryName = '';
+                                        if (category.name && typeof category.name === 'object' && category.name.en) {
+                                            categoryName = category.name.en;
+                                        } else if (typeof category.name === 'string') {
+                                            categoryName = category.name;
+                                        } else {
+                                            categoryName = 'Unknown';
+                                        }
+                                    %>
+                                    <%= categoryName %>
                                 <% } else { %>
                                     Unknown
                                 <% } %>
@@ -544,11 +556,17 @@
                         <% categories.forEach(function(category) { %>
                         <option value="<%= category.id %>">
                             <%= category.icon %> 
-                            <% if (typeof category.name === 'object' && category.name.en) { %>
-                                <%= category.name.en %>
-                            <% } else { %>
-                                <%= category.name %>
-                            <% } %>
+                            <% 
+                                var categoryName = '';
+                                if (category.name && typeof category.name === 'object' && category.name.en) {
+                                    categoryName = category.name.en;
+                                } else if (typeof category.name === 'string') {
+                                    categoryName = category.name;
+                                } else {
+                                    categoryName = 'Unknown';
+                                }
+                            %>
+                            <%= categoryName %>
                         </option>
                         <% }); %>
                     </select>
