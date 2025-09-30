@@ -468,7 +468,16 @@
                             <div class="detail-label">Category</div>
                             <div class="detail-value">
                                 <% var category = categories.find(function(c) { return c.id === item.category_id; }); %>
-                                <%= category ? category.icon + ' ' + category.name : 'Unknown' %>
+                                <% if (category) { %>
+                                    <%= category.icon %> 
+                                    <% if (typeof category.name === 'object' && category.name.en) { %>
+                                        <%= category.name.en %>
+                                    <% } else { %>
+                                        <%= category.name %>
+                                    <% } %>
+                                <% } else { %>
+                                    Unknown
+                                <% } %>
                             </div>
                         </div>
                         <div class="detail-item">
@@ -533,7 +542,14 @@
                     <label for="itemCategory">Category</label>
                     <select id="itemCategory" name="category_id" required>
                         <% categories.forEach(function(category) { %>
-                        <option value="<%= category.id %>"><%= category.icon %> <%= category.name %></option>
+                        <option value="<%= category.id %>">
+                            <%= category.icon %> 
+                            <% if (typeof category.name === 'object' && category.name.en) { %>
+                                <%= category.name.en %>
+                            <% } else { %>
+                                <%= category.name %>
+                            <% } %>
+                        </option>
                         <% }); %>
                     </select>
                 </div>
