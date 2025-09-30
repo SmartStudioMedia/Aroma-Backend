@@ -355,7 +355,7 @@
                 <% categories.forEach(category => { %>
                 <div class="category-card">
                     <span class="category-icon"><%= category.icon %></span>
-                    <div class="category-name"><%= category.name %></div>
+                    <div class="category-name"><%= translate(category.name) %></div>
                     <div class="category-sort">Sort Order: <%= category.sort_order %></div>
                     
                     <span class="status-badge status-<%= category.active ? 'active' : 'inactive' %>">
@@ -463,7 +463,16 @@
             
             if (category) {
                 document.getElementById('categoryId').value = category.id;
-                document.getElementById('categoryName').value = category.name || '';
+                // Handle multilingual category name for editing
+                var categoryName = '';
+                if (category.name && typeof category.name === 'object' && category.name.en) {
+                    categoryName = category.name.en;
+                } else if (typeof category.name === 'string') {
+                    categoryName = category.name;
+                } else {
+                    categoryName = '';
+                }
+                document.getElementById('categoryName').value = categoryName;
                 document.getElementById('categoryIcon').value = category.icon || '';
                 document.getElementById('categorySort').value = category.sort_order || '';
                 document.getElementById('categoryActive').checked = category.active;
