@@ -495,31 +495,43 @@ async function loadMenuData() {
     // First try to load from MongoDB if connected
     if (mongoose.connection.readyState === 1) {
       try {
-        console.log('🔄 Attempting to load menu data from MongoDB Atlas...');
-        console.log('🔍 MongoDB connection state:', mongoose.connection.readyState);
-        console.log('🔍 MongoDB connection name:', mongoose.connection.name);
+        console.log('🔄 Loading menu data from MongoDB Atlas...');
         
         const mongoCategories = await Category.find().sort({ sort_order: 1 });
         const mongoItems = await MenuItem.find().sort({ id: 1 });
+        
         console.log('📊 Found categories in MongoDB:', mongoCategories.length);
         console.log('📊 Found items in MongoDB:', mongoItems.length);
         
-        if (mongoCategories.length > 0) {
-          console.log('📋 Sample category from MongoDB:', mongoCategories[0].name);
-        }
-        if (mongoItems.length > 0) {
-          console.log('📋 Sample item from MongoDB:', mongoItems[0].name);
-        }
+        // Convert to plain objects and ensure proper data types
+        menuData.categories = mongoCategories.map(cat => {
+          const obj = cat.toObject();
+          // Ensure category names are properly formatted
+          if (typeof obj.name === 'object' && obj.name.en) {
+            // Already multilingual, keep as is
+          } else if (typeof obj.name === 'string') {
+            // Convert string to multilingual
+            obj.name = generateMultilingualTranslations(obj.name, 'category');
+          }
+          return obj;
+        });
         
-        // Always use MongoDB when connected, even if empty
-        menuData.categories = mongoCategories.map(cat => cat.toObject());
-        menuData.items = mongoItems.map(item => item.toObject());
+        menuData.items = mongoItems.map(item => {
+          const obj = item.toObject();
+          // Ensure item names are properly formatted
+          if (typeof obj.name === 'object' && obj.name.en) {
+            // Already multilingual, keep as is
+          } else if (typeof obj.name === 'string') {
+            // Convert string to multilingual
+            obj.name = generateMultilingualTranslations(obj.name, 'item');
+          }
+          return obj;
+        });
+        
         console.log('✅ Menu data loaded from MongoDB Atlas - Categories:', menuData.categories.length, 'Items:', menuData.items.length);
         return;
       } catch (error) {
         console.error('❌ Error loading menu data from MongoDB:', error);
-        console.error('❌ Error details:', error.message);
-        console.error('❌ Error stack:', error.stack);
         console.log('🔄 Falling back to file-based storage...');
       }
     } else {
@@ -552,6 +564,45 @@ async function loadMenuData() {
     }
   } catch (error) {
     console.error('❌ Error loading menu data:', error);
+  }
+}
+
+// Helper function to format menu data for consistency
+function formatMenuData() {
+  try {
+    console.log('🔄 Formatting menu data for consistency...');
+    
+    // Fix categories - ensure names are multilingual objects
+    if (menuData.categories) {
+      menuData.categories = menuData.categories.map(category => {
+        if (typeof category.name === 'string') {
+          console.log(`🔄 Converting category "${category.name}" to multilingual format`);
+          return {
+            ...category,
+            name: generateMultilingualTranslations(category.name, 'category')
+          };
+        }
+        return category;
+      });
+    }
+    
+    // Fix items - ensure names are multilingual objects
+    if (menuData.items) {
+      menuData.items = menuData.items.map(item => {
+        if (typeof item.name === 'string') {
+          console.log(`🔄 Converting item "${item.name}" to multilingual format`);
+          return {
+            ...item,
+            name: generateMultilingualTranslations(item.name, 'item')
+          };
+        }
+        return item;
+      });
+    }
+    
+    console.log('✅ Menu data formatted successfully');
+  } catch (error) {
+    console.error('❌ Error formatting menu data:', error);
   }
 }
 
@@ -939,6 +990,24 @@ app.get('/api/menu', (req, res) => {
   }
 });
 
+app.get('/api/menu/items', (req, res) => {
+  try {
+    res.json(menuData.items || []);
+  } catch (error) {
+    console.error('Error fetching menu items:', error);
+    res.status(500).json({ error: 'Failed to fetch menu items' });
+  }
+});
+
+app.get('/api/menu/categories', (req, res) => {
+  try {
+    res.json(menuData.categories || []);
+  } catch (error) {
+    console.error('Error fetching categories:', error);
+    res.status(500).json({ error: 'Failed to fetch categories' });
+  }
+});
+
 // Menu Management API Routes
 app.post('/api/menu/items', async (req, res) => {
   try {
@@ -972,10 +1041,15 @@ app.post('/api/menu/items', async (req, res) => {
       prepTime: generateMultilingualTranslations(prepTime, 'item')
     };
     
-    menuData.items.push(newItem);
+    // Save to database if connected
+    if (mongoose.connection.readyState === 1) {
+      await MenuItem.create(newItem);
+      console.log('✅ Menu item saved to MongoDB');
+    }
     
-    // Save to both MongoDB and files
-    await saveMenuDataToMongoDB();
+    // Also save to local data for compatibility
+    menuData.items.push(newItem);
+    saveMenuData(); // Fallback to file storage
     
     console.log('New menu item created:', newItem);
     res.json({ success: true, item: newItem });
@@ -1021,10 +1095,15 @@ app.put('/api/menu/items/:id', async (req, res) => {
       active: active !== undefined ? active : menuData.items[itemIndex].active
     };
     
-    menuData.items[itemIndex] = updatedItem;
+    // Update in database if connected
+    if (mongoose.connection.readyState === 1) {
+      await MenuItem.findOneAndUpdate({ id: itemId }, updatedItem, { upsert: true });
+      console.log('✅ Menu item updated in MongoDB');
+    }
     
-    // Save to both MongoDB and files
-    await saveMenuDataToMongoDB();
+    // Also update local data
+    menuData.items[itemIndex] = updatedItem;
+    saveMenuData(); // Fallback to file storage
     
     console.log('Menu item updated:', updatedItem);
     res.json({ success: true, item: updatedItem });
@@ -1034,7 +1113,7 @@ app.put('/api/menu/items/:id', async (req, res) => {
   }
 });
 
-app.delete('/api/menu/items/:id', (req, res) => {
+app.delete('/api/menu/items/:id', async (req, res) => {
   try {
     const itemId = parseInt(req.params.id);
     const itemIndex = menuData.items.findIndex(item => item.id === itemId);
@@ -1043,8 +1122,15 @@ app.delete('/api/menu/items/:id', (req, res) => {
       return res.status(404).json({ success: false, error: 'Item not found' });
     }
     
+    // Delete from database if connected
+    if (mongoose.connection.readyState === 1) {
+      await MenuItem.findOneAndDelete({ id: itemId });
+      console.log('✅ Menu item deleted from MongoDB');
+    }
+    
+    // Also delete from local data
     menuData.items.splice(itemIndex, 1);
-    saveMenuData(); // Save to file
+    saveMenuData(); // Fallback to file storage
     console.log('Menu item deleted:', itemId);
     res.json({ success: true });
   } catch (error) {
@@ -1070,10 +1156,15 @@ app.post('/api/menu/categories', async (req, res) => {
       active: true
     };
     
-    menuData.categories.push(newCategory);
+    // Save to database if connected
+    if (mongoose.connection.readyState === 1) {
+      await Category.create(newCategory);
+      console.log('✅ Category saved to MongoDB');
+    }
     
-    // Save to both MongoDB and files
-    await saveMenuDataToMongoDB();
+    // Also save to local data
+    menuData.categories.push(newCategory);
+    saveMenuData(); // Fallback to file storage
     
     console.log('New category created:', newCategory);
     res.json({ success: true, category: newCategory });
@@ -1101,10 +1192,15 @@ app.put('/api/menu/categories/:id', async (req, res) => {
       active: active !== undefined ? active : menuData.categories[categoryIndex].active
     };
     
-    menuData.categories[categoryIndex] = updatedCategory;
+    // Update in database if connected
+    if (mongoose.connection.readyState === 1) {
+      await Category.findOneAndUpdate({ id: categoryId }, updatedCategory, { upsert: true });
+      console.log('✅ Category updated in MongoDB');
+    }
     
-    // Save to both MongoDB and files
-    await saveMenuDataToMongoDB();
+    // Also update local data
+    menuData.categories[categoryIndex] = updatedCategory;
+    saveMenuData(); // Fallback to file storage
     
     console.log('Category updated:', updatedCategory);
     res.json({ success: true, category: updatedCategory });
@@ -1114,7 +1210,7 @@ app.put('/api/menu/categories/:id', async (req, res) => {
   }
 });
 
-app.delete('/api/menu/categories/:id', (req, res) => {
+app.delete('/api/menu/categories/:id', async (req, res) => {
   try {
     const categoryId = parseInt(req.params.id);
     const categoryIndex = menuData.categories.findIndex(cat => cat.id === categoryId);
@@ -1132,8 +1228,15 @@ app.delete('/api/menu/categories/:id', (req, res) => {
       });
     }
     
+    // Delete from database if connected
+    if (mongoose.connection.readyState === 1) {
+      await Category.findOneAndDelete({ id: categoryId });
+      console.log('✅ Category deleted from MongoDB');
+    }
+    
+    // Also delete from local data
     menuData.categories.splice(categoryIndex, 1);
-    saveMenuData(); // Save to file
+    saveMenuData(); // Fallback to file storage
     console.log('Category deleted:', categoryId);
     res.json({ success: true });
   } catch (error) {
@@ -1933,6 +2036,9 @@ app.listen(PORT, '0.0.0.0', async () => {
     await loadOrdersData();
     await loadClientsData();
   }
+  
+  // Format data for consistency (fixes [object Object] issue)
+  formatMenuData();
 });
 
 // Handle graceful shutdown
