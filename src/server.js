@@ -799,6 +799,24 @@ async function sendOrderConfirmation(order, customerEmail, customerName) {
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
+// Add translation helper to EJS
+app.locals.translate = function(text, language = 'en') {
+  if (!text) return '';
+  
+  // If it's already a string, return as is
+  if (typeof text === 'string') {
+    return text;
+  }
+  
+  // If it's an object with language keys, return the requested language or fallback to English
+  if (typeof text === 'object' && text !== null) {
+    return text[language] || text.en || text.toString();
+  }
+  
+  // Fallback to string conversion
+  return text.toString();
+};
+
 // Enhanced CORS configuration - Allow all origins for now
 app.use(cors({ 
   origin: true, // Allow all origins temporarily
