@@ -8,6 +8,18 @@ const sgMail = require('@sendgrid/mail');
 const fs = require('fs');
 const mongoose = require('mongoose');
 
+// Import database module
+const { 
+  connectToDatabase, 
+  loadDataFromDatabase, 
+  saveDataToDatabase, 
+  generateMultilingualTranslations,
+  MenuItem,
+  Category,
+  Order,
+  Client
+} = require('./database');
+
 const PORT = process.env.PORT || 4000;
 const ADMIN_USER = process.env.ADMIN_USER || 'admin';
 const ADMIN_PASS = process.env.ADMIN_PASS || 'changeme';
@@ -17,115 +29,9 @@ const KITCHEN_PASS = process.env.KITCHEN_PASS || 'kitchen123';
 // MongoDB connection
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/aroma-restaurant';
 
-// Database Models
-const menuItemSchema = new mongoose.Schema({
-  id: Number,
-  name: mongoose.Schema.Types.Mixed, // Can be string or object for multilingual
-  description: mongoose.Schema.Types.Mixed,
-  price: Number,
-  category_id: Number, // Fixed: Changed from 'category' to 'category_id'
-  image: String,
-  video: String,
-  thumbnail: String,
-  active: { type: Boolean, default: true },
-  ingredients: mongoose.Schema.Types.Mixed,
-  nutrition: mongoose.Schema.Types.Mixed,
-  allergies: mongoose.Schema.Types.Mixed,
-  prepTime: mongoose.Schema.Types.Mixed,
-  createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now }
-});
+// Database models are now imported from database.js
 
-const categorySchema = new mongoose.Schema({
-  id: Number,
-  name: mongoose.Schema.Types.Mixed, // Can be string or object for multilingual
-  icon: String,
-  sort_order: Number,
-  active: { type: Boolean, default: true },
-  createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now }
-});
-
-const orderSchema = new mongoose.Schema({
-  id: Number,
-  items: [{
-    id: Number,
-    name: String,
-    price: Number,
-    qty: Number
-  }],
-  customerName: String,
-  customerEmail: String,
-  orderType: String,
-  tableNumber: String,
-  total: Number,
-  discount: { type: Number, default: 0 },
-  notes: String,
-  status: { type: String, default: 'pending' },
-  createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now }
-});
-
-const clientSchema = new mongoose.Schema({
-  id: Number,
-  name: String,
-  email: String,
-  marketingConsent: { type: Boolean, default: false },
-  totalOrders: { type: Number, default: 0 },
-  totalSpent: { type: Number, default: 0 },
-  createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now }
-});
-
-// Create models
-const MenuItem = mongoose.model('MenuItem', menuItemSchema);
-const Category = mongoose.model('Category', categorySchema);
-const Order = mongoose.model('Order', orderSchema);
-const Client = mongoose.model('Client', clientSchema);
-
-// Connect to MongoDB
-async function connectToDatabase() {
-  try {
-    console.log('🔍 Checking MongoDB configuration...');
-    console.log('MONGODB_URI exists:', !!MONGODB_URI);
-    console.log('MONGODB_URI value:', MONGODB_URI ? MONGODB_URI.substring(0, 20) + '...' : 'undefined');
-    
-    // Only connect if MONGODB_URI is properly configured
-    if (!MONGODB_URI || MONGODB_URI === 'mongodb://localhost:27017/aroma-restaurant' || MONGODB_URI.includes('localhost')) {
-    console.log('🔄 No MongoDB Atlas URI configured, using file-based storage');
-    console.log('💡 To enable permanent data storage, set MONGODB_URI environment variable');
-    console.log('💡 Example: MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/database');
-    console.log('⚠️  WARNING: Data will be lost on server restart without MongoDB!');
-    return;
-    }
-    
-    console.log('🔄 Attempting to connect to MongoDB Atlas...');
-    await mongoose.connect(MONGODB_URI);
-    console.log('✅ Connected to MongoDB Atlas successfully');
-    console.log('🗄️ Your data is now stored permanently in the cloud!');
-    
-    // Test the connection by checking if we can access the database
-    const db = mongoose.connection.db;
-    const collections = await db.listCollections().toArray();
-    console.log('📊 Available collections:', collections.map(c => c.name));
-    
-    // Initialize default data if collections are empty
-    await initializeDefaultData();
-    
-    // Migrate data from files to MongoDB if needed
-    await migrateDataFromFiles();
-    
-    // Fix existing data schema issues
-    await fixDataSchema();
-    
-    // Reload data after schema fixes
-    await loadMenuData();
-  } catch (error) {
-    console.error('❌ MongoDB connection error:', error);
-    console.log('🔄 Falling back to file-based storage...');
-    console.log('💡 Check your MONGODB_URI environment variable in Railway');
-  }
-}
+// Database connection is now handled by database.js module
 
 // Migrate data from files to MongoDB
 async function migrateDataFromFiles() {
@@ -2067,24 +1973,27 @@ app.listen(PORT, '0.0.0.0', async () => {
   console.log(`Admin panel: http://localhost:${PORT}/admin`);
   console.log(`API health: http://localhost:${PORT}/health`);
   
-  // Connect to database
-  await connectToDatabase();
+  // Connect to database using new module
+  const dbConnected = await connectToDatabase();
   
-  // Load data after MongoDB connection
-  if (mongoose.connection.readyState === 1) {
-    console.log('🔄 Loading menu data from MongoDB Atlas...');
-    await loadMenuData();
-    console.log('🔄 Loading orders from MongoDB Atlas...');
-    await loadOrdersData();
+  if (dbConnected) {
+    // Load data from database
+    console.log('🔄 Loading data from MongoDB...');
+    const dbData = await loadDataFromDatabase();
+    if (dbData) {
+      menuData.categories = dbData.categories;
+      menuData.items = dbData.items;
+      orders = dbData.orders;
+      clients = dbData.clients;
+      console.log('✅ Data loaded from MongoDB');
+    }
   } else {
-    console.log('🔄 Loading menu data from file storage...');
+    // Fall back to file storage
+    console.log('🔄 Loading data from file storage...');
     await loadMenuData();
-    console.log('🔄 Loading orders from file storage...');
     await loadOrdersData();
+    await loadClientsData();
   }
-  
-  // Load clients data
-  await loadClientsData();
 });
 
 // Handle graceful shutdown
