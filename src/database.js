@@ -106,12 +106,39 @@ function generateMultilingualTranslations(text, type = 'item') {
     }
   }
   
-  // If no translation found, create basic multilingual structure
+  // If no translation found, create basic multilingual structure with auto-translation
   const languages = ['en', 'mt', 'es', 'it', 'fr', 'de', 'ru', 'pt', 'nl', 'pl'];
   const result = {};
-  languages.forEach(lang => {
-    result[lang] = text; // Default to original text for all languages
-  });
+  
+  // Auto-translate common food terms
+  const autoTranslations = {
+    'Burger': { en: 'Burger', mt: 'Burger', es: 'Hamburguesa', it: 'Burger', fr: 'Burger', de: 'Burger', ru: 'Бургер', pt: 'Hambúrguer', nl: 'Burger', pl: 'Burger' },
+    'Chicken': { en: 'Chicken', mt: 'Tigieg', es: 'Pollo', it: 'Pollo', fr: 'Poulet', de: 'Hähnchen', ru: 'Курица', pt: 'Frango', nl: 'Kip', pl: 'Kurczak' },
+    'Spicy': { en: 'Spicy', mt: 'Spicy', es: 'Picante', it: 'Piccante', fr: 'Épicé', de: 'Scharf', ru: 'Острый', pt: 'Picante', nl: 'Pittig', pl: 'Ostry' },
+    'Pizza': { en: 'Pizza', mt: 'Pizza', es: 'Pizza', it: 'Pizza', fr: 'Pizza', de: 'Pizza', ru: 'Пицца', pt: 'Pizza', nl: 'Pizza', pl: 'Pizza' },
+    'Test': { en: 'Test', mt: 'Test', es: 'Prueba', it: 'Test', fr: 'Test', de: 'Test', ru: 'Тест', pt: 'Teste', nl: 'Test', pl: 'Test' },
+    'Item': { en: 'Item', mt: 'Item', es: 'Artículo', it: 'Articolo', fr: 'Article', de: 'Artikel', ru: 'Предмет', pt: 'Item', nl: 'Item', pl: 'Przedmiot' }
+  };
+  
+  // Try to auto-translate compound words
+  let translatedText = text;
+  for (const [key, translations] of Object.entries(autoTranslations)) {
+    if (text.toLowerCase().includes(key.toLowerCase())) {
+      // Replace the English word with translated versions
+      for (const lang of languages) {
+        if (!result[lang]) result[lang] = text;
+        result[lang] = result[lang].replace(new RegExp(key, 'gi'), translations[lang]);
+      }
+      translatedText = result.en || text;
+    }
+  }
+  
+  // If no auto-translation worked, use original text for all languages
+  if (!result.en) {
+    languages.forEach(lang => {
+      result[lang] = text; // Default to original text for all languages
+    });
+  }
   
   return result;
 }
