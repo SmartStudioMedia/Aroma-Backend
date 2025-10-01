@@ -2066,7 +2066,7 @@ app.post('/admin/orders/:id/status', authMiddleware, async (req, res) => {
     console.log(`🔄 Updating order ${orderId} status to: ${status}`);
     
     // Update in the same data source as the dashboard uses
-    if (mongoose.connection.readyState === 1) {
+    if (mongoose.connection.readyState === 1 && process.env.MONGODB_URI && !process.env.MONGODB_URI.includes('localhost')) {
       // MongoDB is connected - update in MongoDB
       try {
         const updatedOrder = await Order.findOneAndUpdate(
@@ -2095,7 +2095,22 @@ app.post('/admin/orders/:id/status', authMiddleware, async (req, res) => {
         }
       } catch (error) {
         console.error('❌ Error updating order status in MongoDB:', error);
-        res.status(500).json({ success: false, error: 'Failed to update order in MongoDB' });
+        console.log('🔄 Falling back to file storage...');
+        
+        // Fallback to file storage
+        const orderIndex = orders.findIndex(o => o.id === orderId);
+        if (orderIndex === -1) {
+          return res.status(404).json({ success: false, error: 'Order not found' });
+        }
+        
+        orders[orderIndex].status = status;
+        orders[orderIndex].updatedAt = new Date().toISOString();
+        
+        // Save to files
+        saveOrdersData();
+        console.log('✅ Order status updated in file storage (fallback)');
+        
+        res.json({ success: true, order: orders[orderIndex] });
       }
     } else {
       // MongoDB not connected - update in file storage
@@ -2130,7 +2145,7 @@ app.post('/admin/orders/:id/edit', authMiddleware, async (req, res) => {
     console.log(`🔄 Editing order ${orderId}: Customer=${customerName}, Status=${status}, Discount=€${discount}`);
     
     // Update in the same data source as the dashboard uses
-    if (mongoose.connection.readyState === 1) {
+    if (mongoose.connection.readyState === 1 && process.env.MONGODB_URI && !process.env.MONGODB_URI.includes('localhost')) {
       // MongoDB is connected - update in MongoDB
       try {
         // Recalculate total with discount
@@ -2182,7 +2197,31 @@ app.post('/admin/orders/:id/edit', authMiddleware, async (req, res) => {
         }
       } catch (error) {
         console.error('❌ Error editing order in MongoDB:', error);
-        res.status(500).json({ success: false, error: 'Failed to edit order in MongoDB' });
+        console.log('🔄 Falling back to file storage...');
+        
+        // Fallback to file storage
+        const orderIndex = orders.findIndex(o => o.id === orderId);
+        if (orderIndex === -1) {
+          return res.status(404).json({ success: false, error: 'Order not found' });
+        }
+        
+        // Update order details
+        orders[orderIndex].customerName = customerName;
+        orders[orderIndex].customerEmail = customerEmail;
+        orders[orderIndex].orderType = orderType;
+        orders[orderIndex].status = status;
+        orders[orderIndex].discount = parseFloat(discount) || 0;
+        orders[orderIndex].notes = notes || '';
+        orders[orderIndex].updatedAt = new Date().toISOString();
+        
+        // Recalculate total with discount
+        const originalTotal = orders[orderIndex].items.reduce((sum, item) => sum + (item.price * (item.quantity || item.qty)), 0);
+        orders[orderIndex].total = Math.max(0, originalTotal - (parseFloat(discount) || 0));
+        
+        saveOrdersData(); // Save orders to file
+        console.log('✅ Order edited in file storage (fallback)');
+        
+        res.json({ success: true, order: orders[orderIndex] });
       }
     } else {
       // MongoDB not connected - update in file storage
