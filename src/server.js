@@ -2282,7 +2282,9 @@ app.post('/admin/orders/:id/status', authMiddleware, async (req, res) => {
     const orderId = parseInt(req.params.id);
     const { status } = req.body;
     
-    console.log(`🔄 Updating order ${orderId} status to: ${status}`);
+    console.log(`🔄 STATUS ROUTE CALLED - Order ID: ${orderId}, Status: ${status}`);
+    console.log(`📊 Request body:`, req.body);
+    console.log(`📊 Available orders:`, orders.map(o => ({ id: o.id, status: o.status })));
     
     // Check if order exists in either MongoDB or file storage
     let existingOrder = null;
@@ -2381,8 +2383,10 @@ app.post('/admin/orders/:id/edit', authMiddleware, async (req, res) => {
     const orderId = parseInt(req.params.id);
     const { customerName, customerEmail, orderType, status, discount, notes } = req.body;
     
-    console.log(`🔄 Editing order ${orderId}: Status=${status}, Discount=${discount}`);
-    console.log(`📊 Request data:`, { customerName, customerEmail, orderType, status, discount, notes });
+    console.log(`🔄 EDIT ROUTE CALLED - Order ID: ${orderId}`);
+    console.log(`📊 Request body:`, req.body);
+    console.log(`📊 Parsed data:`, { customerName, customerEmail, orderType, status, discount, notes });
+    console.log(`📊 Available orders:`, orders.map(o => ({ id: o.id, status: o.status })));
     
     // Check if order exists in either MongoDB or file storage
     let existingOrder = null;
@@ -2567,6 +2571,70 @@ app.post('/kitchen/orders/:id/status', kitchenAuthMiddleware, (req, res) => {
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
+});
+
+// Test route for order editing
+app.get('/test/order-edit/:id', authMiddleware, (req, res) => {
+  const orderId = parseInt(req.params.id);
+  console.log(`🧪 Testing order edit access for order ID: ${orderId}`);
+  
+  // Check if order exists
+  const order = orders.find(o => o.id === orderId);
+  if (!order) {
+    return res.json({ 
+      success: false, 
+      error: 'Order not found',
+      availableOrders: orders.map(o => ({ id: o.id, status: o.status }))
+    });
+  }
+  
+  res.json({ 
+    success: true, 
+    order: { 
+      id: order.id, 
+      status: order.status, 
+      customerName: order.customerName,
+      total: order.total 
+    },
+    message: 'Order edit route is accessible'
+  });
+});
+
+// Test POST route for order editing
+app.post('/test/order-edit/:id', authMiddleware, (req, res) => {
+  const orderId = parseInt(req.params.id);
+  const { status, discount } = req.body;
+  
+  console.log(`🧪 Testing order edit POST for order ID: ${orderId}, status: ${status}, discount: ${discount}`);
+  
+  // Check if order exists
+  const order = orders.find(o => o.id === orderId);
+  if (!order) {
+    return res.json({ 
+      success: false, 
+      error: 'Order not found',
+      availableOrders: orders.map(o => ({ id: o.id, status: o.status }))
+    });
+  }
+  
+  // Simulate the update
+  const originalStatus = order.status;
+  order.status = status || order.status;
+  order.discount = parseFloat(discount) || 0;
+  order.updatedAt = new Date().toISOString();
+  
+  res.json({ 
+    success: true, 
+    order: { 
+      id: order.id, 
+      status: order.status, 
+      originalStatus: originalStatus,
+      discount: order.discount,
+      customerName: order.customerName,
+      total: order.total 
+    },
+    message: 'Order edit POST route is working'
+  });
 });
 
 // Global error handler
