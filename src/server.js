@@ -1519,6 +1519,9 @@ app.get('/admin', authMiddleware, async (req, res) => {
     const categoryStats = {};
     
     console.log('🔍 Calculating category performance from MongoDB...');
+    console.log('📊 Available categories:', mongoCategories.map(cat => ({ id: cat.id, name: cat.name })));
+    console.log('📊 Available items:', mongoItems.map(item => ({ id: item.id, name: item.name, category_id: item.category_id })));
+    console.log('📊 Available orders:', mongoOrders.length);
     
     // Initialize category stats
     mongoCategories.forEach(cat => {
@@ -1528,31 +1531,50 @@ app.get('/admin', authMiddleware, async (req, res) => {
         revenue: 0,
         items: 0
       };
+      console.log(`📊 Initialized category: ${categoryName} (ID: ${cat.id})`);
     });
     
     // Calculate revenue for each category by analyzing all orders
-    mongoOrders.forEach(order => {
+    mongoOrders.forEach((order, orderIndex) => {
+      console.log(`\n🔍 Processing order ${orderIndex + 1}: ${order.id} (status: ${order.status})`);
+      
       if (order.status !== 'cancelled') {
         const orderCategories = new Set(); // Track which categories this order has items from
         
-        order.items.forEach(orderItem => {
+        order.items.forEach((orderItem, itemIndex) => {
+          console.log(`  📦 Item ${itemIndex + 1}: ID=${orderItem.id}, price=${orderItem.price}, qty=${orderItem.quantity}`);
+          
           // Find the menu item to get its category
           const menuItem = mongoItems.find(mi => mi.id === orderItem.id);
-          if (menuItem && menuItem.category_id) {
-            // Find the category
-            const category = mongoCategories.find(cat => cat.id === menuItem.category_id);
-            if (category) {
-              const categoryName = app.locals.translate(category.name);
-              const itemTotal = (orderItem.price || 0) * (orderItem.quantity || 0);
-              
-              if (categoryStats[categoryName]) {
-                categoryStats[categoryName].revenue += itemTotal;
-                categoryStats[categoryName].items += orderItem.quantity || 0;
-                orderCategories.add(categoryName);
+          if (menuItem) {
+            console.log(`    ✅ Found menu item: ${menuItem.name?.en || menuItem.name}, category_id: ${menuItem.category_id}`);
+            
+            if (menuItem.category_id) {
+              // Find the category
+              const category = mongoCategories.find(cat => cat.id === menuItem.category_id);
+              if (category) {
+                const categoryName = app.locals.translate(category.name);
+                const itemTotal = (orderItem.price || 0) * (orderItem.quantity || 0);
                 
-                console.log(`📊 Category ${categoryName}: +€${itemTotal} (${orderItem.quantity} items)`);
+                console.log(`    📊 Category: ${categoryName}, Item total: €${itemTotal}`);
+                
+                if (categoryStats[categoryName]) {
+                  categoryStats[categoryName].revenue += itemTotal;
+                  categoryStats[categoryName].items += orderItem.quantity || 0;
+                  orderCategories.add(categoryName);
+                  
+                  console.log(`    ✅ Added to category ${categoryName}: +€${itemTotal} (${orderItem.quantity} items)`);
+                } else {
+                  console.log(`    ❌ Category ${categoryName} not found in categoryStats`);
+                }
+              } else {
+                console.log(`    ❌ Category with ID ${menuItem.category_id} not found`);
               }
+            } else {
+              console.log(`    ❌ Menu item has no category_id`);
             }
+          } else {
+            console.log(`    ❌ Menu item with ID ${orderItem.id} not found in database`);
           }
         });
         
@@ -1560,8 +1582,11 @@ app.get('/admin', authMiddleware, async (req, res) => {
         orderCategories.forEach(categoryName => {
           if (categoryStats[categoryName]) {
             categoryStats[categoryName].orders += 1;
+            console.log(`  📊 Order counted for category: ${categoryName}`);
           }
         });
+      } else {
+        console.log(`  ⏭️ Skipping cancelled order`);
       }
     });
     
