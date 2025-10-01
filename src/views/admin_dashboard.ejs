@@ -301,6 +301,16 @@
                 <p>Total Sales (Excl. Cancelled)</p>
                 <small>Click to view daily breakdown</small>
             </a>
+            <a href="/admin/sales/completed" class="stat-card clickable">
+                <h3>€<%= stats.completedSales.toFixed(2) %></h3>
+                <p>Completed Sales</p>
+                <small>Revenue from completed orders</small>
+            </a>
+            <a href="/admin/orders" class="stat-card clickable">
+                <h3><%= orders.length %></h3>
+                <p>Total Orders</p>
+                <small>All time orders</small>
+            </a>
         </div>
 
         <div class="charts-grid">
@@ -323,6 +333,10 @@
                     </div>
                 </div>
                 <canvas id="categoryChart"></canvas>
+                <div style="margin-top: 15px; font-size: 0.9rem; color: #6b7280;">
+                    <strong>Category Details:</strong>
+                    <div id="categoryDetails" style="margin-top: 10px;"></div>
+                </div>
             </div>
         </div>
 
@@ -429,6 +443,34 @@
                 }
             });
             console.log('✅ Category chart created successfully');
+            
+            // Display category details
+            displayCategoryDetails();
+        }
+        
+        // Display detailed category performance
+        function displayCategoryDetails() {
+            var categoryStats = <%- JSON.stringify(categoryStats) %>;
+            var detailsContainer = document.getElementById('categoryDetails');
+            var detailsHtml = '';
+            
+            for (var categoryName in categoryStats) {
+                var stats = categoryStats[categoryName];
+                if (stats.revenue > 0) {
+                    detailsHtml += '<div style="margin-bottom: 8px; padding: 8px; background: #f9fafb; border-radius: 6px;">';
+                    detailsHtml += '<strong>' + categoryName + ':</strong> ';
+                    detailsHtml += '€' + stats.revenue.toFixed(2) + ' revenue, ';
+                    detailsHtml += stats.orders + ' orders, ';
+                    detailsHtml += stats.items + ' items sold';
+                    detailsHtml += '</div>';
+                }
+            }
+            
+            if (detailsHtml === '') {
+                detailsHtml = '<div style="color: #9ca3af; font-style: italic;">No sales data available yet</div>';
+            }
+            
+            detailsContainer.innerHTML = detailsHtml;
         }
         
         // Calculate accurate category performance based on individual items
