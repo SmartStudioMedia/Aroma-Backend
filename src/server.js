@@ -2312,11 +2312,31 @@ app.post('/admin/orders/:id/status', authMiddleware, async (req, res) => {
             orders[orderIndex].status = status;
             orders[orderIndex].updatedAt = new Date().toISOString();
             console.log(`📊 Also updated global orders array: Index=${orderIndex}`);
+          } else {
+            console.log('⚠️ Order not found in global orders array, adding it...');
+            // Add the updated order to the global array if not found
+            const updatedOrderObj = updatedOrder.toObject ? updatedOrder.toObject() : updatedOrder;
+            orders.push(updatedOrderObj);
+            console.log(`📊 Added order to global array: ID=${updatedOrderObj.id}`);
           }
           
           // Save to files as backup
           saveOrdersData();
           console.log('📁 Saved to files as backup');
+          
+          // Verify the update by re-fetching from MongoDB
+          const verifyOrder = await Order.findOne({ id: orderId });
+          console.log(`🔍 Verification - Order in MongoDB: Status=${verifyOrder?.status}, UpdatedAt=${verifyOrder?.updatedAt}`);
+          
+          // Force refresh the global orders array from MongoDB
+          try {
+            const freshOrders = await Order.find().sort({ createdAt: -1 });
+            orders.length = 0; // Clear existing orders
+            orders.push(...freshOrders.map(order => order.toObject ? order.toObject() : order));
+            console.log(`🔄 Refreshed global orders array with ${freshOrders.length} orders from MongoDB`);
+          } catch (refreshError) {
+            console.error('❌ Error refreshing orders from MongoDB:', refreshError);
+          }
           
           res.json({ success: true, order: updatedOrder });
         } else {
@@ -2435,11 +2455,31 @@ app.post('/admin/orders/:id/edit', authMiddleware, async (req, res) => {
             orders[orderIndex].total = newTotal;
             orders[orderIndex].updatedAt = new Date().toISOString();
             console.log(`📊 Also updated global orders array: Index=${orderIndex}, Status=${status}, Total=€${newTotal}`);
+          } else {
+            console.log('⚠️ Order not found in global orders array, adding it...');
+            // Add the updated order to the global array if not found
+            const updatedOrderObj = updatedOrder.toObject ? updatedOrder.toObject() : updatedOrder;
+            orders.push(updatedOrderObj);
+            console.log(`📊 Added order to global array: ID=${updatedOrderObj.id}`);
           }
           
           // Save to files as backup
           saveOrdersData();
           console.log('📁 Saved to files as backup');
+          
+          // Verify the update by re-fetching from MongoDB
+          const verifyOrder = await Order.findOne({ id: orderId });
+          console.log(`🔍 Verification - Order in MongoDB: Status=${verifyOrder?.status}, Total=€${verifyOrder?.total}`);
+          
+          // Force refresh the global orders array from MongoDB
+          try {
+            const freshOrders = await Order.find().sort({ createdAt: -1 });
+            orders.length = 0; // Clear existing orders
+            orders.push(...freshOrders.map(order => order.toObject ? order.toObject() : order));
+            console.log(`🔄 Refreshed global orders array with ${freshOrders.length} orders from MongoDB`);
+          } catch (refreshError) {
+            console.error('❌ Error refreshing orders from MongoDB:', refreshError);
+          }
           
           res.json({ success: true, order: updatedOrder });
         } else {
