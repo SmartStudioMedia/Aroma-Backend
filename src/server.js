@@ -2061,47 +2061,60 @@ app.get('/admin/api/orders', authMiddleware, (req, res) => {
 app.post('/admin/orders/:id/status', authMiddleware, async (req, res) => {
   try {
     const orderId = parseInt(req.params.id);
-  const { status } = req.body;
+    const { status } = req.body;
     
-    const orderIndex = orders.findIndex(o => o.id === orderId);
-    if (orderIndex === -1) {
-      return res.status(404).json({ success: false, error: 'Order not found' });
-    }
+    console.log(`🔄 Updating order ${orderId} status to: ${status}`);
     
-    orders[orderIndex].status = status;
-    orders[orderIndex].updatedAt = new Date().toISOString();
-    
-    // Save to MongoDB if connected, otherwise save to files
-    try {
-      if (mongoose.connection.readyState === 1) {
-        // Use the MongoDB _id if available, otherwise find by order id
-        const mongoId = orders[orderIndex]._id;
-        if (mongoId) {
-          await Order.findByIdAndUpdate(mongoId, 
-            { status: status, updatedAt: new Date().toISOString() });
+    // Update in the same data source as the dashboard uses
+    if (mongoose.connection.readyState === 1) {
+      // MongoDB is connected - update in MongoDB
+      try {
+        const updatedOrder = await Order.findOneAndUpdate(
+          { id: orderId }, 
+          { status: status, updatedAt: new Date().toISOString() },
+          { new: true }
+        );
+        
+        if (updatedOrder) {
           console.log('✅ Order status updated in MongoDB Atlas');
+          
+          // Also update the global orders array for consistency
+          const orderIndex = orders.findIndex(o => o.id === orderId);
+          if (orderIndex !== -1) {
+            orders[orderIndex].status = status;
+            orders[orderIndex].updatedAt = new Date().toISOString();
+          }
+          
+          // Save to files as backup
+          saveOrdersData();
+          
+          res.json({ success: true, order: updatedOrder });
         } else {
-          // Fallback: find by order id and update
-          await Order.findOneAndUpdate({ id: orderId }, 
-            { status: status, updatedAt: new Date().toISOString() });
-          console.log('✅ Order status updated in MongoDB Atlas (by order id)');
+          console.log('❌ Order not found in MongoDB');
+          res.status(404).json({ success: false, error: 'Order not found' });
         }
-        // Also save to files as backup
-        saveOrdersData();
-      } else {
-        // MongoDB not connected, save to files only
-        saveOrdersData();
-        console.log('✅ Order status updated in file storage');
+      } catch (error) {
+        console.error('❌ Error updating order status in MongoDB:', error);
+        res.status(500).json({ success: false, error: 'Failed to update order in MongoDB' });
       }
-    } catch (error) {
-      console.error('❌ Error updating order status in MongoDB:', error);
-      // Fallback to file storage
+    } else {
+      // MongoDB not connected - update in file storage
+      const orderIndex = orders.findIndex(o => o.id === orderId);
+      if (orderIndex === -1) {
+        return res.status(404).json({ success: false, error: 'Order not found' });
+      }
+      
+      orders[orderIndex].status = status;
+      orders[orderIndex].updatedAt = new Date().toISOString();
+      
+      // Save to files
       saveOrdersData();
-      console.log('✅ Order status updated in file storage (fallback)');
+      console.log('✅ Order status updated in file storage');
+      
+      res.json({ success: true, order: orders[orderIndex] });
     }
     
-    console.log(`Order ${orderId} status updated to: ${status}`);
-    res.json({ success: true, order: orders[orderIndex] });
+    console.log(`✅ Order ${orderId} status updated to: ${status}`);
   } catch (error) {
     console.error('Error updating order status:', error);
     res.status(500).json({ success: false, error: 'Internal server error' });
@@ -2109,33 +2122,95 @@ app.post('/admin/orders/:id/status', authMiddleware, async (req, res) => {
 });
 
 // Edit order (with discount support)
-app.post('/admin/orders/:id/edit', authMiddleware, (req, res) => {
+app.post('/admin/orders/:id/edit', authMiddleware, async (req, res) => {
   try {
     const orderId = parseInt(req.params.id);
     const { customerName, customerEmail, orderType, status, discount, notes } = req.body;
     
-    const orderIndex = orders.findIndex(o => o.id === orderId);
-    if (orderIndex === -1) {
-      return res.status(404).json({ success: false, error: 'Order not found' });
+    console.log(`🔄 Editing order ${orderId}: Customer=${customerName}, Status=${status}, Discount=€${discount}`);
+    
+    // Update in the same data source as the dashboard uses
+    if (mongoose.connection.readyState === 1) {
+      // MongoDB is connected - update in MongoDB
+      try {
+        // Recalculate total with discount
+        const order = await Order.findOne({ id: orderId });
+        if (!order) {
+          return res.status(404).json({ success: false, error: 'Order not found' });
+        }
+        
+        const originalTotal = order.items.reduce((sum, item) => sum + (item.price * (item.quantity || item.qty)), 0);
+        const newTotal = Math.max(0, originalTotal - (parseFloat(discount) || 0));
+        
+        const updatedOrder = await Order.findOneAndUpdate(
+          { id: orderId },
+          {
+            customerName,
+            customerEmail,
+            orderType,
+            status,
+            discount: parseFloat(discount) || 0,
+            notes: notes || '',
+            total: newTotal,
+            updatedAt: new Date().toISOString()
+          },
+          { new: true }
+        );
+        
+        if (updatedOrder) {
+          console.log('✅ Order edited in MongoDB Atlas');
+          
+          // Also update the global orders array for consistency
+          const orderIndex = orders.findIndex(o => o.id === orderId);
+          if (orderIndex !== -1) {
+            orders[orderIndex].customerName = customerName;
+            orders[orderIndex].customerEmail = customerEmail;
+            orders[orderIndex].orderType = orderType;
+            orders[orderIndex].status = status;
+            orders[orderIndex].discount = parseFloat(discount) || 0;
+            orders[orderIndex].notes = notes || '';
+            orders[orderIndex].total = newTotal;
+            orders[orderIndex].updatedAt = new Date().toISOString();
+          }
+          
+          // Save to files as backup
+          saveOrdersData();
+          
+          res.json({ success: true, order: updatedOrder });
+        } else {
+          res.status(404).json({ success: false, error: 'Order not found' });
+        }
+      } catch (error) {
+        console.error('❌ Error editing order in MongoDB:', error);
+        res.status(500).json({ success: false, error: 'Failed to edit order in MongoDB' });
+      }
+    } else {
+      // MongoDB not connected - update in file storage
+      const orderIndex = orders.findIndex(o => o.id === orderId);
+      if (orderIndex === -1) {
+        return res.status(404).json({ success: false, error: 'Order not found' });
+      }
+      
+      // Update order details
+      orders[orderIndex].customerName = customerName;
+      orders[orderIndex].customerEmail = customerEmail;
+      orders[orderIndex].orderType = orderType;
+      orders[orderIndex].status = status;
+      orders[orderIndex].discount = parseFloat(discount) || 0;
+      orders[orderIndex].notes = notes || '';
+      orders[orderIndex].updatedAt = new Date().toISOString();
+      
+      // Recalculate total with discount
+      const originalTotal = orders[orderIndex].items.reduce((sum, item) => sum + (item.price * (item.quantity || item.qty)), 0);
+      orders[orderIndex].total = Math.max(0, originalTotal - (parseFloat(discount) || 0));
+      
+      saveOrdersData(); // Save orders to file
+      console.log('✅ Order edited in file storage');
+      
+      res.json({ success: true, order: orders[orderIndex] });
     }
     
-    // Update order details
-    orders[orderIndex].customerName = customerName;
-    orders[orderIndex].customerEmail = customerEmail;
-    orders[orderIndex].orderType = orderType;
-    orders[orderIndex].status = status;
-    orders[orderIndex].discount = parseFloat(discount) || 0;
-    orders[orderIndex].notes = notes || '';
-    orders[orderIndex].updatedAt = new Date().toISOString();
-    
-    // Recalculate total with discount
-    const originalTotal = orders[orderIndex].items.reduce((sum, item) => sum + (item.price * item.qty), 0);
-    orders[orderIndex].total = Math.max(0, originalTotal - (parseFloat(discount) || 0));
-    
-    saveOrdersData(); // Save orders to file
-    
-    console.log(`Order ${orderId} edited: Customer=${customerName}, Discount=€${discount}, New Total=€${orders[orderIndex].total}`);
-    res.json({ success: true, order: orders[orderIndex] });
+    console.log(`✅ Order ${orderId} edited: Customer=${customerName}, Discount=€${discount}, New Total=€${orders[orderIndex]?.total || 'N/A'}`);
   } catch (error) {
     console.error('Error editing order:', error);
     res.status(500).json({ success: false, error: 'Internal server error' });
