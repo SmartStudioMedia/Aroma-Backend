@@ -2326,12 +2326,12 @@ app.post('/admin/orders/:id/status', authMiddleware, async (req, res) => {
 app.post('/admin/orders/:id/edit', authMiddleware, async (req, res) => {
   try {
     const orderId = parseInt(req.params.id);
-    const { customerName, customerEmail, orderType, status, discount, notes } = req.body;
+    const { customerName, customerEmail, orderType, status, discount, notes, items } = req.body;
     
-    console.log(`🔄 SIMPLIFIED EDIT ROUTE - Order ID: ${orderId}`);
-    console.log(`📊 Request data:`, { customerName, customerEmail, orderType, status, discount, notes });
+    console.log(`🔄 EDIT ROUTE - Order ID: ${orderId}`);
+    console.log(`📊 Request data:`, { customerName, customerEmail, orderType, status, discount, notes, items });
     
-    // Find the order in file storage (simplest approach)
+    // Find the order in file storage
     const orderIndex = orders.findIndex(o => o.id === orderId);
     if (orderIndex === -1) {
       console.log('❌ Order not found in file storage');
@@ -2341,23 +2341,66 @@ app.post('/admin/orders/:id/edit', authMiddleware, async (req, res) => {
     console.log(`📊 Found order at index ${orderIndex}:`, {
       id: orders[orderIndex].id,
       status: orders[orderIndex].status,
-      customerName: orders[orderIndex].customerName
+      customerName: orders[orderIndex].customerName,
+      total: orders[orderIndex].total
     });
     
-    // Simple update - just change the fields
+    // Update basic fields
     if (customerName) orders[orderIndex].customerName = customerName;
     if (customerEmail) orders[orderIndex].customerEmail = customerEmail;
     if (orderType) orders[orderIndex].orderType = orderType;
     if (status) orders[orderIndex].status = status;
     if (discount !== undefined) orders[orderIndex].discount = parseFloat(discount) || 0;
     if (notes !== undefined) orders[orderIndex].notes = notes || '';
+    
+    // If items are provided, update them and recalculate total
+    if (items && Array.isArray(items)) {
+      console.log(`📊 Updating items for order ${orderId}:`, items);
+      
+      // Update items with proper price calculation
+      orders[orderIndex].items = items.map(item => {
+        const menuItem = menuData.items.find(i => i.id === item.id);
+        const itemPrice = menuItem ? (menuItem.price || 0) : (item.price || 0);
+        const quantity = parseInt(item.qty || item.quantity || 1);
+        
+        console.log(`📊 Item ${item.id}: price=${itemPrice}, qty=${quantity}, total=${itemPrice * quantity}`);
+        
+        return {
+          id: item.id || 0,
+          name: menuItem ? (typeof menuItem.name === 'string' ? menuItem.name : menuItem.name.en) : (item.name || 'Unknown Item'),
+          price: itemPrice,
+          qty: quantity,
+          quantity: quantity // Keep both for compatibility
+        };
+      });
+      
+      // Recalculate total from items
+      const itemsTotal = orders[orderIndex].items.reduce((sum, item) => {
+        const itemTotal = (item.price || 0) * (item.qty || item.quantity || 1);
+        console.log(`📊 Item ${item.id} total: ${itemTotal}`);
+        return sum + itemTotal;
+      }, 0);
+      
+      console.log(`📊 Items total: ${itemsTotal}`);
+      
+      // Apply discount
+      const discountAmount = parseFloat(orders[orderIndex].discount) || 0;
+      const finalTotal = Math.max(0, itemsTotal - discountAmount);
+      
+      console.log(`📊 Final total: ${itemsTotal} - ${discountAmount} = ${finalTotal}`);
+      
+      orders[orderIndex].total = finalTotal;
+    }
+    
     orders[orderIndex].updatedAt = new Date().toISOString();
     
     console.log(`📊 Updated order:`, {
       id: orders[orderIndex].id,
       status: orders[orderIndex].status,
       customerName: orders[orderIndex].customerName,
-      discount: orders[orderIndex].discount
+      discount: orders[orderIndex].discount,
+      total: orders[orderIndex].total,
+      itemsCount: orders[orderIndex].items.length
     });
     
     // Save to file
@@ -2372,7 +2415,7 @@ app.post('/admin/orders/:id/edit', authMiddleware, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Simplified edit error:', error);
+    console.error('❌ Edit error:', error);
     res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
@@ -2594,6 +2637,61 @@ app.post('/admin/cleanup-duplicates', authMiddleware, async (req, res) => {
   }
 });
 
+// Fix orders with NaN totals
+app.post('/admin/fix-nan-totals', authMiddleware, async (req, res) => {
+  try {
+    console.log('🔧 Starting NaN total fix...');
+    
+    let fixedCount = 0;
+    
+    orders.forEach((order, index) => {
+      // Check if total is NaN or invalid
+      if (isNaN(order.total) || order.total === null || order.total === undefined) {
+        console.log(`🔧 Fixing order ${order.id} with invalid total: ${order.total}`);
+        
+        // Recalculate total from items
+        if (order.items && Array.isArray(order.items)) {
+          const itemsTotal = order.items.reduce((sum, item) => {
+            const itemPrice = parseFloat(item.price) || 0;
+            const quantity = parseInt(item.qty || item.quantity || 1);
+            return sum + (itemPrice * quantity);
+          }, 0);
+          
+          const discountAmount = parseFloat(order.discount) || 0;
+          const finalTotal = Math.max(0, itemsTotal - discountAmount);
+          
+          orders[index].total = finalTotal;
+          orders[index].updatedAt = new Date().toISOString();
+          
+          console.log(`✅ Fixed order ${order.id}: ${order.total} -> ${finalTotal}`);
+          fixedCount++;
+        } else {
+          // If no items, set total to 0
+          orders[index].total = 0;
+          orders[index].updatedAt = new Date().toISOString();
+          console.log(`✅ Set order ${order.id} total to 0 (no items)`);
+          fixedCount++;
+        }
+      }
+    });
+    
+    // Save the fixed data
+    saveOrdersData();
+    
+    console.log(`✅ NaN total fix completed: Fixed ${fixedCount} orders`);
+    
+    res.json({ 
+      success: true, 
+      message: `Fixed ${fixedCount} orders with NaN totals`,
+      ordersFixed: fixedCount
+    });
+    
+  } catch (error) {
+    console.error('❌ NaN fix error:', error);
+    res.status(500).json({ success: false, error: 'NaN fix failed' });
+  }
+});
+
 // Global error handler
 app.use((error, req, res, next) => {
   console.error('Global error handler:', error);
@@ -2702,6 +2800,43 @@ app.listen(PORT, '0.0.0.0', async () => {
   
   // Format data for consistency (fixes [object Object] issue)
   formatMenuData();
+  
+  // Fix any orders with NaN totals
+  console.log('🔧 Checking for orders with NaN totals...');
+  let fixedCount = 0;
+  orders.forEach((order, index) => {
+    if (isNaN(order.total) || order.total === null || order.total === undefined) {
+      console.log(`🔧 Fixing order ${order.id} with invalid total: ${order.total}`);
+      
+      if (order.items && Array.isArray(order.items)) {
+        const itemsTotal = order.items.reduce((sum, item) => {
+          const itemPrice = parseFloat(item.price) || 0;
+          const quantity = parseInt(item.qty || item.quantity || 1);
+          return sum + (itemPrice * quantity);
+        }, 0);
+        
+        const discountAmount = parseFloat(order.discount) || 0;
+        const finalTotal = Math.max(0, itemsTotal - discountAmount);
+        
+        orders[index].total = finalTotal;
+        orders[index].updatedAt = new Date().toISOString();
+        fixedCount++;
+      } else {
+        orders[index].total = 0;
+        orders[index].updatedAt = new Date().toISOString();
+        fixedCount++;
+      }
+    }
+  });
+  
+  if (fixedCount > 0) {
+    console.log(`✅ Fixed ${fixedCount} orders with NaN totals`);
+    saveOrdersData();
+  }
+  
+  console.log(`📊 Total orders: ${orders.length}`);
+  console.log(`📊 Total categories: ${menuData.categories.length}`);
+  console.log(`📊 Total menu items: ${menuData.items.length}`);
 });
 
 // Handle graceful shutdown
