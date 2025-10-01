@@ -2292,12 +2292,38 @@ app.post('/admin/orders/:id/status', authMiddleware, async (req, res) => {
     console.log(`🔄 STATUS ROUTE - Order ID: ${orderId}, Status: ${status}`);
     console.log(`📊 Available orders:`, orders.map(o => ({ id: o.id, status: o.status })));
     
-    // Find the order in file storage (simplest approach)
-    const orderIndex = orders.findIndex(o => o.id === orderId);
-    if (orderIndex === -1) {
+    // Find the order in file storage - handle duplicates by finding the most recent one
+    const ordersWithId = orders.filter(o => o.id === orderId);
+    if (ordersWithId.length === 0) {
       console.log('❌ Order not found in file storage');
       return res.status(404).json({ success: false, error: 'Order not found' });
     }
+    
+    // If there are duplicates, warn and use the most recent one
+    if (ordersWithId.length > 1) {
+      console.log(`⚠️ WARNING: Found ${ordersWithId.length} orders with ID ${orderId}. Using the most recent one.`);
+      console.log('📊 Duplicate orders:', ordersWithId.map(o => ({ 
+        id: o.id, 
+        status: o.status, 
+        createdAt: o.createdAt || o.timestamp 
+      })));
+    }
+    
+    // Sort by creation date and get the most recent one
+    const sortedOrders = ordersWithId.sort((a, b) => {
+      const dateA = new Date(a.createdAt || a.timestamp || 0);
+      const dateB = new Date(b.createdAt || b.timestamp || 0);
+      return dateB - dateA; // Most recent first
+    });
+    
+    const mostRecentOrder = sortedOrders[0];
+    const orderIndex = orders.findIndex(o => o === mostRecentOrder);
+    
+    console.log(`📊 Using order at index ${orderIndex} (most recent):`, {
+      id: mostRecentOrder.id,
+      status: mostRecentOrder.status,
+      createdAt: mostRecentOrder.createdAt || mostRecentOrder.timestamp
+    });
     
     console.log(`📊 Found order at index ${orderIndex}:`, {
       id: orders[orderIndex].id,
@@ -2348,12 +2374,38 @@ app.post('/admin/orders/:id/edit', authMiddleware, async (req, res) => {
     console.log(`📊 Request data:`, { customerName, customerEmail, orderType, status, discount, notes, items });
     console.log(`📊 Available orders:`, orders.map(o => ({ id: o.id, status: o.status })));
     
-    // Find the order in file storage
-    const orderIndex = orders.findIndex(o => o.id === orderId);
-    if (orderIndex === -1) {
+    // Find the order in file storage - handle duplicates by finding the most recent one
+    const ordersWithId = orders.filter(o => o.id === orderId);
+    if (ordersWithId.length === 0) {
       console.log('❌ Order not found in file storage');
       return res.status(404).json({ success: false, error: 'Order not found' });
     }
+    
+    // If there are duplicates, warn and use the most recent one
+    if (ordersWithId.length > 1) {
+      console.log(`⚠️ WARNING: Found ${ordersWithId.length} orders with ID ${orderId}. Using the most recent one.`);
+      console.log('📊 Duplicate orders:', ordersWithId.map(o => ({ 
+        id: o.id, 
+        status: o.status, 
+        createdAt: o.createdAt || o.timestamp 
+      })));
+    }
+    
+    // Sort by creation date and get the most recent one
+    const sortedOrders = ordersWithId.sort((a, b) => {
+      const dateA = new Date(a.createdAt || a.timestamp || 0);
+      const dateB = new Date(b.createdAt || b.timestamp || 0);
+      return dateB - dateA; // Most recent first
+    });
+    
+    const mostRecentOrder = sortedOrders[0];
+    const orderIndex = orders.findIndex(o => o === mostRecentOrder);
+    
+    console.log(`📊 Using order at index ${orderIndex} (most recent):`, {
+      id: mostRecentOrder.id,
+      status: mostRecentOrder.status,
+      createdAt: mostRecentOrder.createdAt || mostRecentOrder.timestamp
+    });
     
     console.log(`📊 Found order at index ${orderIndex}:`, {
       id: orders[orderIndex].id,
@@ -2876,6 +2928,51 @@ app.listen(PORT, '0.0.0.0', async () => {
   if (fixedCount > 0) {
     console.log(`✅ Fixed ${fixedCount} orders with NaN totals`);
     saveOrdersData();
+  }
+  
+  // Clean up duplicate orders automatically
+  console.log('🧹 Checking for duplicate orders...');
+  const orderGroups = {};
+  orders.forEach(order => {
+    if (!orderGroups[order.id]) {
+      orderGroups[order.id] = [];
+    }
+    orderGroups[order.id].push(order);
+  });
+  
+  const duplicates = Object.keys(orderGroups).filter(id => orderGroups[id].length > 1);
+  if (duplicates.length > 0) {
+    console.log(`⚠️ Found ${duplicates.length} order IDs with duplicates:`, duplicates);
+    
+    let cleanedCount = 0;
+    duplicates.forEach(id => {
+      const ordersWithId = orderGroups[id];
+      const sortedOrders = ordersWithId.sort((a, b) => {
+        const dateA = new Date(a.createdAt || a.timestamp || 0);
+        const dateB = new Date(b.createdAt || b.timestamp || 0);
+        return dateB - dateA; // Most recent first
+      });
+      
+      // Keep the most recent one, remove the rest
+      const keepOrder = sortedOrders[0];
+      const removeOrders = sortedOrders.slice(1);
+      
+      console.log(`🔧 Cleaning ID ${id}: Keeping most recent, removing ${removeOrders.length} duplicates`);
+      
+      // Remove duplicates from the orders array
+      removeOrders.forEach(removeOrder => {
+        const index = orders.findIndex(o => o === removeOrder);
+        if (index !== -1) {
+          orders.splice(index, 1);
+          cleanedCount++;
+        }
+      });
+    });
+    
+    if (cleanedCount > 0) {
+      console.log(`✅ Cleaned up ${cleanedCount} duplicate orders`);
+      saveOrdersData();
+    }
   }
   
   console.log(`📊 Total orders: ${orders.length}`);
