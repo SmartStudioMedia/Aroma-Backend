@@ -2284,99 +2284,93 @@ app.post('/admin/orders/:id/status', authMiddleware, async (req, res) => {
     
     console.log(`🔄 Updating order ${orderId} status to: ${status}`);
     
-    // Always try MongoDB first if connected, then fallback to file storage
-    const isMongoConnected = mongoose.connection.readyState === 1;
+    // Check if order exists in either MongoDB or file storage
+    let existingOrder = null;
+    let orderSource = 'none';
     
-    console.log(`🔍 Status update - MongoDB check: readyState=${mongoose.connection.readyState}, isMongoConnected=${isMongoConnected}`);
-    
-    if (isMongoConnected) {
-      // MongoDB is connected - update in MongoDB
+    // Try MongoDB first
+    if (mongoose.connection.readyState === 1) {
       try {
-        const updatedOrder = await Order.findOneAndUpdate(
-          { id: orderId }, 
-          { status: status, updatedAt: new Date().toISOString() },
+        existingOrder = await Order.findOne({ id: orderId });
+        if (existingOrder) {
+          orderSource = 'mongodb';
+          console.log(`📊 Found order in MongoDB: ID=${existingOrder.id}, Status=${existingOrder.status}`);
+        }
+      } catch (mongoError) {
+        console.error('❌ Error checking MongoDB:', mongoError);
+      }
+    }
+    
+    // Try file storage if not found in MongoDB
+    if (!existingOrder) {
+      const orderIndex = orders.findIndex(o => o.id === orderId);
+      if (orderIndex !== -1) {
+        existingOrder = orders[orderIndex];
+        orderSource = 'file';
+        console.log(`📊 Found order in file storage: ID=${existingOrder.id}, Status=${existingOrder.status}`);
+      }
+    }
+    
+    if (!existingOrder) {
+      console.log('❌ Order not found in any storage');
+      return res.status(404).json({ success: false, error: 'Order not found' });
+    }
+    
+    // Update the order status
+    const updatedOrderData = {
+      status: status,
+      updatedAt: new Date().toISOString()
+    };
+    
+    let success = false;
+    let updatedOrder = null;
+    
+    // Try MongoDB update first
+    if (mongoose.connection.readyState === 1) {
+      try {
+        updatedOrder = await Order.findOneAndUpdate(
+          { id: orderId },
+          updatedOrderData,
           { new: true }
         );
         
         if (updatedOrder) {
-          console.log('✅ Order status updated in MongoDB Atlas');
-          console.log(`📊 Updated order: ID=${updatedOrder.id}, Status=${updatedOrder.status}, UpdatedAt=${updatedOrder.updatedAt}`);
-          
-          // Also update the global orders array for consistency
-          const orderIndex = orders.findIndex(o => o.id === orderId);
-          if (orderIndex !== -1) {
-            orders[orderIndex].status = status;
-            orders[orderIndex].updatedAt = new Date().toISOString();
-            console.log(`📊 Also updated global orders array: Index=${orderIndex}`);
-          } else {
-            console.log('⚠️ Order not found in global orders array, adding it...');
-            // Add the updated order to the global array if not found
-            const updatedOrderObj = updatedOrder.toObject ? updatedOrder.toObject() : updatedOrder;
-            orders.push(updatedOrderObj);
-            console.log(`📊 Added order to global array: ID=${updatedOrderObj.id}`);
-          }
-          
-          // Save to files as backup
-          saveOrdersData();
-          console.log('📁 Saved to files as backup');
-          
-          // Wait a moment and verify the update by re-fetching from MongoDB
-          await new Promise(resolve => setTimeout(resolve, 100)); // Small delay
-          const verifyOrder = await Order.findOne({ id: orderId });
-          console.log(`🔍 Verification - Order in MongoDB: Status=${verifyOrder?.status}, UpdatedAt=${verifyOrder?.updatedAt}`);
-          
-          if (verifyOrder && verifyOrder.status === status) {
-            console.log('✅ Order status update verified successfully in MongoDB');
-          } else {
-            console.log('❌ Order status update verification failed - status mismatch');
-          }
-          
-          res.json({ success: true, order: updatedOrder });
-        } else {
-          console.log('❌ Order not found in MongoDB');
-          res.status(404).json({ success: false, error: 'Order not found' });
+          console.log('✅ Order status updated in MongoDB');
+          console.log(`📊 MongoDB result: ID=${updatedOrder.id}, Status=${updatedOrder.status}`);
+          success = true;
         }
-      } catch (error) {
-        console.error('❌ Error updating order status in MongoDB:', error);
-        console.log('🔄 Falling back to file storage...');
-        
-        // Fallback to file storage
-        const orderIndex = orders.findIndex(o => o.id === orderId);
-        if (orderIndex === -1) {
-          return res.status(404).json({ success: false, error: 'Order not found' });
-        }
-        
-        orders[orderIndex].status = status;
-        orders[orderIndex].updatedAt = new Date().toISOString();
-        
-        // Save to files
-        saveOrdersData();
-        console.log('✅ Order status updated in file storage (fallback)');
-        console.log(`📊 Fallback updated: ID=${orders[orderIndex].id}, Status=${orders[orderIndex].status}, UpdatedAt=${orders[orderIndex].updatedAt}`);
-        
-        res.json({ success: true, order: orders[orderIndex] });
+      } catch (mongoError) {
+        console.error('❌ MongoDB update failed:', mongoError);
       }
-    } else {
-      // MongoDB not connected - update in file storage
-      const orderIndex = orders.findIndex(o => o.id === orderId);
-      if (orderIndex === -1) {
-        return res.status(404).json({ success: false, error: 'Order not found' });
-      }
-      
-      orders[orderIndex].status = status;
-      orders[orderIndex].updatedAt = new Date().toISOString();
-      
-      // Save to files
-      saveOrdersData();
-      console.log('✅ Order status updated in file storage');
-      console.log(`📊 File storage updated: ID=${orders[orderIndex].id}, Status=${orders[orderIndex].status}, UpdatedAt=${orders[orderIndex].updatedAt}`);
-      
-      res.json({ success: true, order: orders[orderIndex] });
     }
     
-    console.log(`✅ Order ${orderId} status updated to: ${status}`);
+    // Update file storage regardless (for backup and consistency)
+    const orderIndex = orders.findIndex(o => o.id === orderId);
+    if (orderIndex !== -1) {
+      Object.assign(orders[orderIndex], updatedOrderData);
+      console.log('✅ Order status updated in file storage');
+      console.log(`📊 File storage result: ID=${orders[orderIndex].id}, Status=${orders[orderIndex].status}`);
+      
+      // Save to file
+      saveOrdersData();
+      console.log('📁 File storage saved');
+      
+      if (!success) {
+        updatedOrder = orders[orderIndex];
+        success = true;
+      }
+    }
+    
+    if (success && updatedOrder) {
+      console.log('✅ Order status update completed successfully');
+      res.json({ success: true, order: updatedOrder });
+    } else {
+      console.log('❌ Order status update failed');
+      res.status(500).json({ success: false, error: 'Failed to update order status' });
+    }
+    
   } catch (error) {
-    console.error('Error updating order status:', error);
+    console.error('❌ Order status update error:', error);
     res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
@@ -2387,158 +2381,112 @@ app.post('/admin/orders/:id/edit', authMiddleware, async (req, res) => {
     const orderId = parseInt(req.params.id);
     const { customerName, customerEmail, orderType, status, discount, notes } = req.body;
     
-    // Reduced logging to avoid Railway rate limits
-    console.log(`🔄 Editing order ${orderId}: Status=${status}`);
+    console.log(`🔄 Editing order ${orderId}: Status=${status}, Discount=${discount}`);
+    console.log(`📊 Request data:`, { customerName, customerEmail, orderType, status, discount, notes });
     
-    // Always try MongoDB first if connected, then fallback to file storage
-    const isMongoConnected = mongoose.connection.readyState === 1;
+    // Check if order exists in either MongoDB or file storage
+    let existingOrder = null;
+    let orderSource = 'none';
     
-    console.log(`🔍 MongoDB check: readyState=${mongoose.connection.readyState}, isMongoConnected=${isMongoConnected}`);
-    
-    if (isMongoConnected) {
-      // MongoDB is connected - update in MongoDB
+    // Try MongoDB first
+    if (mongoose.connection.readyState === 1) {
       try {
-        // Recalculate total with discount
-        const order = await Order.findOne({ id: orderId });
-        if (!order) {
-          return res.status(404).json({ success: false, error: 'Order not found' });
+        existingOrder = await Order.findOne({ id: orderId });
+        if (existingOrder) {
+          orderSource = 'mongodb';
+          console.log(`📊 Found order in MongoDB: ID=${existingOrder.id}, Status=${existingOrder.status}`);
         }
-        
-        const originalTotal = order.items.reduce((sum, item) => {
-          const price = parseFloat(item.price || item.itemPrice || 0);
-          const quantity = parseFloat(item.quantity || item.qty || item.amount || 1);
-          return sum + (price * quantity);
-        }, 0);
-        const newTotal = Math.max(0, originalTotal - (parseFloat(discount) || 0));
-        
-        console.log(`🔧 Original total: €${originalTotal}, Discount: €${discount}, New total: €${newTotal}`);
-        
-        const updatedOrder = await Order.findOneAndUpdate(
+      } catch (mongoError) {
+        console.error('❌ Error checking MongoDB:', mongoError);
+      }
+    }
+    
+    // Try file storage if not found in MongoDB
+    if (!existingOrder) {
+      const orderIndex = orders.findIndex(o => o.id === orderId);
+      if (orderIndex !== -1) {
+        existingOrder = orders[orderIndex];
+        orderSource = 'file';
+        console.log(`📊 Found order in file storage: ID=${existingOrder.id}, Status=${existingOrder.status}`);
+      }
+    }
+    
+    if (!existingOrder) {
+      console.log('❌ Order not found in any storage');
+      return res.status(404).json({ success: false, error: 'Order not found' });
+    }
+    
+    // Calculate new total
+    const originalTotal = existingOrder.items.reduce((sum, item) => {
+      const price = parseFloat(item.price || item.itemPrice || 0);
+      const quantity = parseFloat(item.quantity || item.qty || item.amount || 1);
+      return sum + (price * quantity);
+    }, 0);
+    const newTotal = Math.max(0, originalTotal - (parseFloat(discount) || 0));
+    
+    console.log(`🔧 Original total: €${originalTotal}, Discount: €${discount}, New total: €${newTotal}`);
+    
+    // Update the order
+    const updatedOrderData = {
+      customerName,
+      customerEmail,
+      orderType,
+      status,
+      discount: parseFloat(discount) || 0,
+      notes: notes || '',
+      total: newTotal,
+      updatedAt: new Date().toISOString()
+    };
+    
+    let success = false;
+    let updatedOrder = null;
+    
+    // Try MongoDB update first
+    if (mongoose.connection.readyState === 1) {
+      try {
+        updatedOrder = await Order.findOneAndUpdate(
           { id: orderId },
-          {
-            customerName,
-            customerEmail,
-            orderType,
-            status,
-            discount: parseFloat(discount) || 0,
-            notes: notes || '',
-            total: newTotal,
-            updatedAt: new Date().toISOString()
-          },
+          updatedOrderData,
           { new: true }
         );
         
         if (updatedOrder) {
-          console.log('✅ Order edited in MongoDB Atlas');
-          console.log(`📊 Updated order: ID=${updatedOrder.id}, Status=${updatedOrder.status}, Total=€${updatedOrder.total}, Discount=€${updatedOrder.discount}`);
-          
-          // Also update the global orders array for consistency
-          const orderIndex = orders.findIndex(o => o.id === orderId);
-          if (orderIndex !== -1) {
-            orders[orderIndex].customerName = customerName;
-            orders[orderIndex].customerEmail = customerEmail;
-            orders[orderIndex].orderType = orderType;
-            orders[orderIndex].status = status;
-            orders[orderIndex].discount = parseFloat(discount) || 0;
-            orders[orderIndex].notes = notes || '';
-            orders[orderIndex].total = newTotal;
-            orders[orderIndex].updatedAt = new Date().toISOString();
-            console.log(`📊 Also updated global orders array: Index=${orderIndex}, Status=${status}, Total=€${newTotal}`);
-          } else {
-            console.log('⚠️ Order not found in global orders array, adding it...');
-            // Add the updated order to the global array if not found
-            const updatedOrderObj = updatedOrder.toObject ? updatedOrder.toObject() : updatedOrder;
-            orders.push(updatedOrderObj);
-            console.log(`📊 Added order to global array: ID=${updatedOrderObj.id}`);
-          }
-          
-          // Save to files as backup
-          saveOrdersData();
-          console.log('📁 Saved to files as backup');
-          
-          // Wait a moment and verify the update by re-fetching from MongoDB
-          await new Promise(resolve => setTimeout(resolve, 100)); // Small delay
-          const verifyOrder = await Order.findOne({ id: orderId });
-          console.log(`🔍 Verification - Order in MongoDB: Status=${verifyOrder?.status}, Total=€${verifyOrder?.total}, UpdatedAt=${verifyOrder?.updatedAt}`);
-          
-          if (verifyOrder && verifyOrder.status === status) {
-            console.log('✅ Order update verified successfully in MongoDB');
-          } else {
-            console.log('❌ Order update verification failed - status mismatch');
-          }
-          
-          res.json({ success: true, order: updatedOrder });
-        } else {
-          console.log('❌ Order not found in MongoDB');
-          res.status(404).json({ success: false, error: 'Order not found' });
+          console.log('✅ Order updated in MongoDB');
+          console.log(`📊 MongoDB result: ID=${updatedOrder.id}, Status=${updatedOrder.status}, Total=€${updatedOrder.total}`);
+          success = true;
         }
-      } catch (error) {
-        console.error('❌ Error editing order in MongoDB:', error);
-        console.log('🔄 Falling back to file storage...');
-        
-        // Fallback to file storage
-        const orderIndex = orders.findIndex(o => o.id === orderId);
-        if (orderIndex === -1) {
-          return res.status(404).json({ success: false, error: 'Order not found' });
-        }
-        
-        // Update order details
-        orders[orderIndex].customerName = customerName;
-        orders[orderIndex].customerEmail = customerEmail;
-        orders[orderIndex].orderType = orderType;
-        orders[orderIndex].status = status;
-        orders[orderIndex].discount = parseFloat(discount) || 0;
-        orders[orderIndex].notes = notes || '';
-        orders[orderIndex].updatedAt = new Date().toISOString();
-        
-        // Recalculate total with discount
-        const originalTotal = orders[orderIndex].items.reduce((sum, item) => {
-          const price = parseFloat(item.price || item.itemPrice || 0);
-          const quantity = parseFloat(item.quantity || item.qty || item.amount || 1);
-          return sum + (price * quantity);
-        }, 0);
-        orders[orderIndex].total = Math.max(0, originalTotal - (parseFloat(discount) || 0));
-        
-        console.log(`🔧 Fallback - Original total: €${originalTotal}, Discount: €${discount}, New total: €${orders[orderIndex].total}`);
-        
-        saveOrdersData(); // Save orders to file
-        console.log('✅ Order edited in file storage (fallback)');
-        
-        res.json({ success: true, order: orders[orderIndex] });
+      } catch (mongoError) {
+        console.error('❌ MongoDB update failed:', mongoError);
       }
-    } else {
-      // MongoDB not connected - update in file storage
-      const orderIndex = orders.findIndex(o => o.id === orderId);
-      if (orderIndex === -1) {
-        return res.status(404).json({ success: false, error: 'Order not found' });
-      }
-      
-      // Update order details
-      orders[orderIndex].customerName = customerName;
-      orders[orderIndex].customerEmail = customerEmail;
-      orders[orderIndex].orderType = orderType;
-      orders[orderIndex].status = status;
-      orders[orderIndex].discount = parseFloat(discount) || 0;
-      orders[orderIndex].notes = notes || '';
-      orders[orderIndex].updatedAt = new Date().toISOString();
-      
-      // Recalculate total with discount
-      const originalTotal = orders[orderIndex].items.reduce((sum, item) => {
-        const price = parseFloat(item.price || item.itemPrice || 0);
-        const quantity = parseFloat(item.quantity || item.qty || item.amount || 1);
-        return sum + (price * quantity);
-      }, 0);
-      orders[orderIndex].total = Math.max(0, originalTotal - (parseFloat(discount) || 0));
-      
-      console.log(`🔧 File storage - Original total: €${originalTotal}, Discount: €${discount}, New total: €${orders[orderIndex].total}`);
-      
-      saveOrdersData(); // Save orders to file
-      console.log('✅ Order edited in file storage');
-      
-      res.json({ success: true, order: orders[orderIndex] });
     }
+    
+    // Update file storage regardless (for backup and consistency)
+    const orderIndex = orders.findIndex(o => o.id === orderId);
+    if (orderIndex !== -1) {
+      Object.assign(orders[orderIndex], updatedOrderData);
+      console.log('✅ Order updated in file storage');
+      console.log(`📊 File storage result: ID=${orders[orderIndex].id}, Status=${orders[orderIndex].status}, Total=€${orders[orderIndex].total}`);
+      
+      // Save to file
+      saveOrdersData();
+      console.log('📁 File storage saved');
+      
+      if (!success) {
+        updatedOrder = orders[orderIndex];
+        success = true;
+      }
+    }
+    
+    if (success && updatedOrder) {
+      console.log('✅ Order edit completed successfully');
+      res.json({ success: true, order: updatedOrder });
+    } else {
+      console.log('❌ Order edit failed');
+      res.status(500).json({ success: false, error: 'Failed to update order' });
+    }
+    
   } catch (error) {
-    console.error('Error editing order:', error);
+    console.error('❌ Order edit error:', error);
     res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
