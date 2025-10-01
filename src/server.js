@@ -722,6 +722,8 @@ async function cleanupCorruptedData() {
     const items = await MenuItem.find();
     let cleanedCount = 0;
     
+    console.log(`📊 Found ${items.length} items to check for corruption`);
+    
     for (const item of items) {
       let needsUpdate = false;
       const updateData = {};
@@ -729,30 +731,43 @@ async function cleanupCorruptedData() {
       // Fix malformed name object - be more aggressive
       if (item.name && typeof item.name === 'object') {
         const nameKeys = Object.keys(item.name);
-        if (nameKeys.length > 10 || nameKeys.some(key => key.includes('en') && nameKeys.filter(k => k.includes('en')).length > 1)) {
-          // Reconstruct clean name object - use only the first valid value for each language
+        const hasCorruption = nameKeys.length > 10 || 
+                             nameKeys.some(key => key.includes('en') && nameKeys.filter(k => k.includes('en')).length > 1) ||
+                             JSON.stringify(item.name).includes('"en":') && JSON.stringify(item.name).split('"en":').length > 2;
+        
+        if (hasCorruption) {
+          console.log(`🔍 Item ${item.id} has corrupted name structure with ${nameKeys.length} keys:`, nameKeys.slice(0, 5));
+          // Completely rebuild the name object from scratch
           const cleanName = {};
           const languages = ['en', 'mt', 'es', 'it', 'fr', 'de', 'ru', 'pt', 'nl', 'pl'];
+          
+          // Try to find a clean value for each language
+          let baseValue = null;
           languages.forEach(lang => {
-            // Find the first valid value for this language
             const langValue = item.name[lang];
             if (langValue && typeof langValue === 'string' && langValue.trim()) {
               cleanName[lang] = langValue.trim();
+              if (!baseValue) baseValue = langValue.trim();
             }
           });
           
-          // If we have at least one valid language, use it
-          if (Object.keys(cleanName).length > 0) {
-            // If we don't have all languages, fill missing ones with the first available
-            const firstValue = Object.values(cleanName)[0];
+          // If we found at least one clean value, use it for all languages
+          if (baseValue) {
             languages.forEach(lang => {
-              if (!cleanName[lang]) {
-                cleanName[lang] = firstValue;
-              }
+              cleanName[lang] = baseValue;
             });
             updateData.name = cleanName;
             needsUpdate = true;
             console.log(`🔧 Fixed item ${item.id} name:`, cleanName);
+          } else {
+            // If no clean values found, use a default
+            const defaultName = `Item ${item.id}`;
+            languages.forEach(lang => {
+              cleanName[lang] = defaultName;
+            });
+            updateData.name = cleanName;
+            needsUpdate = true;
+            console.log(`🔧 Rebuilt item ${item.id} name with default:`, cleanName);
           }
         }
       }
@@ -860,6 +875,52 @@ async function cleanupCorruptedData() {
     
     if (cleanedCategories > 0) {
       console.log(`✅ Cleaned up ${cleanedCategories} corrupted categories`);
+    }
+    
+    // If we still have corrupted data, do a complete rebuild
+    if (cleanedCount === 0 && cleanedCategories === 0) {
+      console.log('🔄 No corruption detected, but checking for subtle issues...');
+      
+      // Check for any items with malformed structures
+      const allItems = await MenuItem.find();
+      let rebuiltCount = 0;
+      
+      for (const item of allItems) {
+        let needsRebuild = false;
+        const rebuildData = {};
+        
+        // Check if any field has too many keys or malformed structure
+        ['name', 'description', 'ingredients', 'nutrition', 'allergies', 'prepTime'].forEach(field => {
+          if (item[field] && typeof item[field] === 'object') {
+            const keys = Object.keys(item[field]);
+            if (keys.length > 15) { // More aggressive threshold
+              needsRebuild = true;
+              console.log(`🔍 Item ${item.id} ${field} has ${keys.length} keys, rebuilding...`);
+              
+              // Rebuild with clean structure
+              const cleanField = {};
+              const languages = ['en', 'mt', 'es', 'it', 'fr', 'de', 'ru', 'pt', 'nl', 'pl'];
+              const firstValue = Object.values(item[field]).find(v => v && typeof v === 'string' && v.trim()) || `Default ${field}`;
+              
+              languages.forEach(lang => {
+                cleanField[lang] = firstValue;
+              });
+              
+              rebuildData[field] = cleanField;
+            }
+          }
+        });
+        
+        if (needsRebuild) {
+          await MenuItem.findByIdAndUpdate(item._id, rebuildData);
+          rebuiltCount++;
+          console.log(`🔧 Rebuilt item ${item.id} completely`);
+        }
+      }
+      
+      if (rebuiltCount > 0) {
+        console.log(`✅ Rebuilt ${rebuiltCount} items with complete structure`);
+      }
     }
     
   } catch (error) {
