@@ -758,7 +758,7 @@ async function cleanupCorruptedData() {
             });
             updateData.name = cleanName;
             needsUpdate = true;
-            console.log(`🔧 Fixed item ${item.id} name:`, cleanName);
+            // console.log(`🔧 Fixed item ${item.id} name:`, cleanName);
           } else {
             // If no clean values found, use a default
             const defaultName = `Item ${item.id}`;
@@ -795,7 +795,7 @@ async function cleanupCorruptedData() {
             });
             updateData.description = cleanDesc;
             needsUpdate = true;
-            console.log(`🔧 Fixed item ${item.id} description:`, cleanDesc);
+            // console.log(`🔧 Fixed item ${item.id} description:`, cleanDesc);
           }
         }
       }
@@ -824,7 +824,7 @@ async function cleanupCorruptedData() {
               });
               updateData[field] = cleanField;
               needsUpdate = true;
-              console.log(`🔧 Fixed item ${item.id} ${field}:`, cleanField);
+              // console.log(`🔧 Fixed item ${item.id} ${field}:`, cleanField);
             }
           }
         }
@@ -867,7 +867,7 @@ async function cleanupCorruptedData() {
             });
             await Category.findByIdAndUpdate(category._id, { name: cleanName });
             cleanedCategories++;
-            console.log(`🔧 Fixed category ${category.id} name:`, cleanName);
+            // console.log(`🔧 Fixed category ${category.id} name:`, cleanName);
           }
         }
       }
@@ -914,7 +914,7 @@ async function cleanupCorruptedData() {
         if (needsRebuild) {
           await MenuItem.findByIdAndUpdate(item._id, rebuildData);
           rebuiltCount++;
-          console.log(`🔧 Rebuilt item ${item.id} completely`);
+              // console.log(`🔧 Rebuilt item ${item.id} completely`);
         }
       }
       
@@ -2367,7 +2367,8 @@ app.post('/admin/orders/:id/edit', authMiddleware, async (req, res) => {
     const orderId = parseInt(req.params.id);
     const { customerName, customerEmail, orderType, status, discount, notes } = req.body;
     
-    console.log(`🔄 Editing order ${orderId}: Customer=${customerName}, Status=${status}, Discount=€${discount}`);
+    // Reduced logging to avoid Railway rate limits
+    console.log(`🔄 Editing order ${orderId}: Status=${status}`);
     
     // Update in the same data source as the dashboard uses
     // Check if we should use MongoDB (connected and not localhost)
@@ -2385,8 +2386,14 @@ app.post('/admin/orders/:id/edit', authMiddleware, async (req, res) => {
           return res.status(404).json({ success: false, error: 'Order not found' });
         }
         
-        const originalTotal = order.items.reduce((sum, item) => sum + (item.price * (item.quantity || item.qty)), 0);
+        const originalTotal = order.items.reduce((sum, item) => {
+          const price = parseFloat(item.price || item.itemPrice || 0);
+          const quantity = parseFloat(item.quantity || item.qty || item.amount || 1);
+          return sum + (price * quantity);
+        }, 0);
         const newTotal = Math.max(0, originalTotal - (parseFloat(discount) || 0));
+        
+        console.log(`🔧 Original total: €${originalTotal}, Discount: €${discount}, New total: €${newTotal}`);
         
         const updatedOrder = await Order.findOneAndUpdate(
           { id: orderId },
@@ -2446,8 +2453,14 @@ app.post('/admin/orders/:id/edit', authMiddleware, async (req, res) => {
         orders[orderIndex].updatedAt = new Date().toISOString();
         
         // Recalculate total with discount
-        const originalTotal = orders[orderIndex].items.reduce((sum, item) => sum + (item.price * (item.quantity || item.qty)), 0);
+        const originalTotal = orders[orderIndex].items.reduce((sum, item) => {
+          const price = parseFloat(item.price || item.itemPrice || 0);
+          const quantity = parseFloat(item.quantity || item.qty || item.amount || 1);
+          return sum + (price * quantity);
+        }, 0);
         orders[orderIndex].total = Math.max(0, originalTotal - (parseFloat(discount) || 0));
+        
+        console.log(`🔧 Fallback - Original total: €${originalTotal}, Discount: €${discount}, New total: €${orders[orderIndex].total}`);
         
         saveOrdersData(); // Save orders to file
         console.log('✅ Order edited in file storage (fallback)');
@@ -2471,8 +2484,14 @@ app.post('/admin/orders/:id/edit', authMiddleware, async (req, res) => {
       orders[orderIndex].updatedAt = new Date().toISOString();
       
       // Recalculate total with discount
-      const originalTotal = orders[orderIndex].items.reduce((sum, item) => sum + (item.price * (item.quantity || item.qty)), 0);
+      const originalTotal = orders[orderIndex].items.reduce((sum, item) => {
+        const price = parseFloat(item.price || item.itemPrice || 0);
+        const quantity = parseFloat(item.quantity || item.qty || item.amount || 1);
+        return sum + (price * quantity);
+      }, 0);
       orders[orderIndex].total = Math.max(0, originalTotal - (parseFloat(discount) || 0));
+      
+      console.log(`🔧 File storage - Original total: €${originalTotal}, Discount: €${discount}, New total: €${orders[orderIndex].total}`);
       
       saveOrdersData(); // Save orders to file
       console.log('✅ Order edited in file storage');
