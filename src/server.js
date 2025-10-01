@@ -1794,11 +1794,11 @@ app.get('/admin', authMiddleware, async (req, res) => {
                 const categoryName = app.locals.translate(category.name);
                 // Handle different data structures for price and quantity
                 const price = orderItem.price || orderItem.itemPrice || 0;
-                const quantity = orderItem.quantity || orderItem.qty || orderItem.amount || 0;
+                const quantity = orderItem.quantity || orderItem.qty || orderItem.amount || 1;
                 const itemTotal = price * quantity;
                 
                 console.log(`    📊 Category: ${categoryName}, Item total: €${itemTotal}`);
-                console.log(`    📊 Price: ${orderItem.price}, Quantity: ${orderItem.quantity}`);
+                console.log(`    📊 Price: ${price}, Quantity: ${quantity}`);
                 
                 if (categoryStats[categoryName]) {
                   categoryStats[categoryName].revenue += itemTotal;
