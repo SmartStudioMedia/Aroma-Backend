@@ -2066,7 +2066,13 @@ app.post('/admin/orders/:id/status', authMiddleware, async (req, res) => {
     console.log(`🔄 Updating order ${orderId} status to: ${status}`);
     
     // Update in the same data source as the dashboard uses
-    if (mongoose.connection.readyState === 1 && process.env.MONGODB_URI && !process.env.MONGODB_URI.includes('localhost')) {
+    // Check if we should use MongoDB (connected and not localhost)
+    const shouldUseMongoDB = mongoose.connection.readyState === 1 && 
+                           process.env.MONGODB_URI && 
+                           !process.env.MONGODB_URI.includes('localhost') &&
+                           !process.env.MONGODB_URI.includes('mongodb://localhost');
+    
+    if (shouldUseMongoDB) {
       // MongoDB is connected - update in MongoDB
       try {
         const updatedOrder = await Order.findOneAndUpdate(
@@ -2145,7 +2151,13 @@ app.post('/admin/orders/:id/edit', authMiddleware, async (req, res) => {
     console.log(`🔄 Editing order ${orderId}: Customer=${customerName}, Status=${status}, Discount=€${discount}`);
     
     // Update in the same data source as the dashboard uses
-    if (mongoose.connection.readyState === 1 && process.env.MONGODB_URI && !process.env.MONGODB_URI.includes('localhost')) {
+    // Check if we should use MongoDB (connected and not localhost)
+    const shouldUseMongoDB = mongoose.connection.readyState === 1 && 
+                           process.env.MONGODB_URI && 
+                           !process.env.MONGODB_URI.includes('localhost') &&
+                           !process.env.MONGODB_URI.includes('mongodb://localhost');
+    
+    if (shouldUseMongoDB) {
       // MongoDB is connected - update in MongoDB
       try {
         // Recalculate total with discount
