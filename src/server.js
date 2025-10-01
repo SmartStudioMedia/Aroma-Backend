@@ -726,21 +726,33 @@ async function cleanupCorruptedData() {
       let needsUpdate = false;
       const updateData = {};
       
-      // Fix malformed name object
+      // Fix malformed name object - be more aggressive
       if (item.name && typeof item.name === 'object') {
         const nameKeys = Object.keys(item.name);
         if (nameKeys.length > 10 || nameKeys.some(key => key.includes('en') && nameKeys.filter(k => k.includes('en')).length > 1)) {
-          // Reconstruct clean name object
+          // Reconstruct clean name object - use only the first valid value for each language
           const cleanName = {};
           const languages = ['en', 'mt', 'es', 'it', 'fr', 'de', 'ru', 'pt', 'nl', 'pl'];
           languages.forEach(lang => {
-            if (item.name[lang]) {
-              cleanName[lang] = item.name[lang];
+            // Find the first valid value for this language
+            const langValue = item.name[lang];
+            if (langValue && typeof langValue === 'string' && langValue.trim()) {
+              cleanName[lang] = langValue.trim();
             }
           });
+          
+          // If we have at least one valid language, use it
           if (Object.keys(cleanName).length > 0) {
+            // If we don't have all languages, fill missing ones with the first available
+            const firstValue = Object.values(cleanName)[0];
+            languages.forEach(lang => {
+              if (!cleanName[lang]) {
+                cleanName[lang] = firstValue;
+              }
+            });
             updateData.name = cleanName;
             needsUpdate = true;
+            console.log(`🔧 Fixed item ${item.id} name:`, cleanName);
           }
         }
       }
@@ -752,13 +764,23 @@ async function cleanupCorruptedData() {
           const cleanDesc = {};
           const languages = ['en', 'mt', 'es', 'it', 'fr', 'de', 'ru', 'pt', 'nl', 'pl'];
           languages.forEach(lang => {
-            if (item.description[lang]) {
-              cleanDesc[lang] = item.description[lang];
+            const langValue = item.description[lang];
+            if (langValue && typeof langValue === 'string' && langValue.trim()) {
+              cleanDesc[lang] = langValue.trim();
             }
           });
+          
           if (Object.keys(cleanDesc).length > 0) {
+            // Fill missing languages with the first available
+            const firstValue = Object.values(cleanDesc)[0];
+            languages.forEach(lang => {
+              if (!cleanDesc[lang]) {
+                cleanDesc[lang] = firstValue;
+              }
+            });
             updateData.description = cleanDesc;
             needsUpdate = true;
+            console.log(`🔧 Fixed item ${item.id} description:`, cleanDesc);
           }
         }
       }
@@ -771,13 +793,23 @@ async function cleanupCorruptedData() {
             const cleanField = {};
             const languages = ['en', 'mt', 'es', 'it', 'fr', 'de', 'ru', 'pt', 'nl', 'pl'];
             languages.forEach(lang => {
-              if (item[field][lang]) {
-                cleanField[lang] = item[field][lang];
+              const langValue = item[field][lang];
+              if (langValue && typeof langValue === 'string' && langValue.trim()) {
+                cleanField[lang] = langValue.trim();
               }
             });
+            
             if (Object.keys(cleanField).length > 0) {
+              // Fill missing languages with the first available
+              const firstValue = Object.values(cleanField)[0];
+              languages.forEach(lang => {
+                if (!cleanField[lang]) {
+                  cleanField[lang] = firstValue;
+                }
+              });
               updateData[field] = cleanField;
               needsUpdate = true;
+              console.log(`🔧 Fixed item ${item.id} ${field}:`, cleanField);
             }
           }
         }
@@ -804,13 +836,23 @@ async function cleanupCorruptedData() {
           const cleanName = {};
           const languages = ['en', 'mt', 'es', 'it', 'fr', 'de', 'ru', 'pt', 'nl', 'pl'];
           languages.forEach(lang => {
-            if (category.name[lang]) {
-              cleanName[lang] = category.name[lang];
+            const langValue = category.name[lang];
+            if (langValue && typeof langValue === 'string' && langValue.trim()) {
+              cleanName[lang] = langValue.trim();
             }
           });
+          
           if (Object.keys(cleanName).length > 0) {
+            // Fill missing languages with the first available
+            const firstValue = Object.values(cleanName)[0];
+            languages.forEach(lang => {
+              if (!cleanName[lang]) {
+                cleanName[lang] = firstValue;
+              }
+            });
             await Category.findByIdAndUpdate(category._id, { name: cleanName });
             cleanedCategories++;
+            console.log(`🔧 Fixed category ${category.id} name:`, cleanName);
           }
         }
       }
