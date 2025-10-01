@@ -2291,6 +2291,8 @@ app.post('/admin/orders/:id/status', authMiddleware, async (req, res) => {
                            !process.env.MONGODB_URI.includes('localhost') &&
                            !process.env.MONGODB_URI.includes('mongodb://localhost');
     
+    console.log(`🔍 Status update - MongoDB check: readyState=${mongoose.connection.readyState}, MONGODB_URI exists=${!!process.env.MONGODB_URI}, shouldUseMongoDB=${shouldUseMongoDB}`);
+    
     if (shouldUseMongoDB) {
       // MongoDB is connected - update in MongoDB
       try {
@@ -2302,16 +2304,19 @@ app.post('/admin/orders/:id/status', authMiddleware, async (req, res) => {
         
         if (updatedOrder) {
           console.log('✅ Order status updated in MongoDB Atlas');
+          console.log(`📊 Updated order: ID=${updatedOrder.id}, Status=${updatedOrder.status}, UpdatedAt=${updatedOrder.updatedAt}`);
           
           // Also update the global orders array for consistency
           const orderIndex = orders.findIndex(o => o.id === orderId);
           if (orderIndex !== -1) {
             orders[orderIndex].status = status;
             orders[orderIndex].updatedAt = new Date().toISOString();
+            console.log(`📊 Also updated global orders array: Index=${orderIndex}`);
           }
           
           // Save to files as backup
           saveOrdersData();
+          console.log('📁 Saved to files as backup');
           
           res.json({ success: true, order: updatedOrder });
         } else {
@@ -2334,6 +2339,7 @@ app.post('/admin/orders/:id/status', authMiddleware, async (req, res) => {
         // Save to files
         saveOrdersData();
         console.log('✅ Order status updated in file storage (fallback)');
+        console.log(`📊 Fallback updated: ID=${orders[orderIndex].id}, Status=${orders[orderIndex].status}, UpdatedAt=${orders[orderIndex].updatedAt}`);
         
         res.json({ success: true, order: orders[orderIndex] });
       }
@@ -2350,6 +2356,7 @@ app.post('/admin/orders/:id/status', authMiddleware, async (req, res) => {
       // Save to files
       saveOrdersData();
       console.log('✅ Order status updated in file storage');
+      console.log(`📊 File storage updated: ID=${orders[orderIndex].id}, Status=${orders[orderIndex].status}, UpdatedAt=${orders[orderIndex].updatedAt}`);
       
       res.json({ success: true, order: orders[orderIndex] });
     }
@@ -2376,6 +2383,8 @@ app.post('/admin/orders/:id/edit', authMiddleware, async (req, res) => {
                            process.env.MONGODB_URI && 
                            !process.env.MONGODB_URI.includes('localhost') &&
                            !process.env.MONGODB_URI.includes('mongodb://localhost');
+    
+    console.log(`🔍 MongoDB check: readyState=${mongoose.connection.readyState}, MONGODB_URI exists=${!!process.env.MONGODB_URI}, shouldUseMongoDB=${shouldUseMongoDB}`);
     
     if (shouldUseMongoDB) {
       // MongoDB is connected - update in MongoDB
@@ -2412,6 +2421,7 @@ app.post('/admin/orders/:id/edit', authMiddleware, async (req, res) => {
         
         if (updatedOrder) {
           console.log('✅ Order edited in MongoDB Atlas');
+          console.log(`📊 Updated order: ID=${updatedOrder.id}, Status=${updatedOrder.status}, Total=€${updatedOrder.total}, Discount=€${updatedOrder.discount}`);
           
           // Also update the global orders array for consistency
           const orderIndex = orders.findIndex(o => o.id === orderId);
@@ -2424,13 +2434,16 @@ app.post('/admin/orders/:id/edit', authMiddleware, async (req, res) => {
             orders[orderIndex].notes = notes || '';
             orders[orderIndex].total = newTotal;
             orders[orderIndex].updatedAt = new Date().toISOString();
+            console.log(`📊 Also updated global orders array: Index=${orderIndex}, Status=${status}, Total=€${newTotal}`);
           }
           
           // Save to files as backup
           saveOrdersData();
+          console.log('📁 Saved to files as backup');
           
           res.json({ success: true, order: updatedOrder });
         } else {
+          console.log('❌ Order not found in MongoDB');
           res.status(404).json({ success: false, error: 'Order not found' });
         }
       } catch (error) {
