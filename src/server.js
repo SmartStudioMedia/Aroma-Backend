@@ -2293,10 +2293,15 @@ app.post('/admin/orders/:id/status', authMiddleware, async (req, res) => {
     // Try MongoDB first
     if (mongoose.connection.readyState === 1) {
       try {
-        existingOrder = await Order.findOne({ id: orderId });
-        if (existingOrder) {
+        // Find the most recent order with this ID (in case of duplicates)
+        const mongoOrders = await Order.find({ id: orderId }).sort({ createdAt: -1 });
+        if (mongoOrders.length > 0) {
+          existingOrder = mongoOrders[0]; // Get the most recent one
           orderSource = 'mongodb';
-          console.log(`📊 Found order in MongoDB: ID=${existingOrder.id}, Status=${existingOrder.status}`);
+          console.log(`📊 Found order in MongoDB: ID=${existingOrder.id}, Status=${existingOrder.status}, CreatedAt=${existingOrder.createdAt}`);
+          if (mongoOrders.length > 1) {
+            console.log(`⚠️ WARNING: Found ${mongoOrders.length} orders with ID ${orderId} in MongoDB`);
+          }
         }
       } catch (mongoError) {
         console.error('❌ Error checking MongoDB:', mongoError);
@@ -2305,11 +2310,15 @@ app.post('/admin/orders/:id/status', authMiddleware, async (req, res) => {
     
     // Try file storage if not found in MongoDB
     if (!existingOrder) {
-      const orderIndex = orders.findIndex(o => o.id === orderId);
-      if (orderIndex !== -1) {
-        existingOrder = orders[orderIndex];
+      // Find the most recent order with this ID (in case of duplicates)
+      const fileOrders = orders.filter(o => o.id === orderId).sort((a, b) => new Date(b.createdAt || b.timestamp) - new Date(a.createdAt || a.timestamp));
+      if (fileOrders.length > 0) {
+        existingOrder = fileOrders[0]; // Get the most recent one
         orderSource = 'file';
-        console.log(`📊 Found order in file storage: ID=${existingOrder.id}, Status=${existingOrder.status}`);
+        console.log(`📊 Found order in file storage: ID=${existingOrder.id}, Status=${existingOrder.status}, CreatedAt=${existingOrder.createdAt || existingOrder.timestamp}`);
+        if (fileOrders.length > 1) {
+          console.log(`⚠️ WARNING: Found ${fileOrders.length} orders with ID ${orderId} in file storage`);
+        }
       }
     }
     
@@ -2395,10 +2404,15 @@ app.post('/admin/orders/:id/edit', authMiddleware, async (req, res) => {
     // Try MongoDB first
     if (mongoose.connection.readyState === 1) {
       try {
-        existingOrder = await Order.findOne({ id: orderId });
-        if (existingOrder) {
+        // Find the most recent order with this ID (in case of duplicates)
+        const mongoOrders = await Order.find({ id: orderId }).sort({ createdAt: -1 });
+        if (mongoOrders.length > 0) {
+          existingOrder = mongoOrders[0]; // Get the most recent one
           orderSource = 'mongodb';
-          console.log(`📊 Found order in MongoDB: ID=${existingOrder.id}, Status=${existingOrder.status}`);
+          console.log(`📊 Found order in MongoDB: ID=${existingOrder.id}, Status=${existingOrder.status}, CreatedAt=${existingOrder.createdAt}`);
+          if (mongoOrders.length > 1) {
+            console.log(`⚠️ WARNING: Found ${mongoOrders.length} orders with ID ${orderId} in MongoDB`);
+          }
         }
       } catch (mongoError) {
         console.error('❌ Error checking MongoDB:', mongoError);
@@ -2407,11 +2421,15 @@ app.post('/admin/orders/:id/edit', authMiddleware, async (req, res) => {
     
     // Try file storage if not found in MongoDB
     if (!existingOrder) {
-      const orderIndex = orders.findIndex(o => o.id === orderId);
-      if (orderIndex !== -1) {
-        existingOrder = orders[orderIndex];
+      // Find the most recent order with this ID (in case of duplicates)
+      const fileOrders = orders.filter(o => o.id === orderId).sort((a, b) => new Date(b.createdAt || b.timestamp) - new Date(a.createdAt || a.timestamp));
+      if (fileOrders.length > 0) {
+        existingOrder = fileOrders[0]; // Get the most recent one
         orderSource = 'file';
-        console.log(`📊 Found order in file storage: ID=${existingOrder.id}, Status=${existingOrder.status}`);
+        console.log(`📊 Found order in file storage: ID=${existingOrder.id}, Status=${existingOrder.status}, CreatedAt=${existingOrder.createdAt || existingOrder.timestamp}`);
+        if (fileOrders.length > 1) {
+          console.log(`⚠️ WARNING: Found ${fileOrders.length} orders with ID ${orderId} in file storage`);
+        }
       }
     }
     
@@ -2635,6 +2653,65 @@ app.post('/test/order-edit/:id', authMiddleware, (req, res) => {
     },
     message: 'Order edit POST route is working'
   });
+});
+
+// Clean up duplicate order IDs
+app.post('/admin/cleanup-duplicates', authMiddleware, async (req, res) => {
+  try {
+    console.log('🧹 Starting duplicate order cleanup...');
+    
+    // Get all orders and group by ID
+    const orderGroups = {};
+    orders.forEach(order => {
+      if (!orderGroups[order.id]) {
+        orderGroups[order.id] = [];
+      }
+      orderGroups[order.id].push(order);
+    });
+    
+    // Find duplicates
+    const duplicates = Object.keys(orderGroups).filter(id => orderGroups[id].length > 1);
+    console.log(`📊 Found ${duplicates.length} order IDs with duplicates:`, duplicates);
+    
+    let cleanedCount = 0;
+    
+    // Clean up duplicates by keeping only the most recent one
+    duplicates.forEach(id => {
+      const ordersWithId = orderGroups[id];
+      const sortedOrders = ordersWithId.sort((a, b) => new Date(b.createdAt || b.timestamp) - new Date(a.createdAt || a.timestamp));
+      
+      // Keep the most recent one, remove the rest
+      const keepOrder = sortedOrders[0];
+      const removeOrders = sortedOrders.slice(1);
+      
+      console.log(`🔧 Cleaning ID ${id}: Keeping order from ${keepOrder.createdAt || keepOrder.timestamp}, removing ${removeOrders.length} duplicates`);
+      
+      // Remove duplicates from the orders array
+      removeOrders.forEach(removeOrder => {
+        const index = orders.findIndex(o => o === removeOrder);
+        if (index !== -1) {
+          orders.splice(index, 1);
+          cleanedCount++;
+        }
+      });
+    });
+    
+    // Save the cleaned data
+    saveOrdersData();
+    
+    console.log(`✅ Cleanup completed: Removed ${cleanedCount} duplicate orders`);
+    
+    res.json({ 
+      success: true, 
+      message: `Cleaned up ${cleanedCount} duplicate orders`,
+      duplicatesFound: duplicates.length,
+      ordersRemoved: cleanedCount
+    });
+    
+  } catch (error) {
+    console.error('❌ Cleanup error:', error);
+    res.status(500).json({ success: false, error: 'Cleanup failed' });
+  }
 });
 
 // Global error handler
