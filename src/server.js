@@ -1522,7 +1522,7 @@ app.get('/admin', authMiddleware, async (req, res) => {
     
     // Initialize category stats
     mongoCategories.forEach(cat => {
-      const categoryName = translate(cat.name);
+      const categoryName = app.locals.translate(cat.name);
       categoryStats[categoryName] = {
         orders: 0,
         revenue: 0,
@@ -1540,7 +1540,7 @@ app.get('/admin', authMiddleware, async (req, res) => {
             // Find the category
             const category = mongoCategories.find(cat => cat.id === menuItem.category_id);
             if (category) {
-              const categoryName = translate(category.name);
+              const categoryName = app.locals.translate(category.name);
               const itemTotal = (orderItem.price || 0) * (orderItem.quantity || 0);
               
               if (categoryStats[categoryName]) {
