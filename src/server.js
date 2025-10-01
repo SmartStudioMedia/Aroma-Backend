@@ -1490,67 +1490,81 @@ app.post('/api/orders', async (req, res) => {
 });
 
 // Admin Dashboard Routes
-app.get('/admin', authMiddleware, (req, res) => {
+app.get('/admin', authMiddleware, async (req, res) => {
   try {
-    const pending = orders.filter(o => o.status === 'pending').length;
-    const confirmed = orders.filter(o => o.status === 'confirmed').length;
-    const completed = orders.filter(o => o.status === 'completed').length;
-    const cancelled = orders.filter(o => o.status === 'cancelled').length;
+    console.log('🔍 Loading dashboard data from MongoDB...');
+    
+    // Load fresh data from MongoDB
+    const mongoOrders = await Order.find().sort({ createdAt: -1 });
+    const mongoCategories = await Category.find().sort({ sort_order: 1 });
+    const mongoItems = await MenuItem.find();
+    
+    console.log('📊 MongoDB Data Loaded:');
+    console.log(`📊 Orders: ${mongoOrders.length}`);
+    console.log(`📊 Categories: ${mongoCategories.length}`);
+    console.log(`📊 Items: ${mongoItems.length}`);
+    
+    // Calculate order statistics
+    const pending = mongoOrders.filter(o => o.status === 'pending').length;
+    const confirmed = mongoOrders.filter(o => o.status === 'confirmed').length;
+    const completed = mongoOrders.filter(o => o.status === 'completed').length;
+    const cancelled = mongoOrders.filter(o => o.status === 'cancelled').length;
+    
     // Calculate sales excluding cancelled orders
-    const activeOrders = orders.filter(o => o.status !== 'cancelled');
+    const activeOrders = mongoOrders.filter(o => o.status !== 'cancelled');
     const totalSales = activeOrders.reduce((sum, order) => sum + (order.total || 0), 0);
-    const completedSales = orders.filter(o => o.status === 'completed').reduce((sum, order) => sum + (order.total || 0), 0);
-    // Calculate accurate analytics data based on individual items
+    const completedSales = mongoOrders.filter(o => o.status === 'completed').reduce((sum, order) => sum + (order.total || 0), 0);
+    
+    // Calculate accurate category performance from MongoDB data
     const categoryStats = {};
     
-    console.log('🔍 Calculating category performance...');
-    console.log('📊 Total orders:', orders.length);
-    console.log('📊 Total categories:', menuData.categories.length);
-    console.log('📊 Total menu items:', menuData.items.length);
+    console.log('🔍 Calculating category performance from MongoDB...');
     
-    menuData.categories.forEach(cat => {
-      let categoryRevenue = 0;
-      let categoryOrders = 0;
-      
-      console.log(`\n🔍 Processing category: ${typeof cat.name === 'string' ? cat.name : cat.name.en} (ID: ${cat.id})`);
-      
-      // Calculate revenue based on individual items, excluding cancelled orders
-      orders.forEach((order, orderIndex) => {
-        if (order.items && order.status !== 'cancelled') { // Exclude cancelled orders
-          let hasItemsInCategory = false;
-          order.items.forEach((orderItem, itemIndex) => {
-            const menuItem = menuData.items.find(i => i.id === orderItem.id);
-            if (menuItem && menuItem.category_id === cat.id) {
-              const itemRevenue = orderItem.price * orderItem.qty;
-              categoryRevenue += itemRevenue;
-              hasItemsInCategory = true;
-              console.log(`  ✅ Found item in category: ${menuItem.name.en || menuItem.name} - €${itemRevenue}`);
-            }
-          });
-          if (hasItemsInCategory) {
-            categoryOrders++;
-            console.log(`  📊 Order ${order.id} counted for category`);
-          }
-        }
-      });
-      
-      const categoryName = typeof cat.name === 'string' ? cat.name : cat.name.en;
+    // Initialize category stats
+    mongoCategories.forEach(cat => {
+      const categoryName = translate(cat.name);
       categoryStats[categoryName] = {
-        orders: categoryOrders,
-        revenue: categoryRevenue
+        orders: 0,
+        revenue: 0,
+        items: 0
       };
-      
-      console.log(`📊 FINAL ${categoryName}: €${categoryRevenue} revenue, ${categoryOrders} orders`);
+    });
+    
+    // Calculate revenue for each category by analyzing all orders
+    mongoOrders.forEach(order => {
+      if (order.status !== 'cancelled') {
+        order.items.forEach(orderItem => {
+          // Find the menu item to get its category
+          const menuItem = mongoItems.find(mi => mi.id === orderItem.id);
+          if (menuItem && menuItem.category_id) {
+            // Find the category
+            const category = mongoCategories.find(cat => cat.id === menuItem.category_id);
+            if (category) {
+              const categoryName = translate(category.name);
+              const itemTotal = (orderItem.price || 0) * (orderItem.quantity || 0);
+              
+              if (categoryStats[categoryName]) {
+                categoryStats[categoryName].revenue += itemTotal;
+                categoryStats[categoryName].orders += 1;
+                categoryStats[categoryName].items += orderItem.quantity || 0;
+              }
+            }
+          }
+        });
+      }
     });
     
     console.log('📊 Category Performance Stats:', categoryStats);
     
+    // Get recent orders (last 10)
+    const recentOrders = mongoOrders.slice(0, 10);
+    
     res.render('admin_dashboard', {
       stats: { pending, confirmed, completed, cancelled, totalSales, completedSales },
-      recentOrders: orders.slice(-10).reverse(),
+      recentOrders: recentOrders,
       categoryStats,
-      orders: orders,
-      menuData: menuData
+      orders: mongoOrders,
+      menuData: { categories: mongoCategories, items: mongoItems }
     });
   } catch (error) {
     console.error('Admin dashboard error:', error);
@@ -1558,42 +1572,46 @@ app.get('/admin', authMiddleware, (req, res) => {
   }
 });
 
-app.get('/admin/orders', authMiddleware, (req, res) => {
+app.get('/admin/orders', authMiddleware, async (req, res) => {
   try {
-    res.render('admin_orders', { orders: orders || [] });
+    const mongoOrders = await Order.find().sort({ createdAt: -1 });
+    res.render('admin_orders', { orders: mongoOrders || [] });
   } catch (error) {
     console.error('Admin orders error:', error);
     res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
 
-app.get('/admin/clients', authMiddleware, (req, res) => {
+app.get('/admin/clients', authMiddleware, async (req, res) => {
   try {
-    res.render('admin_clients', { clients: clients || [] });
+    const mongoClients = await Client.find().sort({ createdAt: -1 });
+    res.render('admin_clients', { clients: mongoClients || [] });
   } catch (error) {
     console.error('Admin clients error:', error);
     res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
 
-app.get('/admin/items', authMiddleware, (req, res) => {
+app.get('/admin/items', authMiddleware, async (req, res) => {
   try {
-    console.log('🔄 Loading admin items page...');
-    console.log('📊 Menu data items count:', menuData.items ? menuData.items.length : 'undefined');
-    console.log('📊 Menu data categories count:', menuData.categories ? menuData.categories.length : 'undefined');
+    console.log('🔄 Loading admin items page from MongoDB...');
+    const mongoItems = await MenuItem.find().sort({ sort_order: 1 });
+    const mongoCategories = await Category.find().sort({ sort_order: 1 });
+    console.log('📊 MongoDB items count:', mongoItems.length);
+    console.log('📊 MongoDB categories count:', mongoCategories.length);
     
-    if (menuData.items && menuData.items.length > 0) {
-      console.log('📋 Sample item:', menuData.items[0]);
-      console.log('📋 Sample item category_id:', menuData.items[0].category_id);
+    if (mongoItems && mongoItems.length > 0) {
+      console.log('📋 Sample item:', mongoItems[0]);
+      console.log('📋 Sample item category_id:', mongoItems[0].category_id);
     }
-    if (menuData.categories && menuData.categories.length > 0) {
-      console.log('📋 Sample category:', menuData.categories[0]);
-      console.log('📋 Sample category name type:', typeof menuData.categories[0].name);
+    if (mongoCategories && mongoCategories.length > 0) {
+      console.log('📋 Sample category:', mongoCategories[0]);
+      console.log('📋 Sample category name type:', typeof mongoCategories[0].name);
     }
     
     res.render('admin_items', { 
-      items: menuData.items || [],
-      categories: menuData.categories || []
+      items: mongoItems || [],
+      categories: mongoCategories || []
     });
   } catch (error) {
     console.error('❌ Admin items error:', error);
@@ -1603,11 +1621,13 @@ app.get('/admin/items', authMiddleware, (req, res) => {
   }
 });
 
-app.get('/admin/categories', authMiddleware, (req, res) => {
+app.get('/admin/categories', authMiddleware, async (req, res) => {
   try {
+    const mongoCategories = await Category.find().sort({ sort_order: 1 });
+    const mongoItems = await MenuItem.find().sort({ sort_order: 1 });
     res.render('admin_categories', { 
-      categories: menuData.categories || [],
-      items: menuData.items || []
+      categories: mongoCategories || [],
+      items: mongoItems || []
     });
   } catch (error) {
     console.error('Admin categories error:', error);
