@@ -2284,16 +2284,12 @@ app.post('/admin/orders/:id/status', authMiddleware, async (req, res) => {
     
     console.log(`🔄 Updating order ${orderId} status to: ${status}`);
     
-    // Update in the same data source as the dashboard uses
-    // Check if we should use MongoDB (connected and not localhost)
-    const shouldUseMongoDB = mongoose.connection.readyState === 1 && 
-                           process.env.MONGODB_URI && 
-                           !process.env.MONGODB_URI.includes('localhost') &&
-                           !process.env.MONGODB_URI.includes('mongodb://localhost');
+    // Always try MongoDB first if connected, then fallback to file storage
+    const isMongoConnected = mongoose.connection.readyState === 1;
     
-    console.log(`🔍 Status update - MongoDB check: readyState=${mongoose.connection.readyState}, MONGODB_URI exists=${!!process.env.MONGODB_URI}, shouldUseMongoDB=${shouldUseMongoDB}`);
+    console.log(`🔍 Status update - MongoDB check: readyState=${mongoose.connection.readyState}, isMongoConnected=${isMongoConnected}`);
     
-    if (shouldUseMongoDB) {
+    if (isMongoConnected) {
       // MongoDB is connected - update in MongoDB
       try {
         const updatedOrder = await Order.findOneAndUpdate(
@@ -2324,18 +2320,15 @@ app.post('/admin/orders/:id/status', authMiddleware, async (req, res) => {
           saveOrdersData();
           console.log('📁 Saved to files as backup');
           
-          // Verify the update by re-fetching from MongoDB
+          // Wait a moment and verify the update by re-fetching from MongoDB
+          await new Promise(resolve => setTimeout(resolve, 100)); // Small delay
           const verifyOrder = await Order.findOne({ id: orderId });
           console.log(`🔍 Verification - Order in MongoDB: Status=${verifyOrder?.status}, UpdatedAt=${verifyOrder?.updatedAt}`);
           
-          // Force refresh the global orders array from MongoDB
-          try {
-            const freshOrders = await Order.find().sort({ createdAt: -1 });
-            orders.length = 0; // Clear existing orders
-            orders.push(...freshOrders.map(order => order.toObject ? order.toObject() : order));
-            console.log(`🔄 Refreshed global orders array with ${freshOrders.length} orders from MongoDB`);
-          } catch (refreshError) {
-            console.error('❌ Error refreshing orders from MongoDB:', refreshError);
+          if (verifyOrder && verifyOrder.status === status) {
+            console.log('✅ Order status update verified successfully in MongoDB');
+          } else {
+            console.log('❌ Order status update verification failed - status mismatch');
           }
           
           res.json({ success: true, order: updatedOrder });
@@ -2397,16 +2390,12 @@ app.post('/admin/orders/:id/edit', authMiddleware, async (req, res) => {
     // Reduced logging to avoid Railway rate limits
     console.log(`🔄 Editing order ${orderId}: Status=${status}`);
     
-    // Update in the same data source as the dashboard uses
-    // Check if we should use MongoDB (connected and not localhost)
-    const shouldUseMongoDB = mongoose.connection.readyState === 1 && 
-                           process.env.MONGODB_URI && 
-                           !process.env.MONGODB_URI.includes('localhost') &&
-                           !process.env.MONGODB_URI.includes('mongodb://localhost');
+    // Always try MongoDB first if connected, then fallback to file storage
+    const isMongoConnected = mongoose.connection.readyState === 1;
     
-    console.log(`🔍 MongoDB check: readyState=${mongoose.connection.readyState}, MONGODB_URI exists=${!!process.env.MONGODB_URI}, shouldUseMongoDB=${shouldUseMongoDB}`);
+    console.log(`🔍 MongoDB check: readyState=${mongoose.connection.readyState}, isMongoConnected=${isMongoConnected}`);
     
-    if (shouldUseMongoDB) {
+    if (isMongoConnected) {
       // MongoDB is connected - update in MongoDB
       try {
         // Recalculate total with discount
@@ -2467,18 +2456,15 @@ app.post('/admin/orders/:id/edit', authMiddleware, async (req, res) => {
           saveOrdersData();
           console.log('📁 Saved to files as backup');
           
-          // Verify the update by re-fetching from MongoDB
+          // Wait a moment and verify the update by re-fetching from MongoDB
+          await new Promise(resolve => setTimeout(resolve, 100)); // Small delay
           const verifyOrder = await Order.findOne({ id: orderId });
-          console.log(`🔍 Verification - Order in MongoDB: Status=${verifyOrder?.status}, Total=€${verifyOrder?.total}`);
+          console.log(`🔍 Verification - Order in MongoDB: Status=${verifyOrder?.status}, Total=€${verifyOrder?.total}, UpdatedAt=${verifyOrder?.updatedAt}`);
           
-          // Force refresh the global orders array from MongoDB
-          try {
-            const freshOrders = await Order.find().sort({ createdAt: -1 });
-            orders.length = 0; // Clear existing orders
-            orders.push(...freshOrders.map(order => order.toObject ? order.toObject() : order));
-            console.log(`🔄 Refreshed global orders array with ${freshOrders.length} orders from MongoDB`);
-          } catch (refreshError) {
-            console.error('❌ Error refreshing orders from MongoDB:', refreshError);
+          if (verifyOrder && verifyOrder.status === status) {
+            console.log('✅ Order update verified successfully in MongoDB');
+          } else {
+            console.log('❌ Order update verification failed - status mismatch');
           }
           
           res.json({ success: true, order: updatedOrder });
