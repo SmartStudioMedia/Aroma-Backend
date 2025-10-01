@@ -1492,17 +1492,34 @@ app.post('/api/orders', async (req, res) => {
 // Admin Dashboard Routes
 app.get('/admin', authMiddleware, async (req, res) => {
   try {
-    console.log('🔍 Loading dashboard data from MongoDB...');
+    let mongoOrders, mongoCategories, mongoItems;
     
-    // Load fresh data from MongoDB
-    const mongoOrders = await Order.find().sort({ createdAt: -1 });
-    const mongoCategories = await Category.find().sort({ sort_order: 1 });
-    const mongoItems = await MenuItem.find();
-    
-    console.log('📊 MongoDB Data Loaded:');
-    console.log(`📊 Orders: ${mongoOrders.length}`);
-    console.log(`📊 Categories: ${mongoCategories.length}`);
-    console.log(`📊 Items: ${mongoItems.length}`);
+    // Check if MongoDB is connected
+    if (mongoose.connection.readyState === 1) {
+      console.log('🔍 Loading dashboard data from MongoDB...');
+      
+      // Load fresh data from MongoDB
+      mongoOrders = await Order.find().sort({ createdAt: -1 });
+      mongoCategories = await Category.find().sort({ sort_order: 1 });
+      mongoItems = await MenuItem.find();
+      
+      console.log('📊 MongoDB Data Loaded:');
+      console.log(`📊 Orders: ${mongoOrders.length}`);
+      console.log(`📊 Categories: ${mongoCategories.length}`);
+      console.log(`📊 Items: ${mongoItems.length}`);
+    } else {
+      console.log('🔍 MongoDB not connected, using file-based data...');
+      
+      // Use file-based data as fallback
+      mongoOrders = orders || [];
+      mongoCategories = menuData.categories || [];
+      mongoItems = menuData.items || [];
+      
+      console.log('📊 File Data Loaded:');
+      console.log(`📊 Orders: ${mongoOrders.length}`);
+      console.log(`📊 Categories: ${mongoCategories.length}`);
+      console.log(`📊 Items: ${mongoItems.length}`);
+    }
     
     // Calculate order statistics
     const pending = mongoOrders.filter(o => o.status === 'pending').length;
@@ -1610,7 +1627,14 @@ app.get('/admin', authMiddleware, async (req, res) => {
 
 app.get('/admin/orders', authMiddleware, async (req, res) => {
   try {
-    const mongoOrders = await Order.find().sort({ createdAt: -1 });
+    let mongoOrders;
+    
+    if (mongoose.connection.readyState === 1) {
+      mongoOrders = await Order.find().sort({ createdAt: -1 });
+    } else {
+      mongoOrders = orders || [];
+    }
+    
     res.render('admin_orders', { orders: mongoOrders || [] });
   } catch (error) {
     console.error('Admin orders error:', error);
@@ -1620,7 +1644,14 @@ app.get('/admin/orders', authMiddleware, async (req, res) => {
 
 app.get('/admin/clients', authMiddleware, async (req, res) => {
   try {
-    const mongoClients = await Client.find().sort({ createdAt: -1 });
+    let mongoClients;
+    
+    if (mongoose.connection.readyState === 1) {
+      mongoClients = await Client.find().sort({ createdAt: -1 });
+    } else {
+      mongoClients = clients || [];
+    }
+    
     res.render('admin_clients', { clients: mongoClients || [] });
   } catch (error) {
     console.error('Admin clients error:', error);
@@ -1630,11 +1661,21 @@ app.get('/admin/clients', authMiddleware, async (req, res) => {
 
 app.get('/admin/items', authMiddleware, async (req, res) => {
   try {
-    console.log('🔄 Loading admin items page from MongoDB...');
-    const mongoItems = await MenuItem.find().sort({ sort_order: 1 });
-    const mongoCategories = await Category.find().sort({ sort_order: 1 });
-    console.log('📊 MongoDB items count:', mongoItems.length);
-    console.log('📊 MongoDB categories count:', mongoCategories.length);
+    let mongoItems, mongoCategories;
+    
+    if (mongoose.connection.readyState === 1) {
+      console.log('🔄 Loading admin items page from MongoDB...');
+      mongoItems = await MenuItem.find().sort({ sort_order: 1 });
+      mongoCategories = await Category.find().sort({ sort_order: 1 });
+      console.log('📊 MongoDB items count:', mongoItems.length);
+      console.log('📊 MongoDB categories count:', mongoCategories.length);
+    } else {
+      console.log('🔄 Loading admin items page from file storage...');
+      mongoItems = menuData.items || [];
+      mongoCategories = menuData.categories || [];
+      console.log('📊 File items count:', mongoItems.length);
+      console.log('📊 File categories count:', mongoCategories.length);
+    }
     
     if (mongoItems && mongoItems.length > 0) {
       console.log('📋 Sample item:', mongoItems[0]);
@@ -1659,8 +1700,16 @@ app.get('/admin/items', authMiddleware, async (req, res) => {
 
 app.get('/admin/categories', authMiddleware, async (req, res) => {
   try {
-    const mongoCategories = await Category.find().sort({ sort_order: 1 });
-    const mongoItems = await MenuItem.find().sort({ sort_order: 1 });
+    let mongoCategories, mongoItems;
+    
+    if (mongoose.connection.readyState === 1) {
+      mongoCategories = await Category.find().sort({ sort_order: 1 });
+      mongoItems = await MenuItem.find().sort({ sort_order: 1 });
+    } else {
+      mongoCategories = menuData.categories || [];
+      mongoItems = menuData.items || [];
+    }
+    
     res.render('admin_categories', { 
       categories: mongoCategories || [],
       items: mongoItems || []
