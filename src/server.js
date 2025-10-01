@@ -2764,39 +2764,57 @@ app.post('/admin/cleanup-duplicates', authMiddleware, async (req, res) => {
   }
 });
 
-// Fix orders with NaN totals
+// Fix orders with NaN totals - ENHANCED VERSION
 app.post('/admin/fix-nan-totals', authMiddleware, async (req, res) => {
   try {
-    console.log('🔧 Starting NaN total fix...');
+    console.log('🔧 Starting enhanced NaN total fix...');
     
     let fixedCount = 0;
+    const fixedOrders = [];
     
     orders.forEach((order, index) => {
-      // Check if total is NaN or invalid
-      if (isNaN(order.total) || order.total === null || order.total === undefined) {
-        console.log(`🔧 Fixing order ${order.id} with invalid total: ${order.total}`);
+      const currentTotal = order.total;
+      const isInvalidTotal = isNaN(currentTotal) || currentTotal === null || currentTotal === undefined || currentTotal === 'NaN';
+      
+      if (isInvalidTotal) {
+        console.log(`🔧 Fixing order ${order.id} with invalid total: ${currentTotal}`);
         
-        // Recalculate total from items
-        if (order.items && Array.isArray(order.items)) {
+        if (order.items && Array.isArray(order.items) && order.items.length > 0) {
+          // Recalculate from items
           const itemsTotal = order.items.reduce((sum, item) => {
             const itemPrice = parseFloat(item.price) || 0;
             const quantity = parseInt(item.qty || item.quantity || 1);
-            return sum + (itemPrice * quantity);
+            const itemTotal = itemPrice * quantity;
+            console.log(`  📊 Item ${item.id}: ${itemPrice} × ${quantity} = ${itemTotal}`);
+            return sum + itemTotal;
           }, 0);
           
           const discountAmount = parseFloat(order.discount) || 0;
           const finalTotal = Math.max(0, itemsTotal - discountAmount);
           
+          console.log(`  📊 Recalculated: ${itemsTotal} - ${discountAmount} = ${finalTotal}`);
           orders[index].total = finalTotal;
           orders[index].updatedAt = new Date().toISOString();
           
-          console.log(`✅ Fixed order ${order.id}: ${order.total} -> ${finalTotal}`);
+          fixedOrders.push({
+            id: order.id,
+            oldTotal: currentTotal,
+            newTotal: finalTotal,
+            itemsCount: order.items.length
+          });
           fixedCount++;
         } else {
-          // If no items, set total to 0
+          // No items or invalid items, set to 0
+          console.log(`  📊 No valid items, setting total to 0`);
           orders[index].total = 0;
           orders[index].updatedAt = new Date().toISOString();
-          console.log(`✅ Set order ${order.id} total to 0 (no items)`);
+          
+          fixedOrders.push({
+            id: order.id,
+            oldTotal: currentTotal,
+            newTotal: 0,
+            itemsCount: 0
+          });
           fixedCount++;
         }
       }
@@ -2805,17 +2823,18 @@ app.post('/admin/fix-nan-totals', authMiddleware, async (req, res) => {
     // Save the fixed data
     saveOrdersData();
     
-    console.log(`✅ NaN total fix completed: Fixed ${fixedCount} orders`);
+    console.log(`✅ Enhanced NaN total fix completed: Fixed ${fixedCount} orders`);
     
     res.json({ 
       success: true, 
       message: `Fixed ${fixedCount} orders with NaN totals`,
-      ordersFixed: fixedCount
+      ordersFixed: fixedCount,
+      fixedOrders: fixedOrders
     });
     
   } catch (error) {
-    console.error('❌ NaN fix error:', error);
-    res.status(500).json({ success: false, error: 'NaN fix failed' });
+    console.error('❌ Enhanced NaN fix error:', error);
+    res.status(500).json({ success: false, error: 'Enhanced NaN fix failed' });
   }
 });
 
@@ -2928,27 +2947,36 @@ app.listen(PORT, '0.0.0.0', async () => {
   // Format data for consistency (fixes [object Object] issue)
   formatMenuData();
   
-  // Fix any orders with NaN totals
+  // Fix any orders with NaN totals - ENHANCED VERSION
   console.log('🔧 Checking for orders with NaN totals...');
   let fixedCount = 0;
   orders.forEach((order, index) => {
-    if (isNaN(order.total) || order.total === null || order.total === undefined) {
-      console.log(`🔧 Fixing order ${order.id} with invalid total: ${order.total}`);
+    const currentTotal = order.total;
+    const isInvalidTotal = isNaN(currentTotal) || currentTotal === null || currentTotal === undefined || currentTotal === 'NaN';
+    
+    if (isInvalidTotal) {
+      console.log(`🔧 Fixing order ${order.id} with invalid total: ${currentTotal}`);
       
-      if (order.items && Array.isArray(order.items)) {
+      if (order.items && Array.isArray(order.items) && order.items.length > 0) {
+        // Recalculate from items
         const itemsTotal = order.items.reduce((sum, item) => {
           const itemPrice = parseFloat(item.price) || 0;
           const quantity = parseInt(item.qty || item.quantity || 1);
-          return sum + (itemPrice * quantity);
+          const itemTotal = itemPrice * quantity;
+          console.log(`  📊 Item ${item.id}: ${itemPrice} × ${quantity} = ${itemTotal}`);
+          return sum + itemTotal;
         }, 0);
         
         const discountAmount = parseFloat(order.discount) || 0;
         const finalTotal = Math.max(0, itemsTotal - discountAmount);
         
+        console.log(`  📊 Recalculated: ${itemsTotal} - ${discountAmount} = ${finalTotal}`);
         orders[index].total = finalTotal;
         orders[index].updatedAt = new Date().toISOString();
         fixedCount++;
       } else {
+        // No items or invalid items, set to 0
+        console.log(`  📊 No valid items, setting total to 0`);
         orders[index].total = 0;
         orders[index].updatedAt = new Date().toISOString();
         fixedCount++;
