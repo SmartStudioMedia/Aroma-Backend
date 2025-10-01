@@ -497,6 +497,7 @@
             <div class="controls-actions">
                 <button class="btn btn-secondary" onclick="clearFilters()">🧹 Clear All Filters</button>
                 <button class="btn btn-primary" onclick="exportOrders()">📊 Export Orders</button>
+                <button class="btn btn-success" onclick="testEditFunction()">🧪 Test Edit Function</button>
             </div>
         </div>
 
@@ -1044,8 +1045,13 @@
                 },
                 body: JSON.stringify(formData)
             })
-            .then(response => response.json())
+            .then(response => {
+                console.log('📤 Response status:', response.status);
+                console.log('📤 Response headers:', response.headers);
+                return response.json();
+            })
             .then(data => {
+                console.log('📤 Response data:', data);
                 if (data.success) {
                     alert('Order updated successfully!');
                     closeEditModal();
@@ -1055,8 +1061,8 @@
                 }
             })
             .catch(error => {
-                console.error('Error:', error);
-                alert('Error updating order');
+                console.error('❌ Error:', error);
+                alert('Error updating order: ' + error.message);
             });
         });
         
@@ -1088,6 +1094,55 @@
             .catch(error => {
                 console.error('Error:', error);
                 alert('Error updating order status');
+            });
+        }
+        
+        // Test function to debug edit functionality
+        function testEditFunction() {
+            console.log('🧪 Testing edit function...');
+            
+            // Test basic connectivity
+            fetch('/test/basic', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ test: 'data' })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('✅ Basic test result:', data);
+                
+                // Test getting orders
+                return fetch('/test/orders');
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('✅ Orders test result:', data);
+                
+                // Test edit route
+                return fetch('/admin/orders/1/edit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        customerName: 'Test Customer',
+                        customerEmail: 'test@example.com',
+                        orderType: 'dine-in',
+                        status: 'completed',
+                        discount: 0,
+                        notes: 'Test edit'
+                    })
+                });
+            })
+            .then(response => {
+                console.log('📤 Edit test response status:', response.status);
+                return response.json();
+            })
+            .then(data => {
+                console.log('✅ Edit test result:', data);
+                alert('Test completed! Check console for results.');
+            })
+            .catch(error => {
+                console.error('❌ Test error:', error);
+                alert('Test failed: ' + error.message);
             });
         }
     </script>
