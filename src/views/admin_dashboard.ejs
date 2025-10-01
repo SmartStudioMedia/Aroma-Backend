@@ -471,20 +471,19 @@
         // Calculate accurate category performance based on individual items
         function calculateCategoryPerformance() {
             var categoryStats = <%- JSON.stringify(categoryStats) %>;
-            var orders = <%- JSON.stringify(orders) %>;
             var categoryLabels = [];
             var categoryData = [];
             var categoryColors = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
             
             console.log('🔍 DEBUGGING CHART DATA:');
             console.log('Raw categoryStats from server:', categoryStats);
-            console.log('Total orders:', orders.length);
-            console.log('Sample order:', orders[0]);
-            console.log('Stats object:', <%- JSON.stringify(stats) %>);
+            console.log('Category stats keys:', Object.keys(categoryStats));
             
             // Use the accurate categoryStats from server (now calculated per individual items)
             for (var categoryName in categoryStats) {
                 var revenue = parseFloat(categoryStats[categoryName].revenue);
+                console.log(`Category ${categoryName}: revenue=${revenue}, orders=${categoryStats[categoryName].orders}, items=${categoryStats[categoryName].items}`);
+                
                 if (revenue > 0) {
                     categoryLabels.push(categoryName);
                     categoryData.push(revenue);
@@ -499,9 +498,10 @@
             
             // If no data, show placeholder
             if (categoryLabels.length === 0) {
-                categoryLabels = ['No Data'];
-                categoryData = [1];
+                categoryLabels = ['No Sales Data'];
+                categoryData = [0];
                 categoryColors = ['#e5e7eb'];
+                console.log('⚠️ No category sales data found - showing placeholder');
             }
             
             return {
