@@ -2476,12 +2476,27 @@ app.post('/admin/orders/:id/edit', authMiddleware, async (req, res) => {
     saveOrdersData();
     console.log('📁 File saved');
     
-    // Return success
-    res.json({ 
+    // Return success with detailed response
+    const responseData = { 
       success: true, 
       order: orders[orderIndex],
-      message: 'Order updated successfully'
-    });
+      message: 'Order updated successfully',
+      debug: {
+        orderId: orderId,
+        updatedFields: {
+          customerName: orders[orderIndex].customerName,
+          customerEmail: orders[orderIndex].customerEmail,
+          orderType: orders[orderIndex].orderType,
+          status: orders[orderIndex].status,
+          discount: orders[orderIndex].discount,
+          total: orders[orderIndex].total
+        },
+        timestamp: new Date().toISOString()
+      }
+    };
+    
+    console.log('📤 Sending response:', responseData);
+    res.json(responseData);
     
   } catch (error) {
     console.error('❌ Edit error:', error);
@@ -2671,6 +2686,22 @@ app.post('/test/basic', (req, res) => {
     success: true, 
     message: 'Basic test successful',
     timestamp: new Date().toISOString()
+  });
+});
+
+// TEST - Get current orders
+app.get('/test/orders', (req, res) => {
+  console.log('🧪 ORDERS TEST - Getting current orders');
+  res.json({ 
+    success: true, 
+    orders: orders.map(o => ({ 
+      id: o.id, 
+      status: o.status, 
+      customerName: o.customerName,
+      total: o.total,
+      createdAt: o.createdAt || o.timestamp
+    })),
+    count: orders.length
   });
 });
 
