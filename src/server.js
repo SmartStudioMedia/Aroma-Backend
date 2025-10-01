@@ -2276,13 +2276,21 @@ app.get('/admin/api/orders', authMiddleware, (req, res) => {
   res.json(orders);
 });
 
-// Update order status - SIMPLIFIED VERSION
+// Update order status - DEBUGGING VERSION
 app.post('/admin/orders/:id/status', authMiddleware, async (req, res) => {
   try {
+    console.log('🚨 STATUS ROUTE CALLED - Full request details:');
+    console.log('📊 URL:', req.url);
+    console.log('📊 Method:', req.method);
+    console.log('📊 Headers:', req.headers);
+    console.log('📊 Body:', req.body);
+    console.log('📊 Params:', req.params);
+    
     const orderId = parseInt(req.params.id);
     const { status } = req.body;
     
-    console.log(`🔄 SIMPLIFIED STATUS ROUTE - Order ID: ${orderId}, Status: ${status}`);
+    console.log(`🔄 STATUS ROUTE - Order ID: ${orderId}, Status: ${status}`);
+    console.log(`📊 Available orders:`, orders.map(o => ({ id: o.id, status: o.status })));
     
     // Find the order in file storage (simplest approach)
     const orderIndex = orders.findIndex(o => o.id === orderId);
@@ -2317,19 +2325,28 @@ app.post('/admin/orders/:id/status', authMiddleware, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Simplified status update error:', error);
+    console.error('❌ Status update error:', error);
+    console.error('❌ Error stack:', error.stack);
     res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
 
-// Edit order (with discount support) - SIMPLIFIED VERSION
+// Edit order (with discount support) - DEBUGGING VERSION
 app.post('/admin/orders/:id/edit', authMiddleware, async (req, res) => {
   try {
+    console.log('🚨 EDIT ROUTE CALLED - Full request details:');
+    console.log('📊 URL:', req.url);
+    console.log('📊 Method:', req.method);
+    console.log('📊 Headers:', req.headers);
+    console.log('📊 Body:', req.body);
+    console.log('📊 Params:', req.params);
+    
     const orderId = parseInt(req.params.id);
     const { customerName, customerEmail, orderType, status, discount, notes, items } = req.body;
     
     console.log(`🔄 EDIT ROUTE - Order ID: ${orderId}`);
     console.log(`📊 Request data:`, { customerName, customerEmail, orderType, status, discount, notes, items });
+    console.log(`📊 Available orders:`, orders.map(o => ({ id: o.id, status: o.status })));
     
     // Find the order in file storage
     const orderIndex = orders.findIndex(o => o.id === orderId);
@@ -2416,6 +2433,7 @@ app.post('/admin/orders/:id/edit', authMiddleware, async (req, res) => {
     
   } catch (error) {
     console.error('❌ Edit error:', error);
+    console.error('❌ Error stack:', error.stack);
     res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
@@ -2575,6 +2593,32 @@ app.post('/admin/orders/:id/simple-edit', authMiddleware, (req, res) => {
     success: true, 
     message: 'Simple edit test successful',
     receivedData: { orderId, status, customerName }
+  });
+});
+
+// NO AUTH TEST - Test without authentication
+app.post('/test/orders/:id/edit', (req, res) => {
+  const orderId = parseInt(req.params.id);
+  const { status, customerName } = req.body;
+  
+  console.log(`🧪 NO AUTH TEST - Order ID: ${orderId}, Status: ${status}, Customer: ${customerName}`);
+  console.log(`📊 Request body:`, req.body);
+  
+  res.json({ 
+    success: true, 
+    message: 'No auth test successful',
+    receivedData: { orderId, status, customerName }
+  });
+});
+
+// BASIC TEST - Test if server is receiving requests
+app.post('/test/basic', (req, res) => {
+  console.log('🧪 BASIC TEST - Server received request');
+  console.log('📊 Request body:', req.body);
+  res.json({ 
+    success: true, 
+    message: 'Basic test successful',
+    timestamp: new Date().toISOString()
   });
 });
 
