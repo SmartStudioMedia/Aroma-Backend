@@ -1533,6 +1533,8 @@ app.get('/admin', authMiddleware, async (req, res) => {
     // Calculate revenue for each category by analyzing all orders
     mongoOrders.forEach(order => {
       if (order.status !== 'cancelled') {
+        const orderCategories = new Set(); // Track which categories this order has items from
+        
         order.items.forEach(orderItem => {
           // Find the menu item to get its category
           const menuItem = mongoItems.find(mi => mi.id === orderItem.id);
@@ -1545,10 +1547,19 @@ app.get('/admin', authMiddleware, async (req, res) => {
               
               if (categoryStats[categoryName]) {
                 categoryStats[categoryName].revenue += itemTotal;
-                categoryStats[categoryName].orders += 1;
                 categoryStats[categoryName].items += orderItem.quantity || 0;
+                orderCategories.add(categoryName);
+                
+                console.log(`📊 Category ${categoryName}: +€${itemTotal} (${orderItem.quantity} items)`);
               }
             }
+          }
+        });
+        
+        // Count this order for each category it contains
+        orderCategories.forEach(categoryName => {
+          if (categoryStats[categoryName]) {
+            categoryStats[categoryName].orders += 1;
           }
         });
       }
@@ -1893,6 +1904,27 @@ app.get('/admin/sales/yearly', authMiddleware, (req, res) => {
   } catch (error) {
     console.error('Yearly sales error:', error);
     res.status(500).send('Internal Server Error');
+  }
+});
+
+app.get('/admin/sales/completed', authMiddleware, async (req, res) => {
+  try {
+    const mongoOrders = await Order.find({ status: 'completed' }).sort({ createdAt: -1 });
+    const totalSales = mongoOrders.reduce((sum, order) => sum + (order.total || 0), 0);
+    
+    res.render('admin_sales_breakdown', {
+      title: 'Completed Sales Breakdown',
+      period: 'completed',
+      orders: mongoOrders,
+      stats: {
+        total: mongoOrders.length,
+        totalValue: totalSales,
+        average: mongoOrders.length > 0 ? totalSales / mongoOrders.length : 0
+      }
+    });
+  } catch (error) {
+    console.error('Completed sales error:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
 
