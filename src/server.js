@@ -1560,27 +1560,34 @@ app.get('/admin', authMiddleware, async (req, res) => {
         
         order.items.forEach((orderItem, itemIndex) => {
           console.log(`  📦 Item ${itemIndex + 1}: ID=${orderItem.id}, price=${orderItem.price}, qty=${orderItem.quantity}`);
+          console.log(`  📦 OrderItem details:`, JSON.stringify(orderItem, null, 2));
           
           // Find the menu item to get its category
           const menuItem = mongoItems.find(mi => mi.id === orderItem.id);
           if (menuItem) {
             console.log(`    ✅ Found menu item: ${menuItem.name?.en || menuItem.name}, category_id: ${menuItem.category_id}`);
+            console.log(`    📋 MenuItem details:`, JSON.stringify(menuItem, null, 2));
             
             if (menuItem.category_id) {
               // Find the category
               const category = mongoCategories.find(cat => cat.id === menuItem.category_id);
               if (category) {
                 const categoryName = app.locals.translate(category.name);
-                const itemTotal = (orderItem.price || 0) * (orderItem.quantity || 0);
+                // Handle different data structures for price and quantity
+                const price = orderItem.price || orderItem.itemPrice || 0;
+                const quantity = orderItem.quantity || orderItem.qty || orderItem.amount || 0;
+                const itemTotal = price * quantity;
                 
                 console.log(`    📊 Category: ${categoryName}, Item total: €${itemTotal}`);
+                console.log(`    📊 Price: ${orderItem.price}, Quantity: ${orderItem.quantity}`);
                 
                 if (categoryStats[categoryName]) {
                   categoryStats[categoryName].revenue += itemTotal;
-                  categoryStats[categoryName].items += orderItem.quantity || 0;
+                  categoryStats[categoryName].items += quantity;
                   orderCategories.add(categoryName);
                   
-                  console.log(`    ✅ Added to category ${categoryName}: +€${itemTotal} (${orderItem.quantity} items)`);
+                  console.log(`    ✅ Added to category ${categoryName}: +€${itemTotal} (${quantity} items)`);
+                  console.log(`    📊 Category ${categoryName} new total: €${categoryStats[categoryName].revenue}`);
                 } else {
                   console.log(`    ❌ Category ${categoryName} not found in categoryStats`);
                 }
@@ -1608,6 +1615,49 @@ app.get('/admin', authMiddleware, async (req, res) => {
     });
     
     console.log('📊 Category Performance Stats:', categoryStats);
+    
+    // If no revenue calculated, try alternative approach using order totals
+    const totalRevenue = Object.values(categoryStats).reduce((sum, cat) => sum + cat.revenue, 0);
+    if (totalRevenue === 0 && mongoOrders.length > 0) {
+      console.log('⚠️ No revenue calculated from items, trying alternative approach...');
+      
+      // Reset category stats
+      Object.keys(categoryStats).forEach(key => {
+        categoryStats[key] = { orders: 0, revenue: 0, items: 0 };
+      });
+      
+      // Distribute order totals evenly across categories
+      mongoOrders.forEach(order => {
+        if (order.status !== 'cancelled' && order.total > 0) {
+          const orderCategories = new Set();
+          
+          order.items.forEach(orderItem => {
+            const menuItem = mongoItems.find(mi => mi.id === orderItem.id);
+            if (menuItem && menuItem.category_id) {
+              const category = mongoCategories.find(cat => cat.id === menuItem.category_id);
+              if (category) {
+                const categoryName = app.locals.translate(category.name);
+                orderCategories.add(categoryName);
+              }
+            }
+          });
+          
+          // Distribute order total across categories
+          if (orderCategories.size > 0) {
+            const revenuePerCategory = order.total / orderCategories.size;
+            orderCategories.forEach(categoryName => {
+              if (categoryStats[categoryName]) {
+                categoryStats[categoryName].revenue += revenuePerCategory;
+                categoryStats[categoryName].orders += 1;
+                categoryStats[categoryName].items += 1; // Approximate
+              }
+            });
+          }
+        }
+      });
+      
+      console.log('📊 Alternative calculation completed:', categoryStats);
+    }
     
     // Get recent orders (last 10)
     const recentOrders = mongoOrders.slice(0, 10);
