@@ -709,6 +709,122 @@ initializeDataFiles();
 
 const app = express();
 
+// Clean up corrupted data in MongoDB
+async function cleanupCorruptedData() {
+  try {
+    if (mongoose.connection.readyState !== 1) {
+      return;
+    }
+    
+    console.log('🔄 Checking for corrupted data...');
+    
+    // Clean up malformed menu items
+    const items = await MenuItem.find();
+    let cleanedCount = 0;
+    
+    for (const item of items) {
+      let needsUpdate = false;
+      const updateData = {};
+      
+      // Fix malformed name object
+      if (item.name && typeof item.name === 'object') {
+        const nameKeys = Object.keys(item.name);
+        if (nameKeys.length > 10 || nameKeys.some(key => key.includes('en') && nameKeys.filter(k => k.includes('en')).length > 1)) {
+          // Reconstruct clean name object
+          const cleanName = {};
+          const languages = ['en', 'mt', 'es', 'it', 'fr', 'de', 'ru', 'pt', 'nl', 'pl'];
+          languages.forEach(lang => {
+            if (item.name[lang]) {
+              cleanName[lang] = item.name[lang];
+            }
+          });
+          if (Object.keys(cleanName).length > 0) {
+            updateData.name = cleanName;
+            needsUpdate = true;
+          }
+        }
+      }
+      
+      // Fix malformed description object
+      if (item.description && typeof item.description === 'object') {
+        const descKeys = Object.keys(item.description);
+        if (descKeys.length > 10) {
+          const cleanDesc = {};
+          const languages = ['en', 'mt', 'es', 'it', 'fr', 'de', 'ru', 'pt', 'nl', 'pl'];
+          languages.forEach(lang => {
+            if (item.description[lang]) {
+              cleanDesc[lang] = item.description[lang];
+            }
+          });
+          if (Object.keys(cleanDesc).length > 0) {
+            updateData.description = cleanDesc;
+            needsUpdate = true;
+          }
+        }
+      }
+      
+      // Fix other malformed objects
+      ['ingredients', 'nutrition', 'allergies', 'prepTime'].forEach(field => {
+        if (item[field] && typeof item[field] === 'object') {
+          const fieldKeys = Object.keys(item[field]);
+          if (fieldKeys.length > 10) {
+            const cleanField = {};
+            const languages = ['en', 'mt', 'es', 'it', 'fr', 'de', 'ru', 'pt', 'nl', 'pl'];
+            languages.forEach(lang => {
+              if (item[field][lang]) {
+                cleanField[lang] = item[field][lang];
+              }
+            });
+            if (Object.keys(cleanField).length > 0) {
+              updateData[field] = cleanField;
+              needsUpdate = true;
+            }
+          }
+        }
+      });
+      
+      if (needsUpdate) {
+        await MenuItem.findByIdAndUpdate(item._id, updateData);
+        cleanedCount++;
+      }
+    }
+    
+    if (cleanedCount > 0) {
+      console.log(`✅ Cleaned up ${cleanedCount} corrupted menu items`);
+    }
+    
+    // Clean up malformed categories
+    const categories = await Category.find();
+    let cleanedCategories = 0;
+    
+    for (const category of categories) {
+      if (category.name && typeof category.name === 'object') {
+        const nameKeys = Object.keys(category.name);
+        if (nameKeys.length > 10) {
+          const cleanName = {};
+          const languages = ['en', 'mt', 'es', 'it', 'fr', 'de', 'ru', 'pt', 'nl', 'pl'];
+          languages.forEach(lang => {
+            if (category.name[lang]) {
+              cleanName[lang] = category.name[lang];
+            }
+          });
+          if (Object.keys(cleanName).length > 0) {
+            await Category.findByIdAndUpdate(category._id, { name: cleanName });
+            cleanedCategories++;
+          }
+        }
+      }
+    }
+    
+    if (cleanedCategories > 0) {
+      console.log(`✅ Cleaned up ${cleanedCategories} corrupted categories`);
+    }
+    
+  } catch (error) {
+    console.error('❌ Data cleanup error:', error);
+  }
+}
+
 // Email sending function using SendGrid
 async function sendOrderConfirmation(order, customerEmail, customerName) {
   try {
@@ -2431,6 +2547,9 @@ app.listen(PORT, '0.0.0.0', async () => {
   const dbConnected = await connectToDatabase();
   
   if (dbConnected) {
+    // Clean up corrupted data first
+    await cleanupCorruptedData();
+    
     // Load data from database
     console.log('🔄 Loading data from MongoDB...');
     const dbData = await loadDataFromDatabase();
