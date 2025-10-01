@@ -498,6 +498,7 @@
                 <button class="btn btn-secondary" onclick="clearFilters()">🧹 Clear All Filters</button>
                 <button class="btn btn-primary" onclick="exportOrders()">📊 Export Orders</button>
                 <button class="btn btn-success" onclick="testEditFunction()">🧪 Test Edit Function</button>
+                <button class="btn btn-danger" onclick="fixNaNTotals()">🔧 Fix NaN Totals</button>
             </div>
         </div>
 
@@ -1143,6 +1144,34 @@
             .catch(error => {
                 console.error('❌ Test error:', error);
                 alert('Test failed: ' + error.message);
+            });
+        }
+        
+        // Fix NaN totals function
+        function fixNaNTotals() {
+            if (!confirm('This will fix all orders with NaN totals. Continue?')) {
+                return;
+            }
+            
+            console.log('🔧 Fixing NaN totals...');
+            
+            fetch('/admin/fix-nan-totals', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('✅ NaN fix result:', data);
+                if (data.success) {
+                    alert(`✅ Fixed ${data.ordersFixed} orders with NaN totals!`);
+                    location.reload();
+                } else {
+                    alert('❌ Failed to fix NaN totals: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('❌ NaN fix error:', error);
+                alert('❌ Error fixing NaN totals: ' + error.message);
             });
         }
     </script>
