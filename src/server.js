@@ -2498,8 +2498,6 @@ app.post('/admin/orders/:id/edit', authMiddleware, async (req, res) => {
       
       res.json({ success: true, order: orders[orderIndex] });
     }
-    
-    console.log(`✅ Order ${orderId} edited: Customer=${customerName}, Discount=€${discount}, New Total=€${orders[orderIndex]?.total || 'N/A'}`);
   } catch (error) {
     console.error('Error editing order:', error);
     res.status(500).json({ success: false, error: 'Internal server error' });
