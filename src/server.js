@@ -2589,6 +2589,16 @@ app.get('/test-server-update', (req, res) => {
   });
 });
 
+// Test route to check admin credentials (no auth required)
+app.get('/test-admin-creds', (req, res) => {
+  res.json({ 
+    adminUser: ADMIN_USER,
+    adminPass: ADMIN_PASS,
+    message: 'Current admin credentials',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Test route for order status update (no auth required for testing)
 app.post('/test-order-status/:id', (req, res) => {
   const orderId = parseInt(req.params.id);
