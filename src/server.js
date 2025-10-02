@@ -2573,7 +2573,20 @@ app.post('/kitchen/orders/:id/status', kitchenAuthMiddleware, (req, res) => {
 
 // Health check
 app.get('/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date().toISOString() });
+  res.json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    serverVersion: '2.0.0 - Enhanced Order Status Updates'
+  });
+});
+
+// Test route to verify server.js is updated
+app.get('/test-server-update', (req, res) => {
+  res.json({ 
+    message: 'Server.js has been updated with enhanced order status routes!',
+    timestamp: new Date().toISOString(),
+    version: '2.0.0'
+  });
 });
 
 // Get order data for editing
