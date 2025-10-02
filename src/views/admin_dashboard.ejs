@@ -632,8 +632,10 @@
             .then(data => {
                 console.log('🔧 Response data:', data);
                 if (data.success) {
+                    console.log('✅ Status update successful, reloading page...');
                     alert('✅ Order #' + orderId + ' updated to ' + status);
-                    location.reload();
+                    // Force a hard reload to ensure fresh data
+                    window.location.reload(true);
                 } else {
                     alert('❌ Failed to update order: ' + (data.error || 'Unknown error'));
                     button.textContent = originalText;
@@ -652,6 +654,15 @@
         // Initialize charts when page loads
         document.addEventListener('DOMContentLoaded', function() {
             initializeCharts();
+            
+            // Debug: Log all orders in the table
+            console.log('🔍 Dashboard loaded - checking orders in table:');
+            const orderRows = document.querySelectorAll('tbody tr');
+            orderRows.forEach((row, index) => {
+                const orderId = row.querySelector('td:first-child')?.textContent;
+                const status = row.querySelector('.status-badge')?.textContent;
+                console.log(`Order ${index + 1}: ID=${orderId}, Status=${status}`);
+            });
         });
     </script>
 </body>
