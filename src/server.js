@@ -2476,6 +2476,15 @@ app.post('/admin/orders/:id/edit', authMiddleware, async (req, res) => {
     saveOrdersData();
     console.log('📁 File saved');
     
+    // Verify the save worked
+    console.log('🔍 Verifying save - Current order after update:', {
+      id: orders[orderIndex].id,
+      status: orders[orderIndex].status,
+      customerName: orders[orderIndex].customerName,
+      total: orders[orderIndex].total,
+      updatedAt: orders[orderIndex].updatedAt
+    });
+    
     // Return success with detailed response
     const responseData = { 
       success: true, 
