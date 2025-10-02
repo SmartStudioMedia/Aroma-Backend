@@ -2589,6 +2589,33 @@ app.get('/test-server-update', (req, res) => {
   });
 });
 
+// Test route for order status update (no auth required for testing)
+app.post('/test-order-status/:id', (req, res) => {
+  const orderId = parseInt(req.params.id);
+  const { status } = req.body;
+  
+  console.log(`🧪 TEST ROUTE - Order ID: ${orderId}, Status: ${status}`);
+  
+  // Find order in file storage
+  const order = orders.find(o => o.id === orderId);
+  if (!order) {
+    return res.status(404).json({ success: false, error: 'Order not found' });
+  }
+  
+  // Update status
+  order.status = status;
+  order.updatedAt = new Date().toISOString();
+  
+  // Save to file
+  saveOrdersData();
+  
+  res.json({ 
+    success: true, 
+    order: order,
+    message: 'Order status updated successfully (TEST ROUTE)'
+  });
+});
+
 // Get order data for editing
 app.get('/admin/orders/:id/data', authMiddleware, (req, res) => {
   const orderId = parseInt(req.params.id);
