@@ -497,10 +497,6 @@
             <div class="controls-actions">
                 <button class="btn btn-secondary" onclick="clearFilters()">🧹 Clear All Filters</button>
                 <button class="btn btn-primary" onclick="exportOrders()">📊 Export Orders</button>
-                <button class="btn btn-success" onclick="testEditFunction()">🧪 Test Edit Function</button>
-                <button class="btn btn-danger" onclick="fixNaNTotals()">🔧 Fix NaN Totals</button>
-                <button class="btn btn-warning" onclick="reloadPage()">🔄 Reload Page</button>
-                <button class="btn btn-info" onclick="refreshOrders()">🔄 Refresh Orders</button>
             </div>
         </div>
 
@@ -636,25 +632,6 @@
                     <input type="hidden" id="editOrderId">
                     
                     <div class="form-group">
-                        <label for="editCustomerName">Customer Name:</label>
-                        <input type="text" id="editCustomerName" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="editCustomerEmail">Customer Email:</label>
-                        <input type="email" id="editCustomerEmail" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="editOrderType">Order Type:</label>
-                        <select id="editOrderType" required>
-                            <option value="dine-in">🏠 Dine In</option>
-                            <option value="takeaway">📦 Takeaway</option>
-                            <option value="delivery">🚚 Delivery</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
                         <label for="editOrderStatus">Order Status:</label>
                         <select id="editOrderStatus" required>
                             <option value="pending">⏳ Pending</option>
@@ -668,11 +645,6 @@
                         <label for="editDiscount">Discount Amount (€):</label>
                         <input type="number" id="editDiscount" min="0" step="0.01" value="0">
                         <small>Enter discount amount to subtract from total</small>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="editNotes">Order Notes:</label>
-                        <textarea id="editNotes" rows="3" placeholder="Add any special notes or instructions..."></textarea>
                     </div>
                     
                     <div class="modal-actions">
@@ -1030,33 +1002,16 @@
             fetch(`/admin/orders/${orderId}/data`)
                 .then(response => response.json())
                 .then(data => {
-                    console.log('🔧 Order data received:', data);
-                    
                     if (data.success) {
                         const order = data.order;
                         
-                        // Populate the form with order data
+                        // Populate only the essential fields
                         document.getElementById('editOrderId').value = order.id;
-                        document.getElementById('editCustomerName').value = order.customerName || '';
-                        document.getElementById('editCustomerEmail').value = order.customerEmail || '';
-                        document.getElementById('editOrderType').value = order.orderType || 'dine-in';
                         document.getElementById('editOrderStatus').value = order.status || 'pending';
                         document.getElementById('editDiscount').value = order.discount || 0;
-                        document.getElementById('editNotes').value = order.notes || '';
-                        
-                        console.log('🔧 Form populated with data:', {
-                            id: order.id,
-                            customerName: order.customerName,
-                            customerEmail: order.customerEmail,
-                            orderType: order.orderType,
-                            status: order.status,
-                            discount: order.discount,
-                            notes: order.notes
-                        });
                         
                         // Show the modal
                         document.getElementById('editOrderModal').style.display = 'block';
-                        console.log('🔧 Modal should be visible now');
                     } else {
                         alert('Failed to load order data: ' + (data.error || 'Unknown error'));
                     }
@@ -1075,38 +1030,15 @@
         // Handle form submission
         document.getElementById('editOrderForm').addEventListener('submit', function(e) {
             e.preventDefault();
-            console.log('🔧 FORM SUBMISSION STARTED');
             
             const orderId = document.getElementById('editOrderId').value;
-            
-            // Debug: Check if all form elements exist
-            const customerNameEl = document.getElementById('editCustomerName');
-            const customerEmailEl = document.getElementById('editCustomerEmail');
-            const orderTypeEl = document.getElementById('editOrderType');
-            const orderStatusEl = document.getElementById('editOrderStatus');
-            const discountEl = document.getElementById('editDiscount');
-            const notesEl = document.getElementById('editNotes');
-            
-            console.log('🔧 Form elements found:');
-            console.log('  - Customer Name:', customerNameEl, customerNameEl?.value);
-            console.log('  - Customer Email:', customerEmailEl, customerEmailEl?.value);
-            console.log('  - Order Type:', orderTypeEl, orderTypeEl?.value);
-            console.log('  - Order Status:', orderStatusEl, orderStatusEl?.value);
-            console.log('  - Discount:', discountEl, discountEl?.value);
-            console.log('  - Notes:', notesEl, notesEl?.value);
+            const status = document.getElementById('editOrderStatus').value;
+            const discount = parseFloat(document.getElementById('editDiscount').value) || 0;
             
             const formData = {
-                customerName: customerNameEl?.value || '',
-                customerEmail: customerEmailEl?.value || '',
-                orderType: orderTypeEl?.value || '',
-                status: orderStatusEl?.value || '',
-                discount: parseFloat(discountEl?.value) || 0,
-                notes: notesEl?.value || ''
+                status: status,
+                discount: discount
             };
-            
-            console.log('🔧 Form data to send:', formData);
-            console.log('🔧 Order ID:', orderId);
-            console.log('🔧 Sending request to:', `/admin/orders/${orderId}/edit`);
             
             // Send update request
             fetch(`/admin/orders/${orderId}/edit`, {
@@ -1116,53 +1048,12 @@
                 },
                 body: JSON.stringify(formData)
             })
-            .then(response => {
-                console.log('📤 Response status:', response.status);
-                console.log('📤 Response headers:', response.headers);
-                console.log('📤 Response ok:', response.ok);
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-                
-                return response.json();
-            })
+            .then(response => response.json())
             .then(data => {
-                console.log('📤 Response data:', data);
                 if (data.success) {
-                    console.log('✅ Order updated successfully, verifying changes...');
-                    
-                    // Verify the changes were saved by fetching the updated order
-                    fetch(`/admin/orders/${orderId}/data`)
-                        .then(response => response.json())
-                        .then(verifyData => {
-                            console.log('🔍 Verification - Updated order data:', verifyData);
-                            if (verifyData.success) {
-                                console.log('✅ Changes verified, reloading page...');
-                                alert('Order updated successfully!');
-                                closeEditModal();
-                                
-                                // Force a hard reload to ensure fresh data
-                                setTimeout(() => {
-                                    window.location.reload(true);
-                                }, 500);
-                            } else {
-                                console.log('⚠️ Verification failed, but proceeding with reload...');
-                                alert('Order updated (verification failed)');
-                                closeEditModal();
-                                setTimeout(() => {
-                                    window.location.reload(true);
-                                }, 500);
-                            }
-                        })
-                        .catch(verifyError => {
-                            console.log('⚠️ Verification error, but proceeding with reload...', verifyError);
-                            alert('Order updated (verification error)');
-                            closeEditModal();
-                            setTimeout(() => {
-                                window.location.reload(true);
-                            }, 500);
-                        });
+                    alert('Order updated successfully!');
+                    closeEditModal();
+                    location.reload();
                 } else {
                     alert('Failed to update order: ' + (data.error || 'Unknown error'));
                 }
@@ -1204,95 +1095,6 @@
             });
         }
         
-        // Test function to debug edit functionality
-        function testEditFunction() {
-            console.log('🧪 Testing edit function...');
-            
-            // Test basic connectivity
-            fetch('/test/basic', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ test: 'data' })
-            })
-            .then(response => response.json())
-            .then(data => {
-                console.log('✅ Basic test result:', data);
-                
-                // Test getting orders
-                return fetch('/test/orders');
-            })
-            .then(response => response.json())
-            .then(data => {
-                console.log('✅ Orders test result:', data);
-                
-                // Test edit route
-                return fetch('/admin/orders/1/edit', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        customerName: 'Test Customer',
-                        customerEmail: 'test@example.com',
-                        orderType: 'dine-in',
-                        status: 'completed',
-                        discount: 0,
-                        notes: 'Test edit'
-                    })
-                });
-            })
-            .then(response => {
-                console.log('📤 Edit test response status:', response.status);
-                return response.json();
-            })
-            .then(data => {
-                console.log('✅ Edit test result:', data);
-                alert('Test completed! Check console for results.');
-            })
-            .catch(error => {
-                console.error('❌ Test error:', error);
-                alert('Test failed: ' + error.message);
-            });
-        }
-        
-        // Fix NaN totals function
-        function fixNaNTotals() {
-            if (!confirm('This will fix all orders with NaN totals. Continue?')) {
-                return;
-            }
-            
-            console.log('🔧 Fixing NaN totals...');
-            
-            fetch('/admin/fix-nan-totals', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' }
-            })
-            .then(response => response.json())
-            .then(data => {
-                console.log('✅ NaN fix result:', data);
-                if (data.success) {
-                    alert(`✅ Fixed ${data.ordersFixed} orders with NaN totals!`);
-                    location.reload();
-                } else {
-                    alert('❌ Failed to fix NaN totals: ' + (data.error || 'Unknown error'));
-                }
-            })
-            .catch(error => {
-                console.error('❌ NaN fix error:', error);
-                alert('❌ Error fixing NaN totals: ' + error.message);
-            });
-        }
-        
-        // Reload page function
-        function reloadPage() {
-            console.log('🔄 Reloading page...');
-            location.reload();
-        }
-        
-        // Refresh orders function
-        function refreshOrders() {
-            console.log('🔄 Refreshing orders...');
-            // Force a hard reload to get fresh data
-            window.location.reload(true);
-        }
     </script>
 </body>
 </html>
