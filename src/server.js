@@ -1269,7 +1269,7 @@ app.get('/api/qr/generate/:tableNumber', async (req, res) => {
       }
     });
     
-    res.json({
+  res.json({
       success: true,
       tableNumber: parseInt(tableNumber),
       qrUrl: qrUrl,
@@ -2287,7 +2287,7 @@ app.post('/admin/orders/:id/status', authMiddleware, async (req, res) => {
     console.log('📊 Params:', req.params);
     
     const orderId = parseInt(req.params.id);
-    const { status } = req.body;
+  const { status } = req.body;
     
     console.log(`🔄 STATUS ROUTE - Order ID: ${orderId}, Status: ${status}`);
     console.log(`📊 Available orders:`, orders.map(o => ({ id: o.id, status: o.status })));
@@ -2368,10 +2368,10 @@ app.post('/admin/orders/:id/edit', authMiddleware, async (req, res) => {
     console.log('📊 Params:', req.params);
     
     const orderId = parseInt(req.params.id);
-    const { customerName, customerEmail, orderType, status, discount, notes, items } = req.body;
+    const { status, discount } = req.body;
     
     console.log(`🔄 EDIT ROUTE - Order ID: ${orderId}`);
-    console.log(`📊 Request data:`, { customerName, customerEmail, orderType, status, discount, notes, items });
+    console.log(`📊 Request data:`, { status, discount });
     console.log(`📊 Available orders:`, orders.map(o => ({ id: o.id, status: o.status })));
     
     // Find the order in file storage - handle duplicates by finding the most recent one
@@ -2414,50 +2414,21 @@ app.post('/admin/orders/:id/edit', authMiddleware, async (req, res) => {
       total: orders[orderIndex].total
     });
     
-    // Update basic fields
-    if (customerName) orders[orderIndex].customerName = customerName;
-    if (customerEmail) orders[orderIndex].customerEmail = customerEmail;
-    if (orderType) orders[orderIndex].orderType = orderType;
+    // Update only status and discount
     if (status) orders[orderIndex].status = status;
     if (discount !== undefined) orders[orderIndex].discount = parseFloat(discount) || 0;
-    if (notes !== undefined) orders[orderIndex].notes = notes || '';
     
-    // If items are provided, update them and recalculate total
-    if (items && Array.isArray(items)) {
-      console.log(`📊 Updating items for order ${orderId}:`, items);
-      
-      // Update items with proper price calculation
-      orders[orderIndex].items = items.map(item => {
-        const menuItem = menuData.items.find(i => i.id === item.id);
-        const itemPrice = menuItem ? (menuItem.price || 0) : (item.price || 0);
-        const quantity = parseInt(item.qty || item.quantity || 1);
-        
-        console.log(`📊 Item ${item.id}: price=${itemPrice}, qty=${quantity}, total=${itemPrice * quantity}`);
-        
-        return {
-          id: item.id || 0,
-          name: menuItem ? (typeof menuItem.name === 'string' ? menuItem.name : menuItem.name.en) : (item.name || 'Unknown Item'),
-          price: itemPrice,
-          qty: quantity,
-          quantity: quantity // Keep both for compatibility
-        };
-      });
-      
-      // Recalculate total from items
+    // Recalculate total if discount changed
+    if (discount !== undefined) {
       const itemsTotal = orders[orderIndex].items.reduce((sum, item) => {
         const itemTotal = (item.price || 0) * (item.qty || item.quantity || 1);
-        console.log(`📊 Item ${item.id} total: ${itemTotal}`);
         return sum + itemTotal;
       }, 0);
       
-      console.log(`📊 Items total: ${itemsTotal}`);
-      
-      // Apply discount
-      const discountAmount = parseFloat(orders[orderIndex].discount) || 0;
+      const discountAmount = parseFloat(discount) || 0;
       const finalTotal = Math.max(0, itemsTotal - discountAmount);
       
-      console.log(`📊 Final total: ${itemsTotal} - ${discountAmount} = ${finalTotal}`);
-      
+      console.log(`📊 Recalculated total: ${itemsTotal} - ${discountAmount} = ${finalTotal}`);
       orders[orderIndex].total = finalTotal;
     }
     
