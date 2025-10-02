@@ -337,9 +337,6 @@
 
         <div class="orders-table">
             <h3>Recent Orders</h3>
-            <div style="margin-bottom: 15px;">
-                <button class="btn btn-warning" onclick="cleanupDuplicates()">🧹 Clean Up Duplicate Orders</button>
-            </div>
             <table>
                 <thead>
                     <tr>
@@ -659,32 +656,6 @@
             });
         }
         
-        // Clean up duplicate orders
-        function cleanupDuplicates() {
-            console.log('🧹 Starting duplicate cleanup...');
-            
-            fetch('/admin/cleanup-duplicates', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert('✅ ' + data.message + '\n\nPage will reload to show cleaned data.');
-                    setTimeout(() => {
-                        window.location.reload(true);
-                    }, 1000);
-                } else {
-                    alert('❌ Cleanup failed: ' + (data.error || 'Unknown error'));
-                }
-            })
-            .catch(error => {
-                console.error('❌ Cleanup error:', error);
-                alert('❌ Error during cleanup: ' + error.message);
-            });
-        }
         
         // Initialize charts when page loads
         document.addEventListener('DOMContentLoaded', function() {
