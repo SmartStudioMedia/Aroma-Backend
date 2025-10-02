@@ -337,6 +337,9 @@
 
         <div class="orders-table">
             <h3>Recent Orders</h3>
+            <div style="margin-bottom: 15px;">
+                <button class="btn btn-warning" onclick="cleanupDuplicates()">🧹 Clean Up Duplicate Orders</button>
+            </div>
             <table>
                 <thead>
                     <tr>
@@ -656,6 +659,32 @@
             });
         }
         
+        // Clean up duplicate orders
+        function cleanupDuplicates() {
+            console.log('🧹 Starting duplicate cleanup...');
+            
+            fetch('/admin/cleanup-duplicates', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('✅ ' + data.message + '\n\nPage will reload to show cleaned data.');
+                    setTimeout(() => {
+                        window.location.reload(true);
+                    }, 1000);
+                } else {
+                    alert('❌ Cleanup failed: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('❌ Cleanup error:', error);
+                alert('❌ Error during cleanup: ' + error.message);
+            });
+        }
         
         // Initialize charts when page loads
         document.addEventListener('DOMContentLoaded', function() {
@@ -669,6 +698,16 @@
                 const status = row.querySelector('.status-badge')?.textContent;
                 console.log(`Order ${index + 1}: ID=${orderId}, Status=${status}`);
             });
+            
+            // Check for duplicate orders and warn user
+            const orderIds = Array.from(orderRows).map(row => row.querySelector('td:first-child')?.textContent);
+            const uniqueIds = [...new Set(orderIds)];
+            if (orderIds.length !== uniqueIds.length) {
+                console.warn('⚠️ DUPLICATE ORDERS DETECTED!');
+                console.warn('Total orders:', orderIds.length);
+                console.warn('Unique orders:', uniqueIds.length);
+                console.warn('This may cause status updates to not appear correctly.');
+            }
         });
     </script>
 </body>
