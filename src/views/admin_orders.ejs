@@ -996,27 +996,58 @@
         
         // Order editing functions
         function editOrder(orderId) {
+            console.log('🔧 EDIT ORDER CLICKED - Order ID:', orderId);
+            
             // Find the order data
             const orderElement = document.querySelector(`[data-order-id="${orderId}"]`);
+            console.log('🔧 Order element found:', orderElement);
+            
             if (!orderElement) {
                 alert('Order not found');
                 return;
             }
             
+            // Debug: Log all detail items
+            const detailItems = orderElement.querySelectorAll('.detail-item');
+            console.log('🔧 Detail items found:', detailItems.length);
+            detailItems.forEach((item, index) => {
+                const label = item.querySelector('.detail-label').textContent;
+                const value = item.querySelector('.detail-value').textContent;
+                console.log(`🔧 Item ${index + 1}: ${label} = ${value}`);
+            });
+            
             // Populate the form with current order data
             document.getElementById('editOrderId').value = orderId;
-            document.getElementById('editCustomerName').value = orderElement.querySelector('.detail-item:nth-child(1) .detail-value').textContent;
-            document.getElementById('editCustomerEmail').value = orderElement.querySelector('.detail-item:nth-child(2) .detail-value').textContent;
+            
+            const customerNameElement = orderElement.querySelector('.detail-item:nth-child(1) .detail-value');
+            const customerEmailElement = orderElement.querySelector('.detail-item:nth-child(2) .detail-value');
+            
+            console.log('🔧 Customer name element:', customerNameElement);
+            console.log('🔧 Customer email element:', customerEmailElement);
+            
+            if (customerNameElement) {
+                document.getElementById('editCustomerName').value = customerNameElement.textContent;
+                console.log('🔧 Set customer name:', customerNameElement.textContent);
+            }
+            
+            if (customerEmailElement) {
+                document.getElementById('editCustomerEmail').value = customerEmailElement.textContent;
+                console.log('🔧 Set customer email:', customerEmailElement.textContent);
+            }
             
             // Get order type and status from the element
             const orderType = orderElement.dataset.type;
             const orderStatus = orderElement.dataset.status;
+            
+            console.log('🔧 Order type from dataset:', orderType);
+            console.log('🔧 Order status from dataset:', orderStatus);
             
             document.getElementById('editOrderType').value = orderType;
             document.getElementById('editOrderStatus').value = orderStatus;
             
             // Show the modal
             document.getElementById('editOrderModal').style.display = 'block';
+            console.log('🔧 Modal should be visible now');
         }
         
         function closeEditModal() {
@@ -1027,6 +1058,7 @@
         // Handle form submission
         document.getElementById('editOrderForm').addEventListener('submit', function(e) {
             e.preventDefault();
+            console.log('🔧 FORM SUBMISSION STARTED');
             
             const orderId = document.getElementById('editOrderId').value;
             const formData = {
@@ -1037,6 +1069,10 @@
                 discount: parseFloat(document.getElementById('editDiscount').value) || 0,
                 notes: document.getElementById('editNotes').value
             };
+            
+            console.log('🔧 Form data to send:', formData);
+            console.log('🔧 Order ID:', orderId);
+            console.log('🔧 Sending request to:', `/admin/orders/${orderId}/edit`);
             
             // Send update request
             fetch(`/admin/orders/${orderId}/edit`, {
@@ -1049,6 +1085,12 @@
             .then(response => {
                 console.log('📤 Response status:', response.status);
                 console.log('📤 Response headers:', response.headers);
+                console.log('📤 Response ok:', response.ok);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
                 return response.json();
             })
             .then(data => {
