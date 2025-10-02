@@ -497,8 +497,6 @@
             <div class="controls-actions">
                 <button class="btn btn-secondary" onclick="clearFilters()">🧹 Clear All Filters</button>
                 <button class="btn btn-primary" onclick="exportOrders()">📊 Export Orders</button>
-                <button class="btn btn-success" onclick="testStatusChange()">🧪 Test Status Change</button>
-                <button class="btn btn-warning" onclick="testEditModal()">🔧 Test Edit Modal</button>
             </div>
         </div>
 
@@ -1000,14 +998,29 @@
         function editOrder(orderId) {
             console.log('🔧 EDIT ORDER CLICKED - Order ID:', orderId);
             
-            // Simple approach - just show the modal and populate basic data
-            document.getElementById('editOrderId').value = orderId;
-            document.getElementById('editOrderStatus').value = 'pending'; // Default
-            document.getElementById('editDiscount').value = 0; // Default
-            
-            // Show the modal
-            document.getElementById('editOrderModal').style.display = 'block';
-            console.log('🔧 Modal should be visible now');
+            // Get current order data to populate the form
+            fetch(`/admin/orders/${orderId}/data`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const order = data.order;
+                        
+                        // Populate form with current order data
+                        document.getElementById('editOrderId').value = order.id;
+                        document.getElementById('editOrderStatus').value = order.status || 'pending';
+                        document.getElementById('editDiscount').value = order.discount || 0;
+                        
+                        // Show the modal
+                        document.getElementById('editOrderModal').style.display = 'block';
+                        console.log('🔧 Modal opened with current order data');
+                    } else {
+                        alert('Failed to load order data');
+                    }
+                })
+                .catch(error => {
+                    console.error('❌ Error loading order:', error);
+                    alert('Error loading order data');
+                });
         }
         
         function closeEditModal() {
@@ -1015,7 +1028,7 @@
             document.getElementById('editOrderForm').reset();
         }
         
-        // Handle form submission - SIMPLIFIED VERSION
+        // Handle form submission
         document.getElementById('editOrderForm').addEventListener('submit', function(e) {
             e.preventDefault();
             
@@ -1023,7 +1036,7 @@
             const status = document.getElementById('editOrderStatus').value;
             const discount = parseFloat(document.getElementById('editDiscount').value) || 0;
             
-            console.log('🔧 Submitting:', { orderId, status, discount });
+            console.log('🔧 Updating order:', { orderId, status, discount });
             
             // Send update request
             fetch(`/admin/orders/${orderId}/edit`, {
@@ -1036,16 +1049,16 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    alert('✅ Order updated successfully!');
+                    alert(`✅ Order #${orderId} updated successfully!\nStatus: ${status}\nDiscount: €${discount.toFixed(2)}`);
                     closeEditModal();
                     location.reload();
                 } else {
-                    alert('❌ Failed: ' + (data.error || 'Unknown error'));
+                    alert('❌ Failed to update order: ' + (data.error || 'Unknown error'));
                 }
             })
             .catch(error => {
                 console.error('❌ Error:', error);
-                alert('❌ Error: ' + error.message);
+                alert('❌ Error updating order: ' + error.message);
             });
         });
         
@@ -1080,45 +1093,6 @@
             });
         }
         
-        // Test status change function
-        function testStatusChange() {
-            console.log('🧪 Testing status change...');
-            
-            const testData = {
-                status: 'confirmed',
-                discount: 2.50
-            };
-            
-            console.log('🧪 Sending test data:', testData);
-            
-            fetch('/admin/orders/1/edit', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(testData)
-            })
-            .then(response => response.json())
-            .then(data => {
-                console.log('🧪 Test result:', data);
-                if (data.success) {
-                    alert('✅ Test successful! Status changed to confirmed with €2.50 discount');
-                    location.reload();
-                } else {
-                    alert('❌ Test failed: ' + (data.error || 'Unknown error'));
-                }
-            })
-            .catch(error => {
-                console.error('❌ Test error:', error);
-                alert('❌ Test error: ' + error.message);
-            });
-        }
-        
-        // Test edit modal function
-        function testEditModal() {
-            console.log('🔧 Testing edit modal...');
-            editOrder(1);
-        }
         
     </script>
 </body>
