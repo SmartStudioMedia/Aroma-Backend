@@ -2526,15 +2526,26 @@ app.delete('/admin/clients/:id', authMiddleware, (req, res) => {
 
 
 // Kitchen Staff Routes
-app.get('/kitchen', kitchenAuthMiddleware, (req, res) => {
+app.get('/kitchen', kitchenAuthMiddleware, async (req, res) => {
   try {
-    const pendingOrders = orders.filter(o => o.status === 'pending');
-    const confirmedOrders = orders.filter(o => o.status === 'confirmed');
+    let mongoOrders;
+    
+    if (mongoose.connection.readyState === 1) {
+      // Get orders from MongoDB (excluding cancelled)
+      mongoOrders = await Order.find({ status: { $ne: 'cancelled' } }).sort({ createdAt: -1 });
+    } else {
+      // Use file-based data as fallback
+      mongoOrders = orders.filter(o => o.status !== 'cancelled');
+    }
+    
+    const pendingOrders = mongoOrders.filter(o => o.status === 'pending');
+    const confirmedOrders = mongoOrders.filter(o => o.status === 'confirmed');
     
     res.render('kitchen_dashboard', {
       pendingOrders,
       confirmedOrders,
-      totalOrders: orders.length
+      totalOrders: mongoOrders.length,
+      orders: mongoOrders
     });
   } catch (error) {
     console.error('Kitchen dashboard error:', error);
@@ -2542,27 +2553,59 @@ app.get('/kitchen', kitchenAuthMiddleware, (req, res) => {
   }
 });
 
-app.get('/kitchen/orders', kitchenAuthMiddleware, (req, res) => {
+app.get('/kitchen/orders', kitchenAuthMiddleware, async (req, res) => {
   try {
-    const allOrders = orders.filter(o => o.status !== 'completed' && o.status !== 'cancelled');
-    res.render('kitchen_orders', { orders: allOrders });
+    let mongoOrders;
+    
+    if (mongoose.connection.readyState === 1) {
+      // Get orders from MongoDB (excluding cancelled and completed)
+      mongoOrders = await Order.find({ 
+        status: { $nin: ['cancelled', 'completed'] } 
+      }).sort({ createdAt: -1 });
+    } else {
+      // Use file-based data as fallback
+      mongoOrders = orders.filter(o => o.status !== 'completed' && o.status !== 'cancelled');
+    }
+    
+    res.render('kitchen_orders', { 
+      orders: mongoOrders,
+      title: 'Kitchen Orders'
+    });
   } catch (error) {
     console.error('Kitchen orders error:', error);
     res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
 
-app.post('/kitchen/orders/:id/status', kitchenAuthMiddleware, (req, res) => {
+app.post('/kitchen/orders/:id/status', kitchenAuthMiddleware, async (req, res) => {
   try {
-    const { id } = req.params;
+    const orderId = parseInt(req.params.id);
     const { status } = req.body;
     
-    const order = orders.find(o => o.id === parseInt(id));
+    console.log(`🍳 KITCHEN: Updating order ${orderId} to status: ${status}`);
+    
+    // Try MongoDB first
+    if (mongoose.connection.readyState === 1) {
+      const order = await Order.findById(orderId);
+      if (order) {
+        order.status = status;
+        order.updatedAt = new Date();
+        await order.save();
+        console.log(`✅ Kitchen order updated in MongoDB: ${orderId} -> ${status}`);
+        return res.json({ success: true, message: 'Order updated successfully' });
+      }
+    }
+    
+    // Fallback to file storage
+    const order = orders.find(o => o.id === orderId);
     if (order) {
       order.status = status;
-      saveOrdersData(); // Save orders to file
-      res.json({ success: true });
+      order.updatedAt = new Date().toISOString();
+      saveOrdersData();
+      console.log(`✅ Kitchen order updated in file storage: ${orderId} -> ${status}`);
+      res.json({ success: true, message: 'Order updated successfully' });
     } else {
+      console.log(`❌ Kitchen order not found: ${orderId}`);
       res.status(404).json({ success: false, error: 'Order not found' });
     }
   } catch (error) {
