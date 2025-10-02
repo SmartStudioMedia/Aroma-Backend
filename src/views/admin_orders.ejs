@@ -497,6 +497,7 @@
             <div class="controls-actions">
                 <button class="btn btn-secondary" onclick="clearFilters()">🧹 Clear All Filters</button>
                 <button class="btn btn-primary" onclick="exportOrders()">📊 Export Orders</button>
+                <button class="btn btn-success" onclick="testStatusChange()">🧪 Test Status Change</button>
             </div>
         </div>
 
@@ -1040,6 +1041,8 @@
                 discount: discount
             };
             
+            console.log('🔧 Sending simplified form data:', formData);
+            
             // Send update request
             fetch(`/admin/orders/${orderId}/edit`, {
                 method: 'POST',
@@ -1092,6 +1095,40 @@
             .catch(error => {
                 console.error('Error:', error);
                 alert('Error updating order status');
+            });
+        }
+        
+        // Test status change function
+        function testStatusChange() {
+            console.log('🧪 Testing status change...');
+            
+            const testData = {
+                status: 'confirmed',
+                discount: 2.50
+            };
+            
+            console.log('🧪 Sending test data:', testData);
+            
+            fetch('/admin/orders/1/edit', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(testData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('🧪 Test result:', data);
+                if (data.success) {
+                    alert('✅ Test successful! Status changed to confirmed with €2.50 discount');
+                    location.reload();
+                } else {
+                    alert('❌ Test failed: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('❌ Test error:', error);
+                alert('❌ Test error: ' + error.message);
             });
         }
         
