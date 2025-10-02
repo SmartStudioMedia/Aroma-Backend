@@ -2592,6 +2592,35 @@ app.get('/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
+// Get order data for editing
+app.get('/admin/orders/:id/data', authMiddleware, (req, res) => {
+  const orderId = parseInt(req.params.id);
+  console.log(`🔍 Getting order data for editing - Order ID: ${orderId}`);
+  
+  const order = orders.find(o => o.id === orderId);
+  if (!order) {
+    return res.status(404).json({ success: false, error: 'Order not found' });
+  }
+  
+  const orderData = {
+    id: order.id,
+    customerName: order.customerName || '',
+    customerEmail: order.customerEmail || '',
+    orderType: order.orderType || 'dine-in',
+    status: order.status || 'pending',
+    discount: order.discount || 0,
+    notes: order.notes || '',
+    total: order.total || 0
+  };
+  
+  console.log('📊 Order data for editing:', orderData);
+  
+  res.json({
+    success: true,
+    order: orderData
+  });
+});
+
 // Test route for order editing
 app.get('/test/order-edit/:id', authMiddleware, (req, res) => {
   const orderId = parseInt(req.params.id);
