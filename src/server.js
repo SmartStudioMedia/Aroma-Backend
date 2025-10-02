@@ -1067,8 +1067,11 @@ app.use((req, res, next) => {
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// Serve static files from the frontend build
-app.use(express.static(path.join(__dirname, '../AROMA_FRONTEND/dist')));
+// Serve static files from the frontend build (only if directory exists)
+const frontendPath = path.join(__dirname, '../AROMA_FRONTEND/dist');
+if (fs.existsSync(frontendPath)) {
+  app.use(express.static(frontendPath));
+}
 
 // Basic auth for admin routes
 const authMiddleware = basicAuth({
@@ -1084,9 +1087,19 @@ const kitchenAuthMiddleware = basicAuth({
   realm: 'Kitchen Staff Area'
 });
 
-// Root route
+// Root route - redirect to admin or show API info
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, '../AROMA_FRONTEND/dist/index.html'));
+  const frontendIndexPath = path.join(__dirname, '../AROMA_FRONTEND/dist/index.html');
+  if (fs.existsSync(frontendIndexPath)) {
+    res.sendFile(frontendIndexPath);
+  } else {
+    res.json({
+      message: 'Restaurant Backend API',
+      admin: '/admin',
+      health: '/health',
+      frontend: 'https://aroma-frontend-delta.vercel.app'
+    });
+  }
 });
 
 // CORS test endpoint
