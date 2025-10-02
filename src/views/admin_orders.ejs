@@ -999,20 +999,46 @@
         function editOrder(orderId) {
             console.log('🔧 EDIT ORDER CLICKED - Order ID:', orderId);
             
+            // Check if form elements exist
+            const orderIdField = document.getElementById('editOrderId');
+            const statusField = document.getElementById('editOrderStatus');
+            const discountField = document.getElementById('editDiscount');
+            const modal = document.getElementById('editOrderModal');
+            
+            console.log('🔧 Form elements check:');
+            console.log('  - Order ID field:', orderIdField);
+            console.log('  - Status field:', statusField);
+            console.log('  - Discount field:', discountField);
+            console.log('  - Modal:', modal);
+            
+            if (!orderIdField || !statusField || !discountField || !modal) {
+                alert('Form elements not found! Check console for details.');
+                return;
+            }
+            
             // Get order data from server
             fetch(`/admin/orders/${orderId}/data`)
                 .then(response => response.json())
                 .then(data => {
+                    console.log('🔧 Order data received:', data);
+                    
                     if (data.success) {
                         const order = data.order;
                         
                         // Populate only the essential fields
-                        document.getElementById('editOrderId').value = order.id;
-                        document.getElementById('editOrderStatus').value = order.status || 'pending';
-                        document.getElementById('editDiscount').value = order.discount || 0;
+                        orderIdField.value = order.id;
+                        statusField.value = order.status || 'pending';
+                        discountField.value = order.discount || 0;
+                        
+                        console.log('🔧 Form populated with:', {
+                            id: order.id,
+                            status: order.status,
+                            discount: order.discount
+                        });
                         
                         // Show the modal
-                        document.getElementById('editOrderModal').style.display = 'block';
+                        modal.style.display = 'block';
+                        console.log('🔧 Modal should be visible now');
                     } else {
                         alert('Failed to load order data: ' + (data.error || 'Unknown error'));
                     }
@@ -1031,10 +1057,16 @@
         // Handle form submission
         document.getElementById('editOrderForm').addEventListener('submit', function(e) {
             e.preventDefault();
+            console.log('🔧 FORM SUBMISSION STARTED');
             
             const orderId = document.getElementById('editOrderId').value;
             const status = document.getElementById('editOrderStatus').value;
             const discount = parseFloat(document.getElementById('editDiscount').value) || 0;
+            
+            console.log('🔧 Form values:');
+            console.log('  - Order ID:', orderId);
+            console.log('  - Status:', status);
+            console.log('  - Discount:', discount);
             
             const formData = {
                 status: status,
@@ -1051,8 +1083,12 @@
                 },
                 body: JSON.stringify(formData)
             })
-            .then(response => response.json())
+            .then(response => {
+                console.log('📤 Response status:', response.status);
+                return response.json();
+            })
             .then(data => {
+                console.log('📤 Response data:', data);
                 if (data.success) {
                     alert('Order updated successfully!');
                     closeEditModal();
