@@ -615,6 +615,9 @@
             button.textContent = 'Updating...';
             button.disabled = true;
             
+            console.log('🔧 Making request to:', '/admin/orders/' + orderId + '/status');
+            console.log('🔧 Request body:', JSON.stringify({ status: status }));
+            
             fetch('/admin/orders/' + orderId + '/status', {
                 method: 'POST',
                 headers: {
@@ -624,6 +627,7 @@
             })
             .then(response => {
                 console.log('🔧 Response status:', response.status);
+                console.log('🔧 Response headers:', response.headers);
                 if (!response.ok) {
                     throw new Error('HTTP ' + response.status);
                 }
@@ -633,9 +637,11 @@
                 console.log('🔧 Response data:', data);
                 if (data.success) {
                     console.log('✅ Status update successful, reloading page...');
-                    alert('✅ Order #' + orderId + ' updated to ' + status);
+                    alert('✅ Order #' + orderId + ' updated to ' + status + '\n\nPage will reload to show changes.');
                     // Force a hard reload to ensure fresh data
-                    window.location.reload(true);
+                    setTimeout(() => {
+                        window.location.reload(true);
+                    }, 1000);
                 } else {
                     alert('❌ Failed to update order: ' + (data.error || 'Unknown error'));
                     button.textContent = originalText;
@@ -644,7 +650,7 @@
             })
             .catch(error => {
                 console.error('❌ Error:', error);
-                alert('❌ Error updating order: ' + error.message);
+                alert('❌ Error updating order: ' + error.message + '\n\nCheck console for details.');
                 button.textContent = originalText;
                 button.disabled = false;
             });
