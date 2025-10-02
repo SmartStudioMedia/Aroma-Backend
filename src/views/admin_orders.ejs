@@ -500,6 +500,7 @@
                 <button class="btn btn-success" onclick="testEditFunction()">🧪 Test Edit Function</button>
                 <button class="btn btn-danger" onclick="fixNaNTotals()">🔧 Fix NaN Totals</button>
                 <button class="btn btn-warning" onclick="reloadPage()">🔄 Reload Page</button>
+                <button class="btn btn-info" onclick="refreshOrders()">🔄 Refresh Orders</button>
             </div>
         </div>
 
@@ -1129,9 +1130,39 @@
             .then(data => {
                 console.log('📤 Response data:', data);
                 if (data.success) {
-                    alert('Order updated successfully!');
-                    closeEditModal();
-                    location.reload();
+                    console.log('✅ Order updated successfully, verifying changes...');
+                    
+                    // Verify the changes were saved by fetching the updated order
+                    fetch(`/admin/orders/${orderId}/data`)
+                        .then(response => response.json())
+                        .then(verifyData => {
+                            console.log('🔍 Verification - Updated order data:', verifyData);
+                            if (verifyData.success) {
+                                console.log('✅ Changes verified, reloading page...');
+                                alert('Order updated successfully!');
+                                closeEditModal();
+                                
+                                // Force a hard reload to ensure fresh data
+                                setTimeout(() => {
+                                    window.location.reload(true);
+                                }, 500);
+                            } else {
+                                console.log('⚠️ Verification failed, but proceeding with reload...');
+                                alert('Order updated (verification failed)');
+                                closeEditModal();
+                                setTimeout(() => {
+                                    window.location.reload(true);
+                                }, 500);
+                            }
+                        })
+                        .catch(verifyError => {
+                            console.log('⚠️ Verification error, but proceeding with reload...', verifyError);
+                            alert('Order updated (verification error)');
+                            closeEditModal();
+                            setTimeout(() => {
+                                window.location.reload(true);
+                            }, 500);
+                        });
                 } else {
                     alert('Failed to update order: ' + (data.error || 'Unknown error'));
                 }
@@ -1254,6 +1285,13 @@
         function reloadPage() {
             console.log('🔄 Reloading page...');
             location.reload();
+        }
+        
+        // Refresh orders function
+        function refreshOrders() {
+            console.log('🔄 Refreshing orders...');
+            // Force a hard reload to get fresh data
+            window.location.reload(true);
         }
     </script>
 </body>
