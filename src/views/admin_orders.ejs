@@ -518,7 +518,7 @@
                     </div>
                 <% } else { %>
                     <% orders.forEach(order => { %>
-                    <div class="order-card" data-order-id="<%= order.id %>" data-status="<%= order.status %>" data-type="<%= order.orderType %>" data-total="<%= order.total || 0 %>" data-date="<%= new Date(order.createdAt).toISOString() %>">
+                    <div class="order-card" data-order-id="<%= order.id %>" data-status="<%= order.status %>" data-type="<%= order.orderType %>" data-total="<%= order.total || 0 %>" data-date="<%= new Date(order.createdAt).toISOString() %>" data-discount="<%= order.discount || 0 %>" data-notes="<%= order.notes || '' %>">
                         <div class="order-header">
                             <div class="order-id">Order #<%= order.id %></div>
                             <div class="order-time"><%= new Date(order.createdAt).toLocaleString() %></div>
@@ -551,6 +551,18 @@
                                     <% } %>
                                 </div>
                             </div>
+                            <% if (order.discount && order.discount > 0) { %>
+                            <div class="detail-item">
+                                <div class="detail-label">Discount</div>
+                                <div class="detail-value" style="color: #10b981;">-€<%= parseFloat(order.discount).toFixed(2) %></div>
+                            </div>
+                            <% } %>
+                            <% if (order.notes && order.notes.trim()) { %>
+                            <div class="detail-item">
+                                <div class="detail-label">Notes</div>
+                                <div class="detail-value" style="font-style: italic; color: #6b7280;"><%= order.notes %></div>
+                            </div>
+                            <% } %>
                             <div class="detail-item">
                                 <div class="detail-label">Status</div>
                                 <div class="detail-value">
@@ -1060,6 +1072,16 @@
             document.getElementById('editOrderType').value = orderType;
             document.getElementById('editOrderStatus').value = orderStatus;
             
+            // Set discount and notes from order data
+            const orderDiscount = orderElement.dataset.discount || 0;
+            const orderNotes = orderElement.dataset.notes || '';
+            
+            console.log('🔧 Order discount from dataset:', orderDiscount);
+            console.log('🔧 Order notes from dataset:', orderNotes);
+            
+            document.getElementById('editDiscount').value = orderDiscount;
+            document.getElementById('editNotes').value = orderNotes;
+            
             // Show the modal
             document.getElementById('editOrderModal').style.display = 'block';
             console.log('🔧 Modal should be visible now');
@@ -1076,13 +1098,30 @@
             console.log('🔧 FORM SUBMISSION STARTED');
             
             const orderId = document.getElementById('editOrderId').value;
+            
+            // Debug: Check if all form elements exist
+            const customerNameEl = document.getElementById('editCustomerName');
+            const customerEmailEl = document.getElementById('editCustomerEmail');
+            const orderTypeEl = document.getElementById('editOrderType');
+            const orderStatusEl = document.getElementById('editOrderStatus');
+            const discountEl = document.getElementById('editDiscount');
+            const notesEl = document.getElementById('editNotes');
+            
+            console.log('🔧 Form elements found:');
+            console.log('  - Customer Name:', customerNameEl, customerNameEl?.value);
+            console.log('  - Customer Email:', customerEmailEl, customerEmailEl?.value);
+            console.log('  - Order Type:', orderTypeEl, orderTypeEl?.value);
+            console.log('  - Order Status:', orderStatusEl, orderStatusEl?.value);
+            console.log('  - Discount:', discountEl, discountEl?.value);
+            console.log('  - Notes:', notesEl, notesEl?.value);
+            
             const formData = {
-                customerName: document.getElementById('editCustomerName').value,
-                customerEmail: document.getElementById('editCustomerEmail').value,
-                orderType: document.getElementById('editOrderType').value,
-                status: document.getElementById('editOrderStatus').value,
-                discount: parseFloat(document.getElementById('editDiscount').value) || 0,
-                notes: document.getElementById('editNotes').value
+                customerName: customerNameEl?.value || '',
+                customerEmail: customerEmailEl?.value || '',
+                orderType: orderTypeEl?.value || '',
+                status: orderStatusEl?.value || '',
+                discount: parseFloat(discountEl?.value) || 0,
+                notes: notesEl?.value || ''
             };
             
             console.log('🔧 Form data to send:', formData);
