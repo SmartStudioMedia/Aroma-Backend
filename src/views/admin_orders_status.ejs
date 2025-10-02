@@ -298,7 +298,7 @@
                                 <td><%= order.tableNumber || 'N/A' %></td>
                                 <td class="order-details">
                                     <%= order.items.length %> items
-                                    <br><small><%= order.items.map(item => item.name.en || item.name).join(', ') %></small>
+                                    <br><small><%= order.items.map(item => item.name).join(', ') %></small>
                                 </td>
                                 <td>€<%= (order.total || 0).toFixed(2) %></td>
                                 <td>
@@ -328,7 +328,19 @@
 
     <script>
         function updateOrderStatus(orderId, newStatus) {
+            console.log('🔧 STATUS PAGE: updateOrderStatus called');
+            console.log('🔧 Order ID:', orderId, 'Status:', newStatus);
+            
             if (confirm('Are you sure you want to update this order status?')) {
+                // Show loading state
+                const button = event.target;
+                const originalText = button.textContent;
+                button.textContent = 'Updating...';
+                button.disabled = true;
+                
+                console.log('🔧 Making request to:', `/admin/orders/${orderId}/status`);
+                console.log('🔧 Request body:', JSON.stringify({ status: newStatus }));
+                
                 fetch(`/admin/orders/${orderId}/status`, {
                     method: 'POST',
                     headers: {
@@ -336,17 +348,34 @@
                     },
                     body: JSON.stringify({ status: newStatus })
                 })
-                .then(response => response.json())
+                .then(response => {
+                    console.log('🔧 Response status:', response.status);
+                    console.log('🔧 Response headers:', response.headers);
+                    if (!response.ok) {
+                        throw new Error('HTTP ' + response.status);
+                    }
+                    return response.json();
+                })
                 .then(data => {
+                    console.log('🔧 Response data:', data);
                     if (data.success) {
-                        location.reload();
+                        console.log('✅ Status update successful, reloading page...');
+                        alert('✅ Order #' + orderId + ' updated to ' + newStatus + '\n\nPage will reload to show changes.');
+                        // Force a hard reload to ensure fresh data
+                        setTimeout(() => {
+                            window.location.reload(true);
+                        }, 1000);
                     } else {
-                        alert('Error updating order: ' + data.error);
+                        alert('❌ Failed to update order: ' + (data.error || 'Unknown error'));
+                        button.textContent = originalText;
+                        button.disabled = false;
                     }
                 })
                 .catch(error => {
-                    console.error('Error:', error);
-                    alert('Error updating order');
+                    console.error('❌ Error:', error);
+                    alert('❌ Error updating order: ' + error.message + '\n\nCheck console for details.');
+                    button.textContent = originalText;
+                    button.disabled = false;
                 });
             }
         }
