@@ -499,6 +499,7 @@
                 <button class="btn btn-primary" onclick="exportOrders()">📊 Export Orders</button>
                 <button class="btn btn-success" onclick="testEditFunction()">🧪 Test Edit Function</button>
                 <button class="btn btn-danger" onclick="fixNaNTotals()">🔧 Fix NaN Totals</button>
+                <button class="btn btn-warning" onclick="reloadPage()">🔄 Reload Page</button>
             </div>
         </div>
 
@@ -539,9 +540,14 @@
                             <div class="detail-item">
                                 <div class="detail-label">Total</div>
                                 <div class="detail-value">
-                                    €<%= (order.total || 0).toFixed(2) %>
+                                    <% 
+                                    const total = parseFloat(order.total);
+                                    const isValidTotal = !isNaN(total) && isFinite(total);
+                                    const displayTotal = isValidTotal ? total : 0;
+                                    %>
+                                    €<%= displayTotal.toFixed(2) %>
                                     <% if (order.discount && order.discount > 0) { %>
-                                        <small style="color: #10b981; font-size: 0.8rem;">(Discount: -€<%= order.discount.toFixed(2) %>)</small>
+                                        <small style="color: #10b981; font-size: 0.8rem;">(Discount: -€<%= parseFloat(order.discount).toFixed(2) %>)</small>
                                     <% } %>
                                 </div>
                             </div>
@@ -563,7 +569,16 @@
                                     <span class="item-name">
                                         <%= translate(item.name) %> × <%= item.qty %>
                                     </span>
-                                    <span class="item-price">€<%= (item.price * item.qty).toFixed(2) %></span>
+                                    <span class="item-price">
+                                        <% 
+                                        const itemPrice = parseFloat(item.price) || 0;
+                                        const itemQty = parseInt(item.qty) || 1;
+                                        const itemTotal = itemPrice * itemQty;
+                                        const isValidItemTotal = !isNaN(itemTotal) && isFinite(itemTotal);
+                                        const displayItemTotal = isValidItemTotal ? itemTotal : 0;
+                                        %>
+                                        €<%= displayItemTotal.toFixed(2) %>
+                                    </span>
                                 </div>
                                 <% }); %>
                             <% } else { %>
@@ -1215,6 +1230,12 @@
                 console.error('❌ NaN fix error:', error);
                 alert('❌ Error fixing NaN totals: ' + error.message);
             });
+        }
+        
+        // Reload page function
+        function reloadPage() {
+            console.log('🔄 Reloading page...');
+            location.reload();
         }
     </script>
 </body>
