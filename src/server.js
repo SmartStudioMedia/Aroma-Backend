@@ -2307,6 +2307,15 @@ app.post('/admin/orders/:id/status', authMiddleware, async (req, res) => {
         order.updatedAt = new Date();
         await order.save();
         console.log(`✅ Admin order updated in MongoDB: ${orderId} -> ${status}`);
+        
+        // Also update the local orders array to keep it in sync
+        const localOrderIndex = orders.findIndex(o => o.id === orderId);
+        if (localOrderIndex !== -1) {
+          orders[localOrderIndex].status = status;
+          orders[localOrderIndex].updatedAt = new Date().toISOString();
+          console.log(`✅ Local orders array also updated: ${orderId} -> ${status}`);
+        }
+        
         return res.json({ success: true, message: 'Order status updated successfully in MongoDB' });
       } else {
         console.log(`⚠️ Order ${orderId} not found in MongoDB, trying file storage...`);
@@ -2398,6 +2407,26 @@ app.post('/admin/orders/:id/edit', authMiddleware, async (req, res) => {
         await order.save();
         
         console.log(`✅ Admin order edited in MongoDB: ${orderId}`);
+        
+        // Also update the local orders array to keep it in sync
+        const localOrderIndex = orders.findIndex(o => o.id === orderId);
+        if (localOrderIndex !== -1) {
+          if (status) orders[localOrderIndex].status = status;
+          if (discount !== undefined) {
+            orders[localOrderIndex].discount = parseFloat(discount) || 0;
+            // Recalculate total for local array too
+            const itemsTotal = orders[localOrderIndex].items.reduce((sum, item) => {
+              const itemTotal = (item.price || 0) * (item.qty || item.quantity || 1);
+              return sum + itemTotal;
+            }, 0);
+            const discountAmount = parseFloat(discount) || 0;
+            const finalTotal = Math.max(0, itemsTotal - discountAmount);
+            orders[localOrderIndex].total = finalTotal;
+          }
+          orders[localOrderIndex].updatedAt = new Date().toISOString();
+          console.log(`✅ Local orders array also updated: ${orderId}`);
+        }
+        
         return res.json({ 
           success: true, 
           order: order,
@@ -2565,6 +2594,15 @@ app.post('/kitchen/orders/:id/status', kitchenAuthMiddleware, async (req, res) =
         order.updatedAt = new Date();
         await order.save();
         console.log(`✅ Kitchen order updated in MongoDB: ${orderId} -> ${status}`);
+        
+        // Also update the local orders array to keep it in sync
+        const localOrderIndex = orders.findIndex(o => o.id === orderId);
+        if (localOrderIndex !== -1) {
+          orders[localOrderIndex].status = status;
+          orders[localOrderIndex].updatedAt = new Date().toISOString();
+          console.log(`✅ Local orders array also updated: ${orderId} -> ${status}`);
+        }
+        
         return res.json({ success: true, message: 'Order updated successfully' });
       }
     }
