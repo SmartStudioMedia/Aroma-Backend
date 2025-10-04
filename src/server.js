@@ -1913,8 +1913,14 @@ app.get('/admin/orders', authMiddleware, async (req, res) => {
     
     if (mongoose.connection.readyState === 1) {
       mongoOrders = await Order.find().sort({ createdAt: -1 });
+      console.log(`📊 ADMIN ORDERS: Loaded ${mongoOrders.length} orders from MongoDB`);
+      
+      // Update local array to keep it in sync with MongoDB
+      orders = mongoOrders;
+      console.log(`📊 ADMIN ORDERS: Updated local orders array with ${orders.length} total orders`);
     } else {
       mongoOrders = orders || [];
+      console.log(`📊 ADMIN ORDERS: Using file storage - ${mongoOrders.length} orders`);
     }
     
     res.render('admin_orders', { orders: mongoOrders || [] });
@@ -2034,11 +2040,19 @@ app.get('/admin/qr', authMiddleware, (req, res) => {
   }
 });
 
-// Pending Orders Page
-app.get('/admin/orders/pending', authMiddleware, (req, res) => {
+// Pending Orders Page - FIXED to use MongoDB
+app.get('/admin/orders/pending', authMiddleware, async (req, res) => {
   try {
-    const pendingOrders = orders.filter(o => o.status === 'pending')
-      .sort((a, b) => new Date(b.timestamp || b.createdAt) - new Date(a.timestamp || a.createdAt));
+    let pendingOrders;
+    
+    if (mongoose.connection.readyState === 1) {
+      pendingOrders = await Order.find({ status: 'pending' }).sort({ createdAt: -1 });
+      console.log(`📊 ADMIN PENDING: Loaded ${pendingOrders.length} pending orders from MongoDB`);
+    } else {
+      pendingOrders = orders.filter(o => o.status === 'pending')
+        .sort((a, b) => new Date(b.timestamp || b.createdAt) - new Date(a.timestamp || a.createdAt));
+      console.log(`📊 ADMIN PENDING: Using file storage - ${pendingOrders.length} pending orders`);
+    }
     
     res.render('admin_orders_status', {
       title: 'Pending Orders',
@@ -2055,11 +2069,19 @@ app.get('/admin/orders/pending', authMiddleware, (req, res) => {
   }
 });
 
-// Confirmed Orders Page
-app.get('/admin/orders/confirmed', authMiddleware, (req, res) => {
+// Confirmed Orders Page - FIXED to use MongoDB
+app.get('/admin/orders/confirmed', authMiddleware, async (req, res) => {
   try {
-    const confirmedOrders = orders.filter(o => o.status === 'confirmed')
-      .sort((a, b) => new Date(b.timestamp || b.createdAt) - new Date(a.timestamp || a.createdAt));
+    let confirmedOrders;
+    
+    if (mongoose.connection.readyState === 1) {
+      confirmedOrders = await Order.find({ status: 'confirmed' }).sort({ createdAt: -1 });
+      console.log(`📊 ADMIN CONFIRMED: Loaded ${confirmedOrders.length} confirmed orders from MongoDB`);
+    } else {
+      confirmedOrders = orders.filter(o => o.status === 'confirmed')
+        .sort((a, b) => new Date(b.timestamp || b.createdAt) - new Date(a.timestamp || a.createdAt));
+      console.log(`📊 ADMIN CONFIRMED: Using file storage - ${confirmedOrders.length} confirmed orders`);
+    }
     
     res.render('admin_orders_status', {
       title: 'Confirmed Orders',
@@ -2076,11 +2098,19 @@ app.get('/admin/orders/confirmed', authMiddleware, (req, res) => {
   }
 });
 
-// Completed Orders Page
-app.get('/admin/orders/completed', authMiddleware, (req, res) => {
+// Completed Orders Page - FIXED to use MongoDB
+app.get('/admin/orders/completed', authMiddleware, async (req, res) => {
   try {
-    const completedOrders = orders.filter(o => o.status === 'completed')
-      .sort((a, b) => new Date(b.timestamp || b.createdAt) - new Date(a.timestamp || a.createdAt));
+    let completedOrders;
+    
+    if (mongoose.connection.readyState === 1) {
+      completedOrders = await Order.find({ status: 'completed' }).sort({ createdAt: -1 });
+      console.log(`📊 ADMIN COMPLETED: Loaded ${completedOrders.length} completed orders from MongoDB`);
+    } else {
+      completedOrders = orders.filter(o => o.status === 'completed')
+        .sort((a, b) => new Date(b.timestamp || b.createdAt) - new Date(a.timestamp || a.createdAt));
+      console.log(`📊 ADMIN COMPLETED: Using file storage - ${completedOrders.length} completed orders`);
+    }
     
     res.render('admin_orders_status', {
       title: 'Completed Orders',
@@ -2289,7 +2319,7 @@ app.get('/admin/api/orders', authMiddleware, (req, res) => {
   res.json(orders);
 });
 
-// Update order status - COMPREHENSIVE FIX
+// Update order status - ULTIMATE FIX for all order types
 app.post('/admin/orders/:id/status', authMiddleware, async (req, res) => {
   try {
     console.log('🚨 ADMIN STATUS ROUTE CALLED - Order ID:', req.params.id, 'Status:', req.body.status);
@@ -2301,15 +2331,23 @@ app.post('/admin/orders/:id/status', authMiddleware, async (req, res) => {
     
     let orderUpdated = false;
     let updateSource = '';
+    let updatedOrder = null;
     
     // Try MongoDB first
     if (mongoose.connection.readyState === 1) {
       try {
         console.log(`🔍 MONGODB: Searching for order with id: ${orderId}`);
-        const order = await Order.findOne({ id: orderId });
+        
+        // Try different query methods to find the order
+        let order = await Order.findOne({ id: orderId });
+        
+        // If not found by id, try by _id (in case of old orders)
+        if (!order && orderId.toString().length === 24) {
+          order = await Order.findById(orderId);
+        }
         
         if (order) {
-          console.log(`🔍 MONGODB: Found order - ID: ${order.id}, Status: ${order.status}`);
+          console.log(`🔍 MONGODB: Found order - ID: ${order.id}, Status: ${order.status}, _id: ${order._id}`);
           
           // Update the order
           order.status = status;
@@ -2320,7 +2358,7 @@ app.post('/admin/orders/:id/status', authMiddleware, async (req, res) => {
           console.log(`✅ MONGODB: Order ${orderId} updated to status: ${status}`);
           
           // Update local array to keep in sync
-          const localIndex = orders.findIndex(o => o.id === orderId);
+          const localIndex = orders.findIndex(o => o.id === orderId || o._id === orderId);
           if (localIndex !== -1) {
             orders[localIndex].status = status;
             orders[localIndex].updatedAt = new Date().toISOString();
@@ -2329,6 +2367,7 @@ app.post('/admin/orders/:id/status', authMiddleware, async (req, res) => {
           
           orderUpdated = true;
           updateSource = 'MongoDB';
+          updatedOrder = order;
         } else {
           console.log(`⚠️ MONGODB: Order ${orderId} not found, trying local array...`);
         }
@@ -2339,19 +2378,42 @@ app.post('/admin/orders/:id/status', authMiddleware, async (req, res) => {
     
     // If MongoDB failed or not connected, try local array
     if (!orderUpdated) {
-      const localOrder = orders.find(o => o.id === orderId);
+      // Try to find order by id or _id in local array
+      let localOrder = orders.find(o => o.id === orderId || o._id === orderId);
+      
       if (localOrder) {
+        console.log(`🔍 LOCAL: Found order - ID: ${localOrder.id}, Status: ${localOrder.status}`);
+        
         localOrder.status = status;
         localOrder.updatedAt = new Date().toISOString();
         
         // Save to file
         saveOrdersData();
         
-        // If MongoDB is connected, also save there
+        // If MongoDB is connected, try to sync there
         if (mongoose.connection.readyState === 1) {
           try {
-            await Order.findOneAndUpdate({ id: orderId }, { status: status, updatedAt: new Date() });
-            console.log(`✅ SYNC: Updated MongoDB with local change for order ${orderId}`);
+            // Try different update methods
+            let updateResult = await Order.findOneAndUpdate(
+              { id: orderId }, 
+              { status: status, updatedAt: new Date() },
+              { new: true }
+            );
+            
+            // If not found by id, try by _id
+            if (!updateResult && localOrder._id) {
+              updateResult = await Order.findByIdAndUpdate(
+                localOrder._id,
+                { status: status, updatedAt: new Date() },
+                { new: true }
+              );
+            }
+            
+            if (updateResult) {
+              console.log(`✅ SYNC: Updated MongoDB with local change for order ${orderId}`);
+            } else {
+              console.log(`⚠️ SYNC: Could not sync to MongoDB for order ${orderId}`);
+            }
           } catch (syncError) {
             console.error(`❌ SYNC: Failed to sync to MongoDB:`, syncError);
           }
@@ -2359,6 +2421,7 @@ app.post('/admin/orders/:id/status', authMiddleware, async (req, res) => {
         
         orderUpdated = true;
         updateSource = 'Local Array';
+        updatedOrder = localOrder;
         console.log(`✅ LOCAL: Order ${orderId} updated to status: ${status}`);
       }
     }
@@ -2368,13 +2431,29 @@ app.post('/admin/orders/:id/status', authMiddleware, async (req, res) => {
         success: true, 
         message: `Order status updated successfully via ${updateSource}`,
         orderId: orderId,
-        newStatus: status
+        newStatus: status,
+        order: updatedOrder
       });
     } else {
       console.log(`❌ ORDER NOT FOUND: Order ${orderId} not found in any storage`);
+      
+      // Debug: Show available orders
+      const availableIds = orders.map(o => o.id).slice(0, 10);
+      console.log(`🔍 DEBUG: Available order IDs (first 10):`, availableIds);
+      
+      if (mongoose.connection.readyState === 1) {
+        try {
+          const mongoIds = await Order.find().select('id').limit(10);
+          console.log(`🔍 DEBUG: MongoDB order IDs (first 10):`, mongoIds.map(o => o.id));
+        } catch (e) {
+          console.log(`🔍 DEBUG: Could not fetch MongoDB IDs:`, e.message);
+        }
+      }
+      
       res.status(404).json({ 
         success: false, 
-        error: `Order ${orderId} not found` 
+        error: `Order ${orderId} not found`,
+        availableIds: availableIds
       });
     }
     
@@ -2611,15 +2690,23 @@ app.post('/kitchen/orders/:id/status', kitchenAuthMiddleware, async (req, res) =
     
     let orderUpdated = false;
     let updateSource = '';
+    let updatedOrder = null;
     
     // Try MongoDB first
     if (mongoose.connection.readyState === 1) {
       try {
         console.log(`🍳 MONGODB: Searching for order with id: ${orderId}`);
-        const order = await Order.findOne({ id: orderId });
+        
+        // Try different query methods to find the order
+        let order = await Order.findOne({ id: orderId });
+        
+        // If not found by id, try by _id (in case of old orders)
+        if (!order && orderId.toString().length === 24) {
+          order = await Order.findById(orderId);
+        }
         
         if (order) {
-          console.log(`🍳 MONGODB: Found order - ID: ${order.id}, Status: ${order.status}`);
+          console.log(`🍳 MONGODB: Found order - ID: ${order.id}, Status: ${order.status}, _id: ${order._id}`);
           
           // Update the order
           order.status = status;
@@ -2630,7 +2717,7 @@ app.post('/kitchen/orders/:id/status', kitchenAuthMiddleware, async (req, res) =
           console.log(`✅ MONGODB: Kitchen order ${orderId} updated to status: ${status}`);
           
           // Update local array to keep in sync
-          const localIndex = orders.findIndex(o => o.id === orderId);
+          const localIndex = orders.findIndex(o => o.id === orderId || o._id === orderId);
           if (localIndex !== -1) {
             orders[localIndex].status = status;
             orders[localIndex].updatedAt = new Date().toISOString();
@@ -2639,6 +2726,7 @@ app.post('/kitchen/orders/:id/status', kitchenAuthMiddleware, async (req, res) =
           
           orderUpdated = true;
           updateSource = 'MongoDB';
+          updatedOrder = order;
         } else {
           console.log(`⚠️ MONGODB: Kitchen order ${orderId} not found, trying local array...`);
         }
@@ -2649,19 +2737,42 @@ app.post('/kitchen/orders/:id/status', kitchenAuthMiddleware, async (req, res) =
     
     // If MongoDB failed or not connected, try local array
     if (!orderUpdated) {
-      const localOrder = orders.find(o => o.id === orderId);
+      // Try to find order by id or _id in local array
+      let localOrder = orders.find(o => o.id === orderId || o._id === orderId);
+      
       if (localOrder) {
+        console.log(`🍳 LOCAL: Found order - ID: ${localOrder.id}, Status: ${localOrder.status}`);
+        
         localOrder.status = status;
         localOrder.updatedAt = new Date().toISOString();
         
         // Save to file
         saveOrdersData();
         
-        // If MongoDB is connected, also save there
+        // If MongoDB is connected, try to sync there
         if (mongoose.connection.readyState === 1) {
           try {
-            await Order.findOneAndUpdate({ id: orderId }, { status: status, updatedAt: new Date() });
-            console.log(`✅ SYNC: Kitchen updated MongoDB with local change for order ${orderId}`);
+            // Try different update methods
+            let updateResult = await Order.findOneAndUpdate(
+              { id: orderId }, 
+              { status: status, updatedAt: new Date() },
+              { new: true }
+            );
+            
+            // If not found by id, try by _id
+            if (!updateResult && localOrder._id) {
+              updateResult = await Order.findByIdAndUpdate(
+                localOrder._id,
+                { status: status, updatedAt: new Date() },
+                { new: true }
+              );
+            }
+            
+            if (updateResult) {
+              console.log(`✅ SYNC: Kitchen updated MongoDB with local change for order ${orderId}`);
+            } else {
+              console.log(`⚠️ SYNC: Kitchen could not sync to MongoDB for order ${orderId}`);
+            }
           } catch (syncError) {
             console.error(`❌ SYNC: Kitchen failed to sync to MongoDB:`, syncError);
           }
@@ -2669,6 +2780,7 @@ app.post('/kitchen/orders/:id/status', kitchenAuthMiddleware, async (req, res) =
         
         orderUpdated = true;
         updateSource = 'Local Array';
+        updatedOrder = localOrder;
         console.log(`✅ LOCAL: Kitchen order ${orderId} updated to status: ${status}`);
       }
     }
@@ -2678,13 +2790,29 @@ app.post('/kitchen/orders/:id/status', kitchenAuthMiddleware, async (req, res) =
         success: true, 
         message: `Kitchen order updated successfully via ${updateSource}`,
         orderId: orderId,
-        newStatus: status
+        newStatus: status,
+        order: updatedOrder
       });
     } else {
       console.log(`❌ KITCHEN ORDER NOT FOUND: Order ${orderId} not found in any storage`);
+      
+      // Debug: Show available orders
+      const availableIds = orders.map(o => o.id).slice(0, 10);
+      console.log(`🍳 DEBUG: Available order IDs (first 10):`, availableIds);
+      
+      if (mongoose.connection.readyState === 1) {
+        try {
+          const mongoIds = await Order.find().select('id').limit(10);
+          console.log(`🍳 DEBUG: MongoDB order IDs (first 10):`, mongoIds.map(o => o.id));
+        } catch (e) {
+          console.log(`🍳 DEBUG: Could not fetch MongoDB IDs:`, e.message);
+        }
+      }
+      
       res.status(404).json({ 
         success: false, 
-        error: `Kitchen order ${orderId} not found` 
+        error: `Kitchen order ${orderId} not found`,
+        availableIds: availableIds
       });
     }
   } catch (error) {
