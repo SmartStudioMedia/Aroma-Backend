@@ -2301,7 +2301,7 @@ app.post('/admin/orders/:id/status', authMiddleware, async (req, res) => {
     
     // Try MongoDB first (same logic as kitchen route)
     if (mongoose.connection.readyState === 1) {
-      const order = await Order.findById(orderId);
+      const order = await Order.findOne({ id: orderId });
       if (order) {
         order.status = status;
         order.updatedAt = new Date();
@@ -2372,7 +2372,7 @@ app.post('/admin/orders/:id/edit', authMiddleware, async (req, res) => {
     
     // Try MongoDB first
     if (mongoose.connection.readyState === 1) {
-      const order = await Order.findById(orderId);
+      const order = await Order.findOne({ id: orderId });
       if (order) {
         // Update status if provided
         if (status) order.status = status;
@@ -2559,7 +2559,7 @@ app.post('/kitchen/orders/:id/status', kitchenAuthMiddleware, async (req, res) =
     
     // Try MongoDB first
     if (mongoose.connection.readyState === 1) {
-      const order = await Order.findById(orderId);
+      const order = await Order.findOne({ id: orderId });
       if (order) {
         order.status = status;
         order.updatedAt = new Date();
@@ -2652,7 +2652,7 @@ app.get('/admin/orders/:id/data', authMiddleware, async (req, res) => {
     
     // Try MongoDB first
     if (mongoose.connection.readyState === 1) {
-      order = await Order.findById(orderId);
+      order = await Order.findOne({ id: orderId });
       if (order) {
         console.log(`✅ Found order in MongoDB: ${orderId}`);
       } else {
