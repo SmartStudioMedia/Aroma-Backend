@@ -2301,12 +2301,24 @@ app.post('/admin/orders/:id/status', authMiddleware, async (req, res) => {
     
     // Try MongoDB first (same logic as kitchen route)
     if (mongoose.connection.readyState === 1) {
+      console.log(`🔍 MONGODB DEBUG: Searching for order with id: ${orderId}`);
       const order = await Order.findOne({ id: orderId });
+      console.log(`🔍 MONGODB DEBUG: Found order:`, order ? `ID: ${order.id}, Status: ${order.status}` : 'NOT FOUND');
+      
       if (order) {
+        console.log(`🔍 MONGODB DEBUG: Before update - Status: ${order.status}, UpdatedAt: ${order.updatedAt}`);
         order.status = status;
         order.updatedAt = new Date();
-        await order.save();
-        console.log(`✅ Admin order updated in MongoDB: ${orderId} -> ${status}`);
+        console.log(`🔍 MONGODB DEBUG: After update - Status: ${order.status}, UpdatedAt: ${order.updatedAt}`);
+        
+        try {
+          const savedOrder = await order.save();
+          console.log(`🔍 MONGODB DEBUG: Save successful - Saved order:`, savedOrder ? `ID: ${savedOrder.id}, Status: ${savedOrder.status}` : 'SAVE FAILED');
+          console.log(`✅ Admin order updated in MongoDB: ${orderId} -> ${status}`);
+        } catch (saveError) {
+          console.error(`❌ MONGODB DEBUG: Save failed:`, saveError);
+          throw saveError;
+        }
         
         // Also update the local orders array to keep it in sync
         const localOrderIndex = orders.findIndex(o => o.id === orderId);
@@ -2588,12 +2600,24 @@ app.post('/kitchen/orders/:id/status', kitchenAuthMiddleware, async (req, res) =
     
     // Try MongoDB first
     if (mongoose.connection.readyState === 1) {
+      console.log(`🍳 MONGODB DEBUG: Searching for order with id: ${orderId}`);
       const order = await Order.findOne({ id: orderId });
+      console.log(`🍳 MONGODB DEBUG: Found order:`, order ? `ID: ${order.id}, Status: ${order.status}` : 'NOT FOUND');
+      
       if (order) {
+        console.log(`🍳 MONGODB DEBUG: Before update - Status: ${order.status}, UpdatedAt: ${order.updatedAt}`);
         order.status = status;
         order.updatedAt = new Date();
-        await order.save();
-        console.log(`✅ Kitchen order updated in MongoDB: ${orderId} -> ${status}`);
+        console.log(`🍳 MONGODB DEBUG: After update - Status: ${order.status}, UpdatedAt: ${order.updatedAt}`);
+        
+        try {
+          const savedOrder = await order.save();
+          console.log(`🍳 MONGODB DEBUG: Save successful - Saved order:`, savedOrder ? `ID: ${savedOrder.id}, Status: ${savedOrder.status}` : 'SAVE FAILED');
+          console.log(`✅ Kitchen order updated in MongoDB: ${orderId} -> ${status}`);
+        } catch (saveError) {
+          console.error(`❌ KITCHEN MONGODB DEBUG: Save failed:`, saveError);
+          throw saveError;
+        }
         
         // Also update the local orders array to keep it in sync
         const localOrderIndex = orders.findIndex(o => o.id === orderId);
@@ -2632,6 +2656,40 @@ app.get('/health', (req, res) => {
     timestamp: new Date().toISOString(),
     serverVersion: '2.0.0 - Enhanced Order Status Updates'
   });
+});
+
+// MongoDB Debug Route - Test MongoDB operations
+app.get('/debug/mongodb', async (req, res) => {
+  try {
+    const debugInfo = {
+      connectionState: mongoose.connection.readyState,
+      connectionStates: {
+        0: 'disconnected',
+        1: 'connected',
+        2: 'connecting',
+        3: 'disconnecting'
+      },
+      mongoDbUri: process.env.MONGODB_URI ? 'SET' : 'NOT SET',
+      ordersInMemory: orders.length,
+      ordersInMongo: 0,
+      sampleOrders: []
+    };
+    
+    if (mongoose.connection.readyState === 1) {
+      const mongoOrders = await Order.find().limit(5);
+      debugInfo.ordersInMongo = await Order.countDocuments();
+      debugInfo.sampleOrders = mongoOrders.map(o => ({
+        id: o.id,
+        status: o.status,
+        createdAt: o.createdAt,
+        updatedAt: o.updatedAt
+      }));
+    }
+    
+    res.json(debugInfo);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // Test route to verify server.js is updated
