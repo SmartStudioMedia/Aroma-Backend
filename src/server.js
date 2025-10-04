@@ -2319,147 +2319,98 @@ app.get('/admin/api/orders', authMiddleware, (req, res) => {
   res.json(orders);
 });
 
-// Update order status - ULTIMATE FIX for all order types
+// Update order status - SIMPLE WORKING VERSION
 app.post('/admin/orders/:id/status', authMiddleware, async (req, res) => {
   try {
-    console.log('🚨 ADMIN STATUS ROUTE CALLED - Order ID:', req.params.id, 'Status:', req.body.status);
+    console.log('🚨 ADMIN STATUS UPDATE - ID:', req.params.id, 'Status:', req.body.status);
     
     const orderId = parseInt(req.params.id);
     const { status } = req.body;
     
-    console.log(`🔄 ADMIN: Updating order ${orderId} to status: ${status}`);
+    if (!status) {
+      return res.status(400).json({ success: false, error: 'Status is required' });
+    }
     
-    let orderUpdated = false;
-    let updateSource = '';
-    let updatedOrder = null;
+    console.log(`🔄 Updating order ${orderId} to status: ${status}`);
     
-    // Try MongoDB first
+    // Try to find the order in local array first (faster)
+    let order = orders.find(o => o.id === orderId);
+    
+    if (order) {
+      console.log(`✅ Found order ${orderId} in local array, current status: ${order.status}`);
+      
+      // Update local order
+      order.status = status;
+      order.updatedAt = new Date().toISOString();
+      
+      // Save to file
+      saveOrdersData();
+      
+      // Try to update MongoDB if connected
+      if (mongoose.connection.readyState === 1) {
+        try {
+          await Order.findOneAndUpdate(
+            { id: orderId },
+            { status: status, updatedAt: new Date() },
+            { upsert: false }
+          );
+          console.log(`✅ MongoDB also updated for order ${orderId}`);
+        } catch (mongoError) {
+          console.error(`⚠️ MongoDB update failed for order ${orderId}:`, mongoError.message);
+        }
+      }
+      
+      return res.json({ 
+        success: true, 
+        message: 'Order status updated successfully',
+        orderId: orderId,
+        newStatus: status
+      });
+    }
+    
+    // If not found in local array, try MongoDB
     if (mongoose.connection.readyState === 1) {
       try {
-        console.log(`🔍 MONGODB: Searching for order with id: ${orderId}`);
-        
-        // Try different query methods to find the order
-        let order = await Order.findOne({ id: orderId });
-        
-        // If not found by id, try by _id (in case of old orders)
-        if (!order && orderId.toString().length === 24) {
-          order = await Order.findById(orderId);
-        }
-        
-        if (order) {
-          console.log(`🔍 MONGODB: Found order - ID: ${order.id}, Status: ${order.status}, _id: ${order._id}`);
+        const mongoOrder = await Order.findOne({ id: orderId });
+        if (mongoOrder) {
+          console.log(`✅ Found order ${orderId} in MongoDB, current status: ${mongoOrder.status}`);
           
-          // Update the order
-          order.status = status;
-          order.updatedAt = new Date();
+          mongoOrder.status = status;
+          mongoOrder.updatedAt = new Date();
+          await mongoOrder.save();
           
-          // Save to MongoDB
-          await order.save();
-          console.log(`✅ MONGODB: Order ${orderId} updated to status: ${status}`);
-          
-          // Update local array to keep in sync
-          const localIndex = orders.findIndex(o => o.id === orderId || o._id === orderId);
+          // Update local array if possible
+          const localIndex = orders.findIndex(o => o.id === orderId);
           if (localIndex !== -1) {
             orders[localIndex].status = status;
             orders[localIndex].updatedAt = new Date().toISOString();
-            console.log(`✅ LOCAL: Array updated for order ${orderId}`);
           }
           
-          orderUpdated = true;
-          updateSource = 'MongoDB';
-          updatedOrder = order;
-        } else {
-          console.log(`⚠️ MONGODB: Order ${orderId} not found, trying local array...`);
+          return res.json({ 
+            success: true, 
+            message: 'Order status updated successfully in MongoDB',
+            orderId: orderId,
+            newStatus: status
+          });
         }
       } catch (mongoError) {
-        console.error(`❌ MONGODB: Error updating order ${orderId}:`, mongoError);
+        console.error(`❌ MongoDB error for order ${orderId}:`, mongoError);
       }
     }
     
-    // If MongoDB failed or not connected, try local array
-    if (!orderUpdated) {
-      // Try to find order by id or _id in local array
-      let localOrder = orders.find(o => o.id === orderId || o._id === orderId);
-      
-      if (localOrder) {
-        console.log(`🔍 LOCAL: Found order - ID: ${localOrder.id}, Status: ${localOrder.status}`);
-        
-        localOrder.status = status;
-        localOrder.updatedAt = new Date().toISOString();
-        
-        // Save to file
-        saveOrdersData();
-        
-        // If MongoDB is connected, try to sync there
-        if (mongoose.connection.readyState === 1) {
-          try {
-            // Try different update methods
-            let updateResult = await Order.findOneAndUpdate(
-              { id: orderId }, 
-              { status: status, updatedAt: new Date() },
-              { new: true }
-            );
-            
-            // If not found by id, try by _id
-            if (!updateResult && localOrder._id) {
-              updateResult = await Order.findByIdAndUpdate(
-                localOrder._id,
-                { status: status, updatedAt: new Date() },
-                { new: true }
-              );
-            }
-            
-            if (updateResult) {
-              console.log(`✅ SYNC: Updated MongoDB with local change for order ${orderId}`);
-            } else {
-              console.log(`⚠️ SYNC: Could not sync to MongoDB for order ${orderId}`);
-            }
-          } catch (syncError) {
-            console.error(`❌ SYNC: Failed to sync to MongoDB:`, syncError);
-          }
-        }
-        
-        orderUpdated = true;
-        updateSource = 'Local Array';
-        updatedOrder = localOrder;
-        console.log(`✅ LOCAL: Order ${orderId} updated to status: ${status}`);
-      }
-    }
+    // Order not found
+    console.log(`❌ Order ${orderId} not found in any storage`);
+    console.log(`Available order IDs:`, orders.map(o => o.id).slice(0, 5));
     
-    if (orderUpdated) {
-      res.json({ 
-        success: true, 
-        message: `Order status updated successfully via ${updateSource}`,
-        orderId: orderId,
-        newStatus: status,
-        order: updatedOrder
-      });
-    } else {
-      console.log(`❌ ORDER NOT FOUND: Order ${orderId} not found in any storage`);
-      
-      // Debug: Show available orders
-      const availableIds = orders.map(o => o.id).slice(0, 10);
-      console.log(`🔍 DEBUG: Available order IDs (first 10):`, availableIds);
-      
-      if (mongoose.connection.readyState === 1) {
-        try {
-          const mongoIds = await Order.find().select('id').limit(10);
-          console.log(`🔍 DEBUG: MongoDB order IDs (first 10):`, mongoIds.map(o => o.id));
-        } catch (e) {
-          console.log(`🔍 DEBUG: Could not fetch MongoDB IDs:`, e.message);
-        }
-      }
-      
-      res.status(404).json({ 
-        success: false, 
-        error: `Order ${orderId} not found`,
-        availableIds: availableIds
-      });
-    }
+    res.status(404).json({ 
+      success: false, 
+      error: `Order ${orderId} not found`,
+      availableIds: orders.map(o => o.id).slice(0, 5)
+    });
     
   } catch (error) {
     console.error('❌ Admin status update error:', error);
-    res.status(500).json({ success: false, error: 'Internal server error' });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -2683,141 +2634,95 @@ app.get('/kitchen/orders', kitchenAuthMiddleware, async (req, res) => {
 
 app.post('/kitchen/orders/:id/status', kitchenAuthMiddleware, async (req, res) => {
   try {
+    console.log('🍳 KITCHEN STATUS UPDATE - ID:', req.params.id, 'Status:', req.body.status);
+    
     const orderId = parseInt(req.params.id);
     const { status } = req.body;
     
-    console.log(`🍳 KITCHEN: Updating order ${orderId} to status: ${status}`);
+    if (!status) {
+      return res.status(400).json({ success: false, error: 'Status is required' });
+    }
     
-    let orderUpdated = false;
-    let updateSource = '';
-    let updatedOrder = null;
+    console.log(`🍳 Updating order ${orderId} to status: ${status}`);
     
-    // Try MongoDB first
+    // Try to find the order in local array first (faster)
+    let order = orders.find(o => o.id === orderId);
+    
+    if (order) {
+      console.log(`✅ Kitchen found order ${orderId} in local array, current status: ${order.status}`);
+      
+      // Update local order
+      order.status = status;
+      order.updatedAt = new Date().toISOString();
+      
+      // Save to file
+      saveOrdersData();
+      
+      // Try to update MongoDB if connected
+      if (mongoose.connection.readyState === 1) {
+        try {
+          await Order.findOneAndUpdate(
+            { id: orderId },
+            { status: status, updatedAt: new Date() },
+            { upsert: false }
+          );
+          console.log(`✅ Kitchen MongoDB also updated for order ${orderId}`);
+        } catch (mongoError) {
+          console.error(`⚠️ Kitchen MongoDB update failed for order ${orderId}:`, mongoError.message);
+        }
+      }
+      
+      return res.json({ 
+        success: true, 
+        message: 'Kitchen order status updated successfully',
+        orderId: orderId,
+        newStatus: status
+      });
+    }
+    
+    // If not found in local array, try MongoDB
     if (mongoose.connection.readyState === 1) {
       try {
-        console.log(`🍳 MONGODB: Searching for order with id: ${orderId}`);
-        
-        // Try different query methods to find the order
-        let order = await Order.findOne({ id: orderId });
-        
-        // If not found by id, try by _id (in case of old orders)
-        if (!order && orderId.toString().length === 24) {
-          order = await Order.findById(orderId);
-        }
-        
-        if (order) {
-          console.log(`🍳 MONGODB: Found order - ID: ${order.id}, Status: ${order.status}, _id: ${order._id}`);
+        const mongoOrder = await Order.findOne({ id: orderId });
+        if (mongoOrder) {
+          console.log(`✅ Kitchen found order ${orderId} in MongoDB, current status: ${mongoOrder.status}`);
           
-          // Update the order
-          order.status = status;
-          order.updatedAt = new Date();
+          mongoOrder.status = status;
+          mongoOrder.updatedAt = new Date();
+          await mongoOrder.save();
           
-          // Save to MongoDB
-          await order.save();
-          console.log(`✅ MONGODB: Kitchen order ${orderId} updated to status: ${status}`);
-          
-          // Update local array to keep in sync
-          const localIndex = orders.findIndex(o => o.id === orderId || o._id === orderId);
+          // Update local array if possible
+          const localIndex = orders.findIndex(o => o.id === orderId);
           if (localIndex !== -1) {
             orders[localIndex].status = status;
             orders[localIndex].updatedAt = new Date().toISOString();
-            console.log(`✅ LOCAL: Kitchen array updated for order ${orderId}`);
           }
           
-          orderUpdated = true;
-          updateSource = 'MongoDB';
-          updatedOrder = order;
-        } else {
-          console.log(`⚠️ MONGODB: Kitchen order ${orderId} not found, trying local array...`);
+          return res.json({ 
+            success: true, 
+            message: 'Kitchen order status updated successfully in MongoDB',
+            orderId: orderId,
+            newStatus: status
+          });
         }
       } catch (mongoError) {
-        console.error(`❌ MONGODB: Kitchen error updating order ${orderId}:`, mongoError);
+        console.error(`❌ Kitchen MongoDB error for order ${orderId}:`, mongoError);
       }
     }
     
-    // If MongoDB failed or not connected, try local array
-    if (!orderUpdated) {
-      // Try to find order by id or _id in local array
-      let localOrder = orders.find(o => o.id === orderId || o._id === orderId);
-      
-      if (localOrder) {
-        console.log(`🍳 LOCAL: Found order - ID: ${localOrder.id}, Status: ${localOrder.status}`);
-        
-        localOrder.status = status;
-        localOrder.updatedAt = new Date().toISOString();
-        
-        // Save to file
-        saveOrdersData();
-        
-        // If MongoDB is connected, try to sync there
-        if (mongoose.connection.readyState === 1) {
-          try {
-            // Try different update methods
-            let updateResult = await Order.findOneAndUpdate(
-              { id: orderId }, 
-              { status: status, updatedAt: new Date() },
-              { new: true }
-            );
-            
-            // If not found by id, try by _id
-            if (!updateResult && localOrder._id) {
-              updateResult = await Order.findByIdAndUpdate(
-                localOrder._id,
-                { status: status, updatedAt: new Date() },
-                { new: true }
-              );
-            }
-            
-            if (updateResult) {
-              console.log(`✅ SYNC: Kitchen updated MongoDB with local change for order ${orderId}`);
-            } else {
-              console.log(`⚠️ SYNC: Kitchen could not sync to MongoDB for order ${orderId}`);
-            }
-          } catch (syncError) {
-            console.error(`❌ SYNC: Kitchen failed to sync to MongoDB:`, syncError);
-          }
-        }
-        
-        orderUpdated = true;
-        updateSource = 'Local Array';
-        updatedOrder = localOrder;
-        console.log(`✅ LOCAL: Kitchen order ${orderId} updated to status: ${status}`);
-      }
-    }
+    // Order not found
+    console.log(`❌ Kitchen order ${orderId} not found in any storage`);
+    console.log(`Available order IDs:`, orders.map(o => o.id).slice(0, 5));
     
-    if (orderUpdated) {
-      res.json({ 
-        success: true, 
-        message: `Kitchen order updated successfully via ${updateSource}`,
-        orderId: orderId,
-        newStatus: status,
-        order: updatedOrder
-      });
-    } else {
-      console.log(`❌ KITCHEN ORDER NOT FOUND: Order ${orderId} not found in any storage`);
-      
-      // Debug: Show available orders
-      const availableIds = orders.map(o => o.id).slice(0, 10);
-      console.log(`🍳 DEBUG: Available order IDs (first 10):`, availableIds);
-      
-      if (mongoose.connection.readyState === 1) {
-        try {
-          const mongoIds = await Order.find().select('id').limit(10);
-          console.log(`🍳 DEBUG: MongoDB order IDs (first 10):`, mongoIds.map(o => o.id));
-        } catch (e) {
-          console.log(`🍳 DEBUG: Could not fetch MongoDB IDs:`, e.message);
-        }
-      }
-      
-      res.status(404).json({ 
-        success: false, 
-        error: `Kitchen order ${orderId} not found`,
-        availableIds: availableIds
-      });
-    }
+    res.status(404).json({ 
+      success: false, 
+      error: `Kitchen order ${orderId} not found`,
+      availableIds: orders.map(o => o.id).slice(0, 5)
+    });
+    
   } catch (error) {
     console.error('Kitchen order status update error:', error);
-    res.status(500).json({ success: false, error: 'Internal server error' });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -2828,6 +2733,53 @@ app.get('/health', (req, res) => {
     timestamp: new Date().toISOString(),
     serverVersion: '2.0.0 - Enhanced Order Status Updates'
   });
+});
+
+// TEST ROUTE - Simple order status update without auth
+app.post('/test/order-status/:id', async (req, res) => {
+  try {
+    const orderId = parseInt(req.params.id);
+    const { status } = req.body;
+    
+    console.log(`🧪 TEST ROUTE: Order ${orderId} -> Status: ${status}`);
+    
+    // Try to find and update the order
+    let orderFound = false;
+    
+    // Try MongoDB first
+    if (mongoose.connection.readyState === 1) {
+      const order = await Order.findOne({ id: orderId });
+      if (order) {
+        order.status = status;
+        order.updatedAt = new Date();
+        await order.save();
+        console.log(`✅ TEST: MongoDB updated order ${orderId} to ${status}`);
+        orderFound = true;
+      }
+    }
+    
+    // Try local array
+    if (!orderFound) {
+      const localOrder = orders.find(o => o.id === orderId);
+      if (localOrder) {
+        localOrder.status = status;
+        localOrder.updatedAt = new Date().toISOString();
+        saveOrdersData();
+        console.log(`✅ TEST: Local array updated order ${orderId} to ${status}`);
+        orderFound = true;
+      }
+    }
+    
+    if (orderFound) {
+      res.json({ success: true, message: `Order ${orderId} updated to ${status}` });
+    } else {
+      res.json({ success: false, error: `Order ${orderId} not found` });
+    }
+    
+  } catch (error) {
+    console.error('Test route error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
 // MongoDB Debug Route - Test MongoDB operations
