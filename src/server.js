@@ -2289,37 +2289,42 @@ app.get('/admin/api/orders', authMiddleware, (req, res) => {
   res.json(orders);
 });
 
-// Update order status - DEBUGGING VERSION
+// Update order status - FIXED VERSION with MongoDB support
 app.post('/admin/orders/:id/status', authMiddleware, async (req, res) => {
   try {
-    console.log('🚨 STATUS ROUTE CALLED - Full request details:');
-    console.log('📊 URL:', req.url);
-    console.log('📊 Method:', req.method);
-    console.log('📊 Headers:', req.headers);
-    console.log('📊 Body:', req.body);
-    console.log('📊 Params:', req.params);
+    console.log('🚨 ADMIN STATUS ROUTE CALLED - Order ID:', req.params.id, 'Status:', req.body.status);
     
     const orderId = parseInt(req.params.id);
-  const { status } = req.body;
+    const { status } = req.body;
     
-    console.log(`🔄 STATUS ROUTE - Order ID: ${orderId}, Status: ${status}`);
-    console.log(`📊 Available orders:`, orders.map(o => ({ id: o.id, status: o.status })));
+    console.log(`🔄 ADMIN: Updating order ${orderId} to status: ${status}`);
     
-    // Find the order in file storage - handle duplicates by finding the most recent one
+    // Try MongoDB first (same logic as kitchen route)
+    if (mongoose.connection.readyState === 1) {
+      const order = await Order.findById(orderId);
+      if (order) {
+        order.status = status;
+        order.updatedAt = new Date();
+        await order.save();
+        console.log(`✅ Admin order updated in MongoDB: ${orderId} -> ${status}`);
+        return res.json({ success: true, message: 'Order status updated successfully in MongoDB' });
+      } else {
+        console.log(`⚠️ Order ${orderId} not found in MongoDB, trying file storage...`);
+      }
+    } else {
+      console.log('⚠️ MongoDB not connected, using file storage...');
+    }
+    
+    // Fallback to file storage (existing logic)
     const ordersWithId = orders.filter(o => o.id === orderId);
     if (ordersWithId.length === 0) {
-      console.log('❌ Order not found in file storage');
+      console.log('❌ Order not found in file storage either');
       return res.status(404).json({ success: false, error: 'Order not found' });
     }
     
-    // If there are duplicates, warn and use the most recent one
+    // Handle duplicates by finding the most recent one
     if (ordersWithId.length > 1) {
       console.log(`⚠️ WARNING: Found ${ordersWithId.length} orders with ID ${orderId}. Using the most recent one.`);
-      console.log('📊 Duplicate orders:', ordersWithId.map(o => ({ 
-        id: o.id, 
-        status: o.status, 
-        createdAt: o.createdAt || o.timestamp 
-      })));
     }
     
     // Sort by creation date and get the most recent one
@@ -2332,25 +2337,11 @@ app.post('/admin/orders/:id/status', authMiddleware, async (req, res) => {
     const mostRecentOrder = sortedOrders[0];
     const orderIndex = orders.findIndex(o => o === mostRecentOrder);
     
-    console.log(`📊 Using order at index ${orderIndex} (most recent):`, {
-      id: mostRecentOrder.id,
-      status: mostRecentOrder.status,
-      createdAt: mostRecentOrder.createdAt || mostRecentOrder.timestamp
-    });
-    
-    console.log(`📊 Found order at index ${orderIndex}:`, {
-      id: orders[orderIndex].id,
-      status: orders[orderIndex].status
-    });
-    
-    // Simple update - just change the status
+    // Update the order status
     orders[orderIndex].status = status;
     orders[orderIndex].updatedAt = new Date().toISOString();
     
-    console.log(`📊 Updated order status:`, {
-      id: orders[orderIndex].id,
-      status: orders[orderIndex].status
-    });
+    console.log(`✅ Admin order updated in file storage: ${orderId} -> ${status}`);
     
     // Save to file
     saveOrdersData();
@@ -2360,48 +2351,75 @@ app.post('/admin/orders/:id/status', authMiddleware, async (req, res) => {
     res.json({ 
       success: true, 
       order: orders[orderIndex],
-      message: 'Order status updated successfully'
+      message: 'Order status updated successfully in file storage'
     });
     
   } catch (error) {
-    console.error('❌ Status update error:', error);
-    console.error('❌ Error stack:', error.stack);
+    console.error('❌ Admin status update error:', error);
     res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
 
-// Edit order (with discount support) - DEBUGGING VERSION
+// Edit order (with discount support) - FIXED VERSION with MongoDB support
 app.post('/admin/orders/:id/edit', authMiddleware, async (req, res) => {
   try {
-    console.log('🚨 EDIT ROUTE CALLED - Full request details:');
-    console.log('📊 URL:', req.url);
-    console.log('📊 Method:', req.method);
-    console.log('📊 Headers:', req.headers);
-    console.log('📊 Body:', req.body);
-    console.log('📊 Params:', req.params);
+    console.log('🚨 ADMIN EDIT ROUTE CALLED - Order ID:', req.params.id, 'Data:', req.body);
     
     const orderId = parseInt(req.params.id);
     const { status, discount } = req.body;
     
-    console.log(`🔄 EDIT ROUTE - Order ID: ${orderId}`);
-    console.log(`📊 Request data:`, { status, discount });
-    console.log(`📊 Available orders:`, orders.map(o => ({ id: o.id, status: o.status })));
+    console.log(`🔄 ADMIN EDIT: Updating order ${orderId} with status: ${status}, discount: ${discount}`);
     
-    // Find the order in file storage - handle duplicates by finding the most recent one
+    // Try MongoDB first
+    if (mongoose.connection.readyState === 1) {
+      const order = await Order.findById(orderId);
+      if (order) {
+        // Update status if provided
+        if (status) order.status = status;
+        
+        // Update discount if provided
+        if (discount !== undefined) {
+          order.discount = parseFloat(discount) || 0;
+          
+          // Recalculate total if discount changed
+          const itemsTotal = order.items.reduce((sum, item) => {
+            const itemTotal = (item.price || 0) * (item.qty || item.quantity || 1);
+            return sum + itemTotal;
+          }, 0);
+          
+          const discountAmount = parseFloat(discount) || 0;
+          const finalTotal = Math.max(0, itemsTotal - discountAmount);
+          order.total = finalTotal;
+          
+          console.log(`📊 Recalculated total: ${itemsTotal} - ${discountAmount} = ${finalTotal}`);
+        }
+        
+        order.updatedAt = new Date();
+        await order.save();
+        
+        console.log(`✅ Admin order edited in MongoDB: ${orderId}`);
+        return res.json({ 
+          success: true, 
+          order: order,
+          message: 'Order updated successfully in MongoDB'
+        });
+      } else {
+        console.log(`⚠️ Order ${orderId} not found in MongoDB, trying file storage...`);
+      }
+    } else {
+      console.log('⚠️ MongoDB not connected, using file storage...');
+    }
+    
+    // Fallback to file storage
     const ordersWithId = orders.filter(o => o.id === orderId);
     if (ordersWithId.length === 0) {
-      console.log('❌ Order not found in file storage');
+      console.log('❌ Order not found in file storage either');
       return res.status(404).json({ success: false, error: 'Order not found' });
     }
     
-    // If there are duplicates, warn and use the most recent one
+    // Handle duplicates by finding the most recent one
     if (ordersWithId.length > 1) {
       console.log(`⚠️ WARNING: Found ${ordersWithId.length} orders with ID ${orderId}. Using the most recent one.`);
-      console.log('📊 Duplicate orders:', ordersWithId.map(o => ({ 
-        id: o.id, 
-        status: o.status, 
-        createdAt: o.createdAt || o.timestamp 
-      })));
     }
     
     // Sort by creation date and get the most recent one
@@ -2413,19 +2431,6 @@ app.post('/admin/orders/:id/edit', authMiddleware, async (req, res) => {
     
     const mostRecentOrder = sortedOrders[0];
     const orderIndex = orders.findIndex(o => o === mostRecentOrder);
-    
-    console.log(`📊 Using order at index ${orderIndex} (most recent):`, {
-      id: mostRecentOrder.id,
-      status: mostRecentOrder.status,
-      createdAt: mostRecentOrder.createdAt || mostRecentOrder.timestamp
-    });
-    
-    console.log(`📊 Found order at index ${orderIndex}:`, {
-      id: orders[orderIndex].id,
-      status: orders[orderIndex].status,
-      customerName: orders[orderIndex].customerName,
-      total: orders[orderIndex].total
-    });
     
     // Update only status and discount
     if (status) orders[orderIndex].status = status;
@@ -2447,53 +2452,21 @@ app.post('/admin/orders/:id/edit', authMiddleware, async (req, res) => {
     
     orders[orderIndex].updatedAt = new Date().toISOString();
     
-    console.log(`📊 Updated order:`, {
-      id: orders[orderIndex].id,
-      status: orders[orderIndex].status,
-      customerName: orders[orderIndex].customerName,
-      discount: orders[orderIndex].discount,
-      total: orders[orderIndex].total,
-      itemsCount: orders[orderIndex].items.length
-    });
+    console.log(`✅ Admin order edited in file storage: ${orderId}`);
     
     // Save to file
     saveOrdersData();
     console.log('📁 File saved');
     
-    // Verify the save worked
-    console.log('🔍 Verifying save - Current order after update:', {
-      id: orders[orderIndex].id,
-      status: orders[orderIndex].status,
-      customerName: orders[orderIndex].customerName,
-      total: orders[orderIndex].total,
-      updatedAt: orders[orderIndex].updatedAt
-    });
-    
-    // Return success with detailed response
-    const responseData = { 
+    // Return success
+    res.json({ 
       success: true, 
       order: orders[orderIndex],
-      message: 'Order updated successfully',
-      debug: {
-        orderId: orderId,
-        updatedFields: {
-          customerName: orders[orderIndex].customerName,
-          customerEmail: orders[orderIndex].customerEmail,
-          orderType: orders[orderIndex].orderType,
-          status: orders[orderIndex].status,
-          discount: orders[orderIndex].discount,
-          total: orders[orderIndex].total
-        },
-        timestamp: new Date().toISOString()
-      }
-    };
-    
-    console.log('📤 Sending response:', responseData);
-    res.json(responseData);
+      message: 'Order updated successfully in file storage'
+    });
     
   } catch (error) {
-    console.error('❌ Edit error:', error);
-    console.error('❌ Error stack:', error.stack);
+    console.error('❌ Admin edit error:', error);
     res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
@@ -2669,33 +2642,60 @@ app.post('/test-order-status/:id', (req, res) => {
   });
 });
 
-// Get order data for editing
-app.get('/admin/orders/:id/data', authMiddleware, (req, res) => {
-  const orderId = parseInt(req.params.id);
-  console.log(`🔍 Getting order data for editing - Order ID: ${orderId}`);
-  
-  const order = orders.find(o => o.id === orderId);
-  if (!order) {
-    return res.status(404).json({ success: false, error: 'Order not found' });
+// Get order data for editing - FIXED VERSION with MongoDB support
+app.get('/admin/orders/:id/data', authMiddleware, async (req, res) => {
+  try {
+    const orderId = parseInt(req.params.id);
+    console.log(`🔍 Getting order data for editing - Order ID: ${orderId}`);
+    
+    let order = null;
+    
+    // Try MongoDB first
+    if (mongoose.connection.readyState === 1) {
+      order = await Order.findById(orderId);
+      if (order) {
+        console.log(`✅ Found order in MongoDB: ${orderId}`);
+      } else {
+        console.log(`⚠️ Order ${orderId} not found in MongoDB, trying file storage...`);
+      }
+    } else {
+      console.log('⚠️ MongoDB not connected, using file storage...');
+    }
+    
+    // Fallback to file storage
+    if (!order) {
+      order = orders.find(o => o.id === orderId);
+      if (order) {
+        console.log(`✅ Found order in file storage: ${orderId}`);
+      }
+    }
+    
+    if (!order) {
+      console.log(`❌ Order ${orderId} not found in any storage`);
+      return res.status(404).json({ success: false, error: 'Order not found' });
+    }
+    
+    const orderData = {
+      id: order.id,
+      customerName: order.customerName || '',
+      customerEmail: order.customerEmail || '',
+      orderType: order.orderType || 'dine-in',
+      status: order.status || 'pending',
+      discount: order.discount || 0,
+      notes: order.notes || '',
+      total: order.total || 0
+    };
+    
+    console.log('📊 Order data for editing:', orderData);
+    
+    res.json({
+      success: true,
+      order: orderData
+    });
+  } catch (error) {
+    console.error('❌ Error getting order data:', error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
   }
-  
-  const orderData = {
-    id: order.id,
-    customerName: order.customerName || '',
-    customerEmail: order.customerEmail || '',
-    orderType: order.orderType || 'dine-in',
-    status: order.status || 'pending',
-    discount: order.discount || 0,
-    notes: order.notes || '',
-    total: order.total || 0
-  };
-  
-  console.log('📊 Order data for editing:', orderData);
-  
-  res.json({
-    success: true,
-    order: orderData
-  });
 });
 
 // Test route for order editing
