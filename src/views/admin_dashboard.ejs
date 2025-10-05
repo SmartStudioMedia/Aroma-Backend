@@ -167,63 +167,6 @@
             color: #374151;
         }
         
-        .orders-table {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border-radius: 15px;
-            padding: 25px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-        }
-        
-        .orders-table h3 {
-            color: #2d3748;
-            margin-bottom: 20px;
-            font-size: 1.5rem;
-        }
-        
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        
-        th, td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #e5e7eb;
-        }
-        
-        th {
-            background: #f9fafb;
-            font-weight: 600;
-            color: #374151;
-        }
-        
-        .status-badge {
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 0.875rem;
-            font-weight: 500;
-        }
-        
-        .status-pending {
-            background: #fef3c7;
-            color: #92400e;
-        }
-        
-        .status-confirmed {
-            background: #d1fae5;
-            color: #065f46;
-        }
-        
-        .status-completed {
-            background: #dbeafe;
-            color: #1e40af;
-        }
-        
-        .status-cancelled {
-            background: #fee2e2;
-            color: #991b1b;
-        }
         
         .btn {
             padding: 8px 16px;
@@ -335,48 +278,6 @@
             </div>
         </div>
 
-        <div class="orders-table">
-            <h3>Recent Orders</h3>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Order ID</th>
-                        <th>Customer</th>
-                        <th>Table</th>
-                        <th>Items</th>
-                        <th>Total</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <% recentOrders.forEach(order => { %>
-                    <tr>
-                        <td>#<%= order.id %></td>
-                        <td><%= order.customerName %></td>
-                        <td><%= order.tableNumber || 'N/A' %></td>
-                        <td><%= order.items.length %> items</td>
-                        <td>€<%= (order.total || 0).toFixed(2) %></td>
-                        <td>
-                            <span class="status-badge status-<%= order.status %>">
-                                <%= order.status.charAt(0).toUpperCase() + order.status.slice(1) %>
-                            </span>
-                        </td>
-                        <td>
-                            <% if (order.status === 'pending') { %>
-                                <button class="btn btn-success" onclick="updateOrderStatus(<%= order.id %>, 'confirmed')" style="margin-right: 5px;">✅ Confirm</button>
-                            <% } else if (order.status === 'confirmed') { %>
-                                <button class="btn btn-primary" onclick="updateOrderStatus(<%= order.id %>, 'completed')" style="margin-right: 5px;">🎉 Complete</button>
-                            <% } %>
-                            <% if (order.status !== 'cancelled') { %>
-                                <button class="btn btn-danger" onclick="updateOrderStatus(<%= order.id %>, 'cancelled')">❌ Cancel</button>
-                            <% } %>
-                        </td>
-                    </tr>
-                    <% }); %>
-                </tbody>
-            </table>
-        </div>
     </div>
 
     <script>
@@ -605,56 +506,6 @@
             });
         }
 
-        function updateOrderStatus(orderId, status) {
-            console.log('🔧 DASHBOARD: updateOrderStatus called');
-            console.log('🔧 Order ID:', orderId, 'Status:', status);
-            
-            // Show loading state
-            const button = event.target;
-            const originalText = button.textContent;
-            button.textContent = 'Updating...';
-            button.disabled = true;
-            
-            console.log('🔧 Making request to:', '/admin/orders/' + orderId + '/status');
-            console.log('🔧 Request body:', JSON.stringify({ status: status }));
-            
-            fetch('/admin/orders/' + orderId + '/status', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ status: status })
-            })
-            .then(response => {
-                console.log('🔧 Response status:', response.status);
-                console.log('🔧 Response headers:', response.headers);
-                if (!response.ok) {
-                    throw new Error('HTTP ' + response.status);
-                }
-                return response.json();
-            })
-            .then(data => {
-                console.log('🔧 Response data:', data);
-                if (data.success) {
-                    console.log('✅ Status update successful, reloading page...');
-                    alert('✅ Order #' + orderId + ' updated to ' + status + '\n\nPage will reload to show changes.');
-                    // Force a hard reload to ensure fresh data
-                    setTimeout(() => {
-                        window.location.reload(true);
-                    }, 1000);
-                } else {
-                    alert('❌ Failed to update order: ' + (data.error || 'Unknown error'));
-                    button.textContent = originalText;
-                    button.disabled = false;
-                }
-            })
-            .catch(error => {
-                console.error('❌ Error:', error);
-                alert('❌ Error updating order: ' + error.message + '\n\nCheck console for details.');
-                button.textContent = originalText;
-                button.disabled = false;
-            });
-        }
         
         
         // Initialize charts when page loads
