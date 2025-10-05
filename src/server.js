@@ -1735,6 +1735,11 @@ app.get('/admin', authMiddleware, async (req, res) => {
       mongoCategories = await Category.find().sort({ sort_order: 1 });
       mongoItems = await MenuItem.find();
       
+      // Update local arrays to keep them in sync
+      orders = mongoOrders;
+      menuData.categories = mongoCategories;
+      menuData.items = mongoItems;
+      
       console.log('📊 MongoDB Data Loaded:');
       console.log(`📊 Orders: ${mongoOrders.length}`);
       console.log(`📊 Categories: ${mongoCategories.length}`);
@@ -2311,7 +2316,7 @@ app.get('/admin/sales/completed', authMiddleware, async (req, res) => {
 });
 
 // NEW SIMPLE EDIT ROUTE - WORKING VERSION
-app.post('/admin/orders/:id/simple-edit', authMiddleware, (req, res) => {
+app.post('/admin/orders/:id/simple-edit', authMiddleware, async (req, res) => {
   try {
     console.log('🚨 SIMPLE EDIT ROUTE CALLED - Order ID:', req.params.id, 'Data:', req.body);
     
@@ -2360,6 +2365,25 @@ app.post('/admin/orders/:id/simple-edit', authMiddleware, (req, res) => {
     saveOrdersData();
     console.log(`✅ Saved to file`);
     
+    // Try to update MongoDB if connected
+    if (mongoose.connection.readyState === 1) {
+      try {
+        await Order.findOneAndUpdate(
+          { id: orderId },
+          { 
+            status: order.status, 
+            discount: order.discount, 
+            total: order.total, 
+            updatedAt: new Date() 
+          },
+          { new: true, upsert: false }
+        );
+        console.log(`✅ MongoDB also updated for order ${orderId}`);
+      } catch (mongoError) {
+        console.error(`⚠️ MongoDB update failed for order ${orderId}:`, mongoError.message);
+      }
+    }
+    
     console.log(`✅ Order ${orderId} updated successfully`);
     
     res.json({ 
@@ -2383,7 +2407,7 @@ app.get('/admin/api/orders', authMiddleware, (req, res) => {
 });
 
 // NEW ORDER STATUS SYSTEM - SIMPLE AND WORKING
-app.post('/admin/orders/:id/status', authMiddleware, (req, res) => {
+app.post('/admin/orders/:id/status', authMiddleware, async (req, res) => {
   try {
     const orderId = parseInt(req.params.id);
     const { status } = req.body;
@@ -2407,6 +2431,20 @@ app.post('/admin/orders/:id/status', authMiddleware, (req, res) => {
     
     // Save to file
     saveOrdersData();
+    
+    // Try to update MongoDB if connected
+    if (mongoose.connection.readyState === 1) {
+      try {
+        await Order.findOneAndUpdate(
+          { id: orderId },
+          { status: status, updatedAt: new Date() },
+          { new: true, upsert: false }
+        );
+        console.log(`✅ MongoDB also updated for admin order ${orderId}`);
+      } catch (mongoError) {
+        console.error(`⚠️ MongoDB update failed for admin order ${orderId}:`, mongoError.message);
+      }
+    }
     
     console.log(`✅ Order ${orderId} updated to ${status}`);
     
@@ -2691,10 +2729,6 @@ app.post('/kitchen/orders/:id/status', kitchenAuthMiddleware, async (req, res) =
   }
 });
 
-// NEW SIMPLE KITCHEN SYSTEM
-app.get('/kitchen/simple', kitchenAuthMiddleware, (req, res) => {
-  res.render('kitchen_simple');
-});
 
 // Health check
 app.get('/health', (req, res) => {
@@ -3103,21 +3137,6 @@ app.post('/test/order-edit/:id', authMiddleware, (req, res) => {
   });
 });
 
-// SIMPLE TEST - Just return success without any logic
-app.post('/admin/orders/:id/simple-edit', authMiddleware, (req, res) => {
-  const orderId = parseInt(req.params.id);
-  const { status, customerName } = req.body;
-  
-  console.log(`🧪 SIMPLE EDIT TEST - Order ID: ${orderId}, Status: ${status}, Customer: ${customerName}`);
-  console.log(`📊 Request body:`, req.body);
-  
-  // Just return success without doing anything
-  res.json({ 
-    success: true, 
-    message: 'Simple edit test successful',
-    receivedData: { orderId, status, customerName }
-  });
-});
 
 // DEBUG ROUTE - Test order editing without authentication
 app.post('/test/order-edit/:id', (req, res) => {
