@@ -2319,85 +2319,43 @@ app.get('/admin/api/orders', authMiddleware, (req, res) => {
   res.json(orders);
 });
 
-// Update order status - FINAL WORKING VERSION
-app.post('/admin/orders/:id/status', authMiddleware, async (req, res) => {
+// NEW ORDER STATUS SYSTEM - SIMPLE AND WORKING
+app.post('/admin/orders/:id/status', authMiddleware, (req, res) => {
   try {
-    console.log('🚨 ADMIN STATUS UPDATE CALLED');
-    console.log('📝 Request params:', req.params);
-    console.log('📝 Request body:', req.body);
-    
     const orderId = parseInt(req.params.id);
     const { status } = req.body;
     
-    if (!status) {
-      console.log('❌ No status provided');
-      return res.status(400).json({ success: false, error: 'Status is required' });
-    }
-    
-    console.log(`🔄 Processing: Order ${orderId} -> Status: ${status}`);
-    console.log(`📊 Total orders in array: ${orders.length}`);
-    console.log(`📊 Order IDs: ${orders.map(o => o.id).slice(0, 10)}`);
+    console.log(`🔄 ADMIN: Updating order ${orderId} to ${status}`);
     
     // Find the order
-    const orderIndex = orders.findIndex(o => o.id === orderId);
+    const order = orders.find(o => o.id === orderId);
     
-    if (orderIndex === -1) {
-      console.log(`❌ Order ${orderId} not found in local array`);
+    if (!order) {
+      console.log(`❌ Order ${orderId} not found`);
       return res.status(404).json({ 
         success: false, 
-        error: `Order ${orderId} not found`,
-        availableIds: orders.map(o => o.id).slice(0, 10)
+        error: `Order ${orderId} not found` 
       });
     }
-    
-    const order = orders[orderIndex];
-    console.log(`✅ Found order ${orderId}, current status: ${order.status}`);
     
     // Update the order
     order.status = status;
     order.updatedAt = new Date().toISOString();
     
-    console.log(`✅ Updated order ${orderId} to status: ${status}`);
-    
     // Save to file
-    try {
-      saveOrdersData();
-      console.log(`✅ Saved to file`);
-    } catch (saveError) {
-      console.error(`❌ File save error:`, saveError);
-    }
+    saveOrdersData();
     
-    // Try to update MongoDB
-    if (mongoose.connection.readyState === 1) {
-      try {
-        const result = await Order.findOneAndUpdate(
-          { id: orderId },
-          { status: status, updatedAt: new Date() },
-          { new: true }
-        );
-        if (result) {
-          console.log(`✅ MongoDB updated successfully`);
-        } else {
-          console.log(`⚠️ MongoDB update returned null`);
-        }
-      } catch (mongoError) {
-        console.error(`❌ MongoDB error:`, mongoError.message);
-      }
-    } else {
-      console.log(`⚠️ MongoDB not connected`);
-    }
+    console.log(`✅ Order ${orderId} updated to ${status}`);
     
-    // Return success
     res.json({ 
       success: true, 
-      message: 'Order status updated successfully',
+      message: 'Order status updated',
       orderId: orderId,
-      newStatus: status,
-      order: order
+      newStatus: status
     });
     
   } catch (error) {
-    console.error('❌ Admin status update error:', error);
+    console.error('Admin status update error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -2620,84 +2578,43 @@ app.get('/kitchen/orders', kitchenAuthMiddleware, async (req, res) => {
   }
 });
 
-app.post('/kitchen/orders/:id/status', kitchenAuthMiddleware, async (req, res) => {
+// NEW KITCHEN STATUS SYSTEM - SIMPLE AND WORKING
+app.post('/kitchen/orders/:id/status', kitchenAuthMiddleware, (req, res) => {
   try {
-    console.log('🍳 KITCHEN STATUS UPDATE CALLED');
-    console.log('📝 Request params:', req.params);
-    console.log('📝 Request body:', req.body);
-    
     const orderId = parseInt(req.params.id);
     const { status } = req.body;
     
-    if (!status) {
-      console.log('❌ No status provided');
-      return res.status(400).json({ success: false, error: 'Status is required' });
-    }
-    
-    console.log(`🍳 Processing: Order ${orderId} -> Status: ${status}`);
-    console.log(`📊 Total orders in array: ${orders.length}`);
-    console.log(`📊 Order IDs: ${orders.map(o => o.id).slice(0, 10)}`);
+    console.log(`🍳 KITCHEN: Updating order ${orderId} to ${status}`);
     
     // Find the order
-    const orderIndex = orders.findIndex(o => o.id === orderId);
+    const order = orders.find(o => o.id === orderId);
     
-    if (orderIndex === -1) {
-      console.log(`❌ Kitchen order ${orderId} not found in local array`);
+    if (!order) {
+      console.log(`❌ Kitchen order ${orderId} not found`);
       return res.status(404).json({ 
         success: false, 
-        error: `Kitchen order ${orderId} not found`,
-        availableIds: orders.map(o => o.id).slice(0, 10)
+        error: `Kitchen order ${orderId} not found` 
       });
     }
-    
-    const order = orders[orderIndex];
-    console.log(`✅ Kitchen found order ${orderId}, current status: ${order.status}`);
     
     // Update the order
     order.status = status;
     order.updatedAt = new Date().toISOString();
     
-    console.log(`✅ Kitchen updated order ${orderId} to status: ${status}`);
-    
     // Save to file
-    try {
-      saveOrdersData();
-      console.log(`✅ Kitchen saved to file`);
-    } catch (saveError) {
-      console.error(`❌ Kitchen file save error:`, saveError);
-    }
+    saveOrdersData();
     
-    // Try to update MongoDB
-    if (mongoose.connection.readyState === 1) {
-      try {
-        const result = await Order.findOneAndUpdate(
-          { id: orderId },
-          { status: status, updatedAt: new Date() },
-          { new: true }
-        );
-        if (result) {
-          console.log(`✅ Kitchen MongoDB updated successfully`);
-        } else {
-          console.log(`⚠️ Kitchen MongoDB update returned null`);
-        }
-      } catch (mongoError) {
-        console.error(`❌ Kitchen MongoDB error:`, mongoError.message);
-      }
-    } else {
-      console.log(`⚠️ Kitchen MongoDB not connected`);
-    }
+    console.log(`✅ Kitchen order ${orderId} updated to ${status}`);
     
-    // Return success
     res.json({ 
       success: true, 
-      message: 'Kitchen order status updated successfully',
+      message: 'Kitchen order status updated',
       orderId: orderId,
-      newStatus: status,
-      order: order
+      newStatus: status
     });
     
   } catch (error) {
-    console.error('Kitchen order status update error:', error);
+    console.error('Kitchen status update error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -2711,83 +2628,200 @@ app.get('/health', (req, res) => {
   });
 });
 
-// TEST ROUTE - Simple order status update without auth
-app.post('/test/order-status/:id', async (req, res) => {
+// SIMPLE TEST ROUTE - No authentication required
+app.post('/test/order-status/:id', (req, res) => {
   try {
-    console.log('🧪 TEST ROUTE CALLED');
-    console.log('📝 Request params:', req.params);
-    console.log('📝 Request body:', req.body);
-    
     const orderId = parseInt(req.params.id);
     const { status } = req.body;
     
-    if (!status) {
-      return res.status(400).json({ success: false, error: 'Status is required' });
-    }
+    console.log(`🧪 TEST: Order ${orderId} -> ${status}`);
     
-    console.log(`🧪 TEST: Order ${orderId} -> Status: ${status}`);
-    console.log(`📊 Total orders in array: ${orders.length}`);
-    console.log(`📊 Order IDs: ${orders.map(o => o.id).slice(0, 10)}`);
+    // Find the order
+    const order = orders.find(o => o.id === orderId);
     
-    // Find the order in local array
-    const orderIndex = orders.findIndex(o => o.id === orderId);
-    
-    if (orderIndex === -1) {
-      console.log(`❌ TEST: Order ${orderId} not found in local array`);
+    if (!order) {
+      console.log(`❌ TEST: Order ${orderId} not found`);
       return res.status(404).json({ 
         success: false, 
         error: `Order ${orderId} not found`,
-        availableIds: orders.map(o => o.id).slice(0, 10)
+        availableIds: orders.map(o => o.id).slice(0, 5)
       });
     }
-    
-    const order = orders[orderIndex];
-    console.log(`✅ TEST: Found order ${orderId}, current status: ${order.status}`);
     
     // Update the order
     order.status = status;
     order.updatedAt = new Date().toISOString();
     
-    console.log(`✅ TEST: Updated order ${orderId} to status: ${status}`);
-    
     // Save to file
-    try {
-      saveOrdersData();
-      console.log(`✅ TEST: Saved to file`);
-    } catch (saveError) {
-      console.error(`❌ TEST: File save error:`, saveError);
-    }
+    saveOrdersData();
     
-    // Try to update MongoDB
-    if (mongoose.connection.readyState === 1) {
-      try {
-        const result = await Order.findOneAndUpdate(
-          { id: orderId },
-          { status: status, updatedAt: new Date() },
-          { new: true }
-        );
-        if (result) {
-          console.log(`✅ TEST: MongoDB updated successfully`);
-        } else {
-          console.log(`⚠️ TEST: MongoDB update returned null`);
-        }
-      } catch (mongoError) {
-        console.error(`❌ TEST: MongoDB error:`, mongoError.message);
-      }
-    } else {
-      console.log(`⚠️ TEST: MongoDB not connected`);
-    }
+    console.log(`✅ TEST: Order ${orderId} updated to ${status}`);
     
     res.json({ 
       success: true, 
-      message: `TEST: Order ${orderId} updated to ${status}`,
+      message: `Order ${orderId} updated to ${status}`,
       orderId: orderId,
-      newStatus: status,
-      order: order
+      newStatus: status
     });
     
   } catch (error) {
     console.error('Test route error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// NEW ORDER STATUS FLOW SYSTEM
+// This handles the complete order lifecycle: pending -> confirmed -> completed
+// Also handles cancellation at any stage
+
+// Confirm Order (pending -> confirmed)
+app.post('/orders/:id/confirm', authMiddleware, (req, res) => {
+  try {
+    const orderId = parseInt(req.params.id);
+    console.log(`✅ CONFIRM: Order ${orderId}`);
+    
+    const order = orders.find(o => o.id === orderId);
+    
+    if (!order) {
+      return res.status(404).json({ success: false, error: 'Order not found' });
+    }
+    
+    if (order.status !== 'pending') {
+      return res.status(400).json({ 
+        success: false, 
+        error: `Order is ${order.status}, cannot confirm` 
+      });
+    }
+    
+    order.status = 'confirmed';
+    order.updatedAt = new Date().toISOString();
+    saveOrdersData();
+    
+    console.log(`✅ Order ${orderId} confirmed`);
+    
+    res.json({ 
+      success: true, 
+      message: 'Order confirmed successfully',
+      orderId: orderId,
+      newStatus: 'confirmed'
+    });
+    
+  } catch (error) {
+    console.error('Confirm order error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Complete Order (confirmed -> completed)
+app.post('/orders/:id/complete', authMiddleware, (req, res) => {
+  try {
+    const orderId = parseInt(req.params.id);
+    console.log(`🏁 COMPLETE: Order ${orderId}`);
+    
+    const order = orders.find(o => o.id === orderId);
+    
+    if (!order) {
+      return res.status(404).json({ success: false, error: 'Order not found' });
+    }
+    
+    if (order.status !== 'confirmed') {
+      return res.status(400).json({ 
+        success: false, 
+        error: `Order is ${order.status}, cannot complete` 
+      });
+    }
+    
+    order.status = 'completed';
+    order.updatedAt = new Date().toISOString();
+    saveOrdersData();
+    
+    console.log(`✅ Order ${orderId} completed`);
+    
+    res.json({ 
+      success: true, 
+      message: 'Order completed successfully',
+      orderId: orderId,
+      newStatus: 'completed'
+    });
+    
+  } catch (error) {
+    console.error('Complete order error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Cancel Order (any status -> cancelled)
+app.post('/orders/:id/cancel', authMiddleware, (req, res) => {
+  try {
+    const orderId = parseInt(req.params.id);
+    console.log(`❌ CANCEL: Order ${orderId}`);
+    
+    const order = orders.find(o => o.id === orderId);
+    
+    if (!order) {
+      return res.status(404).json({ success: false, error: 'Order not found' });
+    }
+    
+    if (order.status === 'completed') {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Cannot cancel completed order' 
+      });
+    }
+    
+    order.status = 'cancelled';
+    order.updatedAt = new Date().toISOString();
+    saveOrdersData();
+    
+    console.log(`✅ Order ${orderId} cancelled`);
+    
+    res.json({ 
+      success: true, 
+      message: 'Order cancelled successfully',
+      orderId: orderId,
+      newStatus: 'cancelled'
+    });
+    
+  } catch (error) {
+    console.error('Cancel order error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Kitchen Complete Order (kitchen staff can complete orders)
+app.post('/kitchen/orders/:id/complete', kitchenAuthMiddleware, (req, res) => {
+  try {
+    const orderId = parseInt(req.params.id);
+    console.log(`🍳 KITCHEN COMPLETE: Order ${orderId}`);
+    
+    const order = orders.find(o => o.id === orderId);
+    
+    if (!order) {
+      return res.status(404).json({ success: false, error: 'Order not found' });
+    }
+    
+    if (order.status !== 'confirmed') {
+      return res.status(400).json({ 
+        success: false, 
+        error: `Order is ${order.status}, cannot complete` 
+      });
+    }
+    
+    order.status = 'completed';
+    order.updatedAt = new Date().toISOString();
+    saveOrdersData();
+    
+    console.log(`✅ Kitchen completed order ${orderId}`);
+    
+    res.json({ 
+      success: true, 
+      message: 'Order completed by kitchen',
+      orderId: orderId,
+      newStatus: 'completed'
+    });
+    
+  } catch (error) {
+    console.error('Kitchen complete order error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
