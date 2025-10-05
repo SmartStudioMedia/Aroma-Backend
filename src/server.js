@@ -2315,21 +2315,20 @@ app.get('/admin/sales/completed', authMiddleware, async (req, res) => {
   }
 });
 
-// NEW SIMPLE EDIT ROUTE - WORKING VERSION
-app.post('/admin/orders/:id/simple-edit', authMiddleware, async (req, res) => {
+// OVERRIDE SYSTEM - FORCE ORDER UPDATES
+app.post('/admin/orders/:id/force-edit', authMiddleware, async (req, res) => {
   try {
-    console.log('🚨 SIMPLE EDIT ROUTE CALLED - Order ID:', req.params.id, 'Data:', req.body);
+    console.log('🚨 FORCE EDIT ROUTE CALLED - Order ID:', req.params.id, 'Data:', req.body);
     
     const orderId = parseInt(req.params.id);
     const { status, discount } = req.body;
     
-    console.log(`🔄 SIMPLE EDIT: Updating order ${orderId} with status: ${status}, discount: ${discount}`);
+    console.log(`🔄 FORCE EDIT: Updating order ${orderId} with status: ${status}, discount: ${discount}`);
     
-    // Find the order in local array
-    const order = orders.find(o => o.id === orderId);
-    
-    if (!order) {
-      console.log(`❌ Order ${orderId} not found`);
+    // STEP 1: Update local array first
+    const orderIndex = orders.findIndex(o => o.id === orderId);
+    if (orderIndex === -1) {
+      console.log(`❌ Order ${orderId} not found in local array`);
       return res.status(404).json({ 
         success: false, 
         error: `Order ${orderId} not found`,
@@ -2337,15 +2336,15 @@ app.post('/admin/orders/:id/simple-edit', authMiddleware, async (req, res) => {
       });
     }
     
-    console.log(`✅ Found order ${orderId}, current status: ${order.status}, current discount: ${order.discount}`);
+    const order = orders[orderIndex];
+    console.log(`✅ Found order ${orderId} at index ${orderIndex}`);
     
-    // Update status if provided
+    // Update order properties
     if (status) {
       order.status = status;
       console.log(`✅ Updated status to: ${status}`);
     }
     
-    // Update discount if provided
     if (discount !== undefined) {
       order.discount = parseFloat(discount) || 0;
       
@@ -2361,44 +2360,95 @@ app.post('/admin/orders/:id/simple-edit', authMiddleware, async (req, res) => {
     
     order.updatedAt = new Date().toISOString();
     
-    // Save to file
-    saveOrdersData();
-    console.log(`✅ Saved to file`);
-    
-    // Try to update MongoDB if connected
-    if (mongoose.connection.readyState === 1) {
-      try {
-        await Order.findOneAndUpdate(
-          { id: orderId },
-          { 
-            status: order.status, 
-            discount: order.discount, 
-            total: order.total, 
-            updatedAt: new Date() 
-          },
-          { new: true, upsert: false }
-        );
-        console.log(`✅ MongoDB also updated for order ${orderId}`);
-      } catch (mongoError) {
-        console.error(`⚠️ MongoDB update failed for order ${orderId}:`, mongoError.message);
-      }
+    // STEP 2: Force save to file immediately
+    try {
+      saveOrdersData();
+      console.log(`✅ FORCED save to file completed`);
+    } catch (fileError) {
+      console.error(`❌ File save failed:`, fileError);
     }
     
-    console.log(`✅ Order ${orderId} updated successfully`);
+    // STEP 3: Force MongoDB update with retry mechanism
+    if (mongoose.connection.readyState === 1) {
+      let mongoSuccess = false;
+      let retryCount = 0;
+      const maxRetries = 3;
+      
+      while (!mongoSuccess && retryCount < maxRetries) {
+        try {
+          console.log(`🔄 MongoDB update attempt ${retryCount + 1}/${maxRetries}`);
+          
+          const updateResult = await Order.findOneAndUpdate(
+            { id: orderId },
+            { 
+              status: order.status, 
+              discount: order.discount, 
+              total: order.total, 
+              updatedAt: new Date(),
+              items: order.items,
+              customerName: order.customerName,
+              tableNumber: order.tableNumber
+            },
+            { new: true, upsert: false }
+          );
+          
+          if (updateResult) {
+            console.log(`✅ MongoDB FORCE update successful for order ${orderId}`);
+            mongoSuccess = true;
+          } else {
+            console.log(`⚠️ MongoDB update returned null, retrying...`);
+            retryCount++;
+          }
+        } catch (mongoError) {
+          console.error(`❌ MongoDB update attempt ${retryCount + 1} failed:`, mongoError.message);
+          retryCount++;
+          
+          if (retryCount < maxRetries) {
+            console.log(`⏳ Waiting 1 second before retry...`);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+        }
+      }
+      
+      if (!mongoSuccess) {
+        console.error(`❌ All MongoDB update attempts failed for order ${orderId}`);
+      }
+    } else {
+      console.log(`⚠️ MongoDB not connected, skipping database update`);
+    }
+    
+    // STEP 4: Verify the update
+    const updatedOrder = orders.find(o => o.id === orderId);
+    console.log(`🔍 VERIFICATION - Order ${orderId} final state:`, {
+      status: updatedOrder.status,
+      discount: updatedOrder.discount,
+      total: updatedOrder.total,
+      updatedAt: updatedOrder.updatedAt
+    });
+    
+    console.log(`✅ FORCE EDIT completed for order ${orderId}`);
     
     res.json({ 
       success: true, 
-      message: 'Order updated successfully',
+      message: 'Order FORCE updated successfully',
       orderId: orderId,
       newStatus: order.status,
       newDiscount: order.discount,
-      newTotal: order.total
+      newTotal: order.total,
+      updatedAt: order.updatedAt
     });
     
   } catch (error) {
-    console.error('❌ Simple edit error:', error);
+    console.error('❌ Force edit error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
+});
+
+// BACKUP: Keep the old route for compatibility
+app.post('/admin/orders/:id/simple-edit', authMiddleware, async (req, res) => {
+  // Redirect to the force edit route
+  req.url = req.url.replace('/simple-edit', '/force-edit');
+  return app._router.handle(req, res);
 });
 
 // API endpoints for admin
@@ -2406,59 +2456,99 @@ app.get('/admin/api/orders', authMiddleware, (req, res) => {
   res.json(orders);
 });
 
-// NEW ORDER STATUS SYSTEM - SIMPLE AND WORKING
-app.post('/admin/orders/:id/status', authMiddleware, async (req, res) => {
+// FORCE STATUS UPDATE SYSTEM
+app.post('/admin/orders/:id/force-status', authMiddleware, async (req, res) => {
   try {
     const orderId = parseInt(req.params.id);
     const { status } = req.body;
     
-    console.log(`🔄 ADMIN: Updating order ${orderId} to ${status}`);
+    console.log(`🚨 FORCE STATUS UPDATE - Order ${orderId} to ${status}`);
     
-    // Find the order
-    const order = orders.find(o => o.id === orderId);
-    
-    if (!order) {
-      console.log(`❌ Order ${orderId} not found`);
+    // STEP 1: Update local array
+    const orderIndex = orders.findIndex(o => o.id === orderId);
+    if (orderIndex === -1) {
+      console.log(`❌ Order ${orderId} not found in local array`);
       return res.status(404).json({ 
         success: false, 
         error: `Order ${orderId} not found` 
       });
     }
     
-    // Update the order
-    order.status = status;
-    order.updatedAt = new Date().toISOString();
+    orders[orderIndex].status = status;
+    orders[orderIndex].updatedAt = new Date().toISOString();
     
-    // Save to file
-    saveOrdersData();
+    console.log(`✅ Local array updated for order ${orderId}`);
     
-    // Try to update MongoDB if connected
+    // STEP 2: Force save to file
+    try {
+      saveOrdersData();
+      console.log(`✅ FORCED file save completed`);
+    } catch (fileError) {
+      console.error(`❌ File save failed:`, fileError);
+    }
+    
+    // STEP 3: Force MongoDB update with retry
     if (mongoose.connection.readyState === 1) {
-      try {
-        await Order.findOneAndUpdate(
-          { id: orderId },
-          { status: status, updatedAt: new Date() },
-          { new: true, upsert: false }
-        );
-        console.log(`✅ MongoDB also updated for admin order ${orderId}`);
-      } catch (mongoError) {
-        console.error(`⚠️ MongoDB update failed for admin order ${orderId}:`, mongoError.message);
+      let mongoSuccess = false;
+      let retryCount = 0;
+      const maxRetries = 3;
+      
+      while (!mongoSuccess && retryCount < maxRetries) {
+        try {
+          console.log(`🔄 MongoDB status update attempt ${retryCount + 1}/${maxRetries}`);
+          
+          const updateResult = await Order.findOneAndUpdate(
+            { id: orderId },
+            { 
+              status: status, 
+              updatedAt: new Date() 
+            },
+            { new: true, upsert: false }
+          );
+          
+          if (updateResult) {
+            console.log(`✅ MongoDB FORCE status update successful for order ${orderId}`);
+            mongoSuccess = true;
+          } else {
+            console.log(`⚠️ MongoDB status update returned null, retrying...`);
+            retryCount++;
+          }
+        } catch (mongoError) {
+          console.error(`❌ MongoDB status update attempt ${retryCount + 1} failed:`, mongoError.message);
+          retryCount++;
+          
+          if (retryCount < maxRetries) {
+            console.log(`⏳ Waiting 1 second before retry...`);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+        }
+      }
+      
+      if (!mongoSuccess) {
+        console.error(`❌ All MongoDB status update attempts failed for order ${orderId}`);
       }
     }
     
-    console.log(`✅ Order ${orderId} updated to ${status}`);
+    console.log(`✅ FORCE STATUS UPDATE completed for order ${orderId}`);
     
     res.json({ 
       success: true, 
-      message: 'Order status updated',
+      message: 'Order status FORCE updated successfully',
       orderId: orderId,
       newStatus: status
     });
     
   } catch (error) {
-    console.error('Admin status update error:', error);
+    console.error('❌ Force status update error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
+});
+
+// BACKUP: Keep the old route for compatibility
+app.post('/admin/orders/:id/status', authMiddleware, async (req, res) => {
+  // Redirect to the force status route
+  req.url = req.url.replace('/status', '/force-status');
+  return app._router.handle(req, res);
 });
 
 // Edit order - NEW SIMPLE VERSION
@@ -2674,69 +2764,262 @@ app.get('/kitchen/orders', kitchenAuthMiddleware, async (req, res) => {
   }
 });
 
-// NEW KITCHEN STATUS SYSTEM - SIMPLE AND WORKING
-app.post('/kitchen/orders/:id/status', kitchenAuthMiddleware, async (req, res) => {
+// FORCE KITCHEN STATUS UPDATE SYSTEM
+app.post('/kitchen/orders/:id/force-status', kitchenAuthMiddleware, async (req, res) => {
   try {
     const orderId = parseInt(req.params.id);
     const { status } = req.body;
     
-    console.log(`🍳 KITCHEN: Updating order ${orderId} to ${status}`);
+    console.log(`🚨 KITCHEN FORCE STATUS UPDATE - Order ${orderId} to ${status}`);
     
-    // Find the order
-    const order = orders.find(o => o.id === orderId);
-    
-    if (!order) {
-      console.log(`❌ Kitchen order ${orderId} not found`);
+    // STEP 1: Update local array
+    const orderIndex = orders.findIndex(o => o.id === orderId);
+    if (orderIndex === -1) {
+      console.log(`❌ Kitchen order ${orderId} not found in local array`);
       return res.status(404).json({ 
         success: false, 
         error: `Kitchen order ${orderId} not found` 
       });
     }
     
-    // Update the order
-    order.status = status;
-    order.updatedAt = new Date().toISOString();
+    orders[orderIndex].status = status;
+    orders[orderIndex].updatedAt = new Date().toISOString();
     
-    // Save to file
-    saveOrdersData();
+    console.log(`✅ Kitchen local array updated for order ${orderId}`);
     
-    // Try to update MongoDB if connected
+    // STEP 2: Force save to file
+    try {
+      saveOrdersData();
+      console.log(`✅ Kitchen FORCED file save completed`);
+    } catch (fileError) {
+      console.error(`❌ Kitchen file save failed:`, fileError);
+    }
+    
+    // STEP 3: Force MongoDB update with retry
     if (mongoose.connection.readyState === 1) {
-      try {
-        await Order.findOneAndUpdate(
-          { id: orderId },
-          { status: status, updatedAt: new Date() },
-          { new: true, upsert: false }
-        );
-        console.log(`✅ MongoDB also updated for kitchen order ${orderId}`);
-      } catch (mongoError) {
-        console.error(`⚠️ MongoDB update failed for kitchen order ${orderId}:`, mongoError.message);
+      let mongoSuccess = false;
+      let retryCount = 0;
+      const maxRetries = 3;
+      
+      while (!mongoSuccess && retryCount < maxRetries) {
+        try {
+          console.log(`🔄 Kitchen MongoDB status update attempt ${retryCount + 1}/${maxRetries}`);
+          
+          const updateResult = await Order.findOneAndUpdate(
+            { id: orderId },
+            { 
+              status: status, 
+              updatedAt: new Date() 
+            },
+            { new: true, upsert: false }
+          );
+          
+          if (updateResult) {
+            console.log(`✅ Kitchen MongoDB FORCE status update successful for order ${orderId}`);
+            mongoSuccess = true;
+          } else {
+            console.log(`⚠️ Kitchen MongoDB status update returned null, retrying...`);
+            retryCount++;
+          }
+        } catch (mongoError) {
+          console.error(`❌ Kitchen MongoDB status update attempt ${retryCount + 1} failed:`, mongoError.message);
+          retryCount++;
+          
+          if (retryCount < maxRetries) {
+            console.log(`⏳ Kitchen waiting 1 second before retry...`);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+        }
+      }
+      
+      if (!mongoSuccess) {
+        console.error(`❌ All Kitchen MongoDB status update attempts failed for order ${orderId}`);
       }
     }
     
-    console.log(`✅ Kitchen order ${orderId} updated to ${status}`);
+    console.log(`✅ KITCHEN FORCE STATUS UPDATE completed for order ${orderId}`);
     
     res.json({ 
       success: true, 
-      message: 'Kitchen order status updated',
+      message: 'Kitchen order status FORCE updated successfully',
       orderId: orderId,
       newStatus: status
     });
     
   } catch (error) {
-    console.error('Kitchen status update error:', error);
+    console.error('❌ Kitchen force status update error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
+// BACKUP: Keep the old route for compatibility
+app.post('/kitchen/orders/:id/status', kitchenAuthMiddleware, async (req, res) => {
+  // Redirect to the force status route
+  req.url = req.url.replace('/status', '/force-status');
+  return app._router.handle(req, res);
+});
+
 
 // Health check
+// FORCE DATA OVERRIDE SYSTEM
+app.post('/admin/force-sync', authMiddleware, async (req, res) => {
+  try {
+    console.log('🚨 FORCE DATA SYNC INITIATED');
+    
+    if (mongoose.connection.readyState === 1) {
+      // Force reload all data from MongoDB
+      const mongoOrders = await Order.find().sort({ createdAt: -1 });
+      const mongoCategories = await Category.find().sort({ sort_order: 1 });
+      const mongoItems = await MenuItem.find();
+      
+      // Override local arrays completely
+      orders.length = 0;
+      orders.push(...mongoOrders);
+      
+      menuData.categories = mongoCategories;
+      menuData.items = mongoItems;
+      
+      console.log(`✅ FORCE SYNC completed: ${orders.length} orders, ${mongoCategories.length} categories, ${mongoItems.length} items`);
+      
+      res.json({
+        success: true,
+        message: 'Data force sync completed',
+        ordersCount: orders.length,
+        categoriesCount: mongoCategories.length,
+        itemsCount: mongoItems.length
+      });
+    } else {
+      console.log('⚠️ MongoDB not connected, cannot force sync');
+      res.json({
+        success: false,
+        message: 'MongoDB not connected, cannot force sync'
+      });
+    }
+  } catch (error) {
+    console.error('❌ Force sync error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// FORCE ORDER RELOAD - Reload specific order from MongoDB
+app.post('/admin/orders/:id/force-reload', authMiddleware, async (req, res) => {
+  try {
+    const orderId = parseInt(req.params.id);
+    console.log(`🚨 FORCE RELOAD ORDER ${orderId}`);
+    
+    if (mongoose.connection.readyState === 1) {
+      const mongoOrder = await Order.findOne({ id: orderId });
+      
+      if (mongoOrder) {
+        // Find and replace the order in local array
+        const localIndex = orders.findIndex(o => o.id === orderId);
+        if (localIndex !== -1) {
+          orders[localIndex] = mongoOrder;
+          console.log(`✅ Order ${orderId} force reloaded from MongoDB`);
+        } else {
+          orders.push(mongoOrder);
+          console.log(`✅ Order ${orderId} added to local array from MongoDB`);
+        }
+        
+        res.json({
+          success: true,
+          message: `Order ${orderId} force reloaded`,
+          order: mongoOrder
+        });
+      } else {
+        res.status(404).json({
+          success: false,
+          error: `Order ${orderId} not found in MongoDB`
+        });
+      }
+    } else {
+      res.status(500).json({
+        success: false,
+        error: 'MongoDB not connected'
+      });
+    }
+  } catch (error) {
+    console.error('❌ Force reload error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 app.get('/health', (req, res) => {
   res.json({ 
     status: 'OK', 
     timestamp: new Date().toISOString(),
     serverVersion: '2.0.0 - Enhanced Order Status Updates'
   });
+});
+
+// FORCE TEST ROUTE - Test the override system
+app.post('/test/force-order-edit/:id', (req, res) => {
+  try {
+    const orderId = parseInt(req.params.id);
+    const { status, discount } = req.body;
+    
+    console.log(`🧪 FORCE TEST: Order ${orderId} -> Status: ${status}, Discount: ${discount}`);
+    
+    // Find the order
+    const orderIndex = orders.findIndex(o => o.id === orderId);
+    
+    if (orderIndex === -1) {
+      console.log(`❌ FORCE TEST: Order ${orderId} not found`);
+      return res.status(404).json({ 
+        success: false, 
+        error: `Order ${orderId} not found`,
+        availableIds: orders.map(o => o.id).slice(0, 5)
+      });
+    }
+    
+    const order = orders[orderIndex];
+    
+    // Update order properties
+    if (status) {
+      order.status = status;
+      console.log(`✅ FORCE TEST: Updated status to ${status}`);
+    }
+    
+    if (discount !== undefined) {
+      order.discount = parseFloat(discount) || 0;
+      
+      // Recalculate total
+      const itemsTotal = order.items.reduce((sum, item) => {
+        const itemTotal = (item.price || 0) * (item.qty || item.quantity || 1);
+        return sum + itemTotal;
+      }, 0);
+      
+      order.total = Math.max(0, itemsTotal - order.discount);
+      console.log(`✅ FORCE TEST: Updated discount to ${order.discount}, new total: ${order.total}`);
+    }
+    
+    order.updatedAt = new Date().toISOString();
+    
+    // Force save to file
+    saveOrdersData();
+    console.log(`✅ FORCE TEST: File save completed`);
+    
+    console.log(`✅ FORCE TEST: Order ${orderId} updated successfully`);
+    
+    res.json({ 
+      success: true, 
+      message: 'Force test order updated successfully',
+      orderId: orderId,
+      newStatus: order.status,
+      newDiscount: order.discount,
+      newTotal: order.total
+    });
+    
+  } catch (error) {
+    console.error('❌ Force test error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
 // SIMPLE TEST ROUTE - No authentication required
