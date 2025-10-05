@@ -1038,8 +1038,8 @@
             
             console.log('🔧 Updating order:', { orderId, status, discount });
             
-            // Send update request
-            fetch(`/admin/orders/${orderId}/edit`, {
+            // Send update request to the new simple edit route
+            fetch(`/admin/orders/${orderId}/simple-edit`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
