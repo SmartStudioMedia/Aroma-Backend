@@ -45,6 +45,25 @@
             margin-top: 20px;
         }
         
+        .simple-kitchen-link {
+            background: #4CAF50 !important;
+            color: white !important;
+            text-decoration: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .simple-kitchen-link:hover {
+            background: #45a049 !important;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+        }
+        
         .nav-tab {
             padding: 12px 24px;
             background: #ff6b6b;
@@ -277,6 +296,7 @@
             <div class="nav-tabs">
                 <a href="/kitchen" class="nav-tab active">Dashboard</a>
                 <a href="/kitchen/orders" class="nav-tab">All Orders</a>
+                <a href="/kitchen/simple" class="simple-kitchen-link">🍳 Simple Kitchen</a>
             </div>
         </div>
 
@@ -339,7 +359,7 @@
                             <div class="item-list">
                                 <% order.items.forEach(item => { %>
                                 <div class="item">
-                                    <div class="item-name"><%= item.name.en || item.name %></div>
+                                    <div class="item-name"><%= translate(item.name) %></div>
                                     <div class="item-qty">Qty: <%= item.qty %></div>
                                 </div>
                                 <% }); %>
@@ -398,7 +418,7 @@
                             <div class="item-list">
                                 <% order.items.forEach(item => { %>
                                 <div class="item">
-                                    <div class="item-name"><%= item.name.en || item.name %></div>
+                                    <div class="item-name"><%= translate(item.name) %></div>
                                     <div class="item-qty">Qty: <%= item.qty %></div>
                                 </div>
                                 <% }); %>
