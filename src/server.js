@@ -2424,7 +2424,7 @@ app.post('/admin/orders/:id/status', authMiddleware, (req, res) => {
 });
 
 // Edit order - NEW SIMPLE VERSION
-app.post('/admin/orders/:id/edit', authMiddleware, (req, res) => {
+app.post('/admin/orders/:id/edit', authMiddleware, async (req, res) => {
   try {
     console.log('🚨 ADMIN EDIT ROUTE CALLED - Order ID:', req.params.id, 'Data:', req.body);
     
