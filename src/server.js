@@ -2310,6 +2310,73 @@ app.get('/admin/sales/completed', authMiddleware, async (req, res) => {
   }
 });
 
+// NEW SIMPLE EDIT ROUTE - WORKING VERSION
+app.post('/admin/orders/:id/simple-edit', authMiddleware, (req, res) => {
+  try {
+    console.log('🚨 SIMPLE EDIT ROUTE CALLED - Order ID:', req.params.id, 'Data:', req.body);
+    
+    const orderId = parseInt(req.params.id);
+    const { status, discount } = req.body;
+    
+    console.log(`🔄 SIMPLE EDIT: Updating order ${orderId} with status: ${status}, discount: ${discount}`);
+    
+    // Find the order in local array
+    const order = orders.find(o => o.id === orderId);
+    
+    if (!order) {
+      console.log(`❌ Order ${orderId} not found`);
+      return res.status(404).json({ 
+        success: false, 
+        error: `Order ${orderId} not found`,
+        availableIds: orders.map(o => o.id).slice(0, 5)
+      });
+    }
+    
+    console.log(`✅ Found order ${orderId}, current status: ${order.status}, current discount: ${order.discount}`);
+    
+    // Update status if provided
+    if (status) {
+      order.status = status;
+      console.log(`✅ Updated status to: ${status}`);
+    }
+    
+    // Update discount if provided
+    if (discount !== undefined) {
+      order.discount = parseFloat(discount) || 0;
+      
+      // Recalculate total
+      const itemsTotal = order.items.reduce((sum, item) => {
+        const itemTotal = (item.price || 0) * (item.qty || item.quantity || 1);
+        return sum + itemTotal;
+      }, 0);
+      
+      order.total = Math.max(0, itemsTotal - order.discount);
+      console.log(`✅ Updated discount to: ${order.discount}, new total: ${order.total}`);
+    }
+    
+    order.updatedAt = new Date().toISOString();
+    
+    // Save to file
+    saveOrdersData();
+    console.log(`✅ Saved to file`);
+    
+    console.log(`✅ Order ${orderId} updated successfully`);
+    
+    res.json({ 
+      success: true, 
+      message: 'Order updated successfully',
+      orderId: orderId,
+      newStatus: order.status,
+      newDiscount: order.discount,
+      newTotal: order.total
+    });
+    
+  } catch (error) {
+    console.error('❌ Simple edit error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // API endpoints for admin
 app.get('/admin/api/orders', authMiddleware, (req, res) => {
   res.json(orders);
@@ -2356,8 +2423,8 @@ app.post('/admin/orders/:id/status', authMiddleware, (req, res) => {
   }
 });
 
-// Edit order (with discount support) - FIXED VERSION with MongoDB support
-app.post('/admin/orders/:id/edit', authMiddleware, async (req, res) => {
+// Edit order - NEW SIMPLE VERSION
+app.post('/admin/orders/:id/edit', authMiddleware, (req, res) => {
   try {
     console.log('🚨 ADMIN EDIT ROUTE CALLED - Order ID:', req.params.id, 'Data:', req.body);
     
@@ -3036,6 +3103,61 @@ app.post('/admin/orders/:id/simple-edit', authMiddleware, (req, res) => {
     message: 'Simple edit test successful',
     receivedData: { orderId, status, customerName }
   });
+});
+
+// DEBUG ROUTE - Test order editing without authentication
+app.post('/test/order-edit/:id', (req, res) => {
+  try {
+    const orderId = parseInt(req.params.id);
+    const { status, discount } = req.body;
+    
+    console.log(`🧪 TEST EDIT: Order ${orderId} -> Status: ${status}, Discount: ${discount}`);
+    
+    // Find the order
+    const order = orders.find(o => o.id === orderId);
+    
+    if (!order) {
+      console.log(`❌ TEST: Order ${orderId} not found`);
+      return res.status(404).json({ 
+        success: false, 
+        error: `Order ${orderId} not found`,
+        availableIds: orders.map(o => o.id).slice(0, 5)
+      });
+    }
+    
+    console.log(`✅ TEST: Found order ${orderId}, current status: ${order.status}, current discount: ${order.discount}`);
+    
+    // Update the order
+    if (status) order.status = status;
+    if (discount !== undefined) {
+      order.discount = parseFloat(discount) || 0;
+      // Recalculate total
+      const itemsTotal = order.items.reduce((sum, item) => {
+        const itemTotal = (item.price || 0) * (item.qty || item.quantity || 1);
+        return sum + itemTotal;
+      }, 0);
+      order.total = Math.max(0, itemsTotal - order.discount);
+    }
+    order.updatedAt = new Date().toISOString();
+    
+    // Save to file
+    saveOrdersData();
+    
+    console.log(`✅ TEST: Order ${orderId} updated - Status: ${order.status}, Discount: ${order.discount}, Total: ${order.total}`);
+    
+    res.json({ 
+      success: true, 
+      message: `Order ${orderId} updated successfully`,
+      orderId: orderId,
+      newStatus: order.status,
+      newDiscount: order.discount,
+      newTotal: order.total
+    });
+    
+  } catch (error) {
+    console.error('Test edit error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
 // NO AUTH TEST - Test without authentication
