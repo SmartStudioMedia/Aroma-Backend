@@ -289,7 +289,7 @@
                         <div class="item-list">
                             <% order.items.forEach(item => { %>
                             <div class="item">
-                                <div class="item-name"><%= item.name.en || item.name %></div>
+                                <div class="item-name"><%= translate(item.name) %></div>
                                 <div class="item-qty">Qty: <%= item.qty %></div>
                             </div>
                             <% }); %>
@@ -314,7 +314,7 @@
 
     <script>
         function updateOrderStatus(orderId, status) {
-            fetch(`/kitchen/orders/${orderId}/status`, {
+            fetch(`/kitchen/orders/${orderId}/force-status`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
