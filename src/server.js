@@ -1891,12 +1891,8 @@ app.get('/admin', authMiddleware, async (req, res) => {
       console.log('📊 Alternative calculation completed:', categoryStats);
     }
     
-    // Get recent orders (last 10)
-    const recentOrders = mongoOrders.slice(0, 10);
-    
     res.render('admin_dashboard', {
       stats: { pending, confirmed, completed, cancelled, totalSales, completedSales },
-      recentOrders: recentOrders,
       categoryStats,
       orders: mongoOrders,
       menuData: { categories: mongoCategories, items: mongoItems }
