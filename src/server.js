@@ -2611,38 +2611,33 @@ app.get('/kitchen', kitchenAuthMiddleware, async (req, res) => {
 
 app.get('/kitchen/orders', kitchenAuthMiddleware, async (req, res) => {
   try {
-    let mongoOrders;
+    let allOrders;
     
     if (mongoose.connection.readyState === 1) {
-      // Get orders from MongoDB (excluding cancelled and completed)
-      mongoOrders = await Order.find({ 
-        status: { $nin: ['cancelled', 'completed'] } 
-      }).sort({ createdAt: -1 });
-      
-      console.log(`🍳 KITCHEN: Loaded ${mongoOrders.length} active orders from MongoDB`);
-      console.log(`🍳 KITCHEN: Order statuses:`, mongoOrders.map(o => `ID:${o.id}=${o.status}`).join(', '));
-      
-      // Update local array to keep it in sync with MongoDB
-      orders = await Order.find().sort({ createdAt: -1 });
-      console.log(`🍳 KITCHEN: Updated local orders array with ${orders.length} total orders`);
+      // Get all orders from MongoDB
+      allOrders = await Order.find().sort({ createdAt: -1 });
+      console.log(`🍳 SIMPLE KITCHEN: Loaded ${allOrders.length} orders from MongoDB`);
     } else {
       // Use file-based data as fallback
-      mongoOrders = orders.filter(o => o.status !== 'completed' && o.status !== 'cancelled');
-      console.log(`🍳 KITCHEN: Using file storage - ${mongoOrders.length} active orders`);
+      allOrders = orders;
+      console.log(`🍳 SIMPLE KITCHEN: Using file storage - ${allOrders.length} orders`);
     }
     
-    res.render('kitchen_orders', { 
-      orders: mongoOrders,
-      title: 'Kitchen Orders'
+    res.json({ 
+      success: true, 
+      orders: allOrders 
     });
   } catch (error) {
-    console.error('Kitchen orders error:', error);
-    res.status(500).json({ error: 'Internal server error', details: error.message });
+    console.error('Simple kitchen orders error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to load orders' 
+    });
   }
 });
 
 // NEW KITCHEN STATUS SYSTEM - SIMPLE AND WORKING
-app.post('/kitchen/orders/:id/status', kitchenAuthMiddleware, (req, res) => {
+app.post('/kitchen/orders/:id/status', kitchenAuthMiddleware, async (req, res) => {
   try {
     const orderId = parseInt(req.params.id);
     const { status } = req.body;
@@ -2667,6 +2662,20 @@ app.post('/kitchen/orders/:id/status', kitchenAuthMiddleware, (req, res) => {
     // Save to file
     saveOrdersData();
     
+    // Try to update MongoDB if connected
+    if (mongoose.connection.readyState === 1) {
+      try {
+        await Order.findOneAndUpdate(
+          { id: orderId },
+          { status: status, updatedAt: new Date() },
+          { new: true, upsert: false }
+        );
+        console.log(`✅ MongoDB also updated for kitchen order ${orderId}`);
+      } catch (mongoError) {
+        console.error(`⚠️ MongoDB update failed for kitchen order ${orderId}:`, mongoError.message);
+      }
+    }
+    
     console.log(`✅ Kitchen order ${orderId} updated to ${status}`);
     
     res.json({ 
@@ -2680,6 +2689,11 @@ app.post('/kitchen/orders/:id/status', kitchenAuthMiddleware, (req, res) => {
     console.error('Kitchen status update error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
+});
+
+// NEW SIMPLE KITCHEN SYSTEM
+app.get('/kitchen/simple', kitchenAuthMiddleware, (req, res) => {
+  res.render('kitchen_simple');
 });
 
 // Health check
