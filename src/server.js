@@ -4046,6 +4046,46 @@ app.post('/api/reservations/simple', async (req, res) => {
     saveReservationsData();
     console.log('✅ Simple reservation saved to files');
     
+    // Save client if marketing consent is given
+    if (marketingConsent) {
+      try {
+        const existingClient = clients.find(c => c.email === customerEmail);
+        if (!existingClient) {
+          const newClient = {
+            id: clients.length > 0 ? Math.max(...clients.map(c => c.id)) + 1 : 1,
+            name: customerName,
+            email: customerEmail,
+            phone: customerPhone,
+            marketingConsent: true,
+            totalOrders: 0,
+            totalSpent: 0,
+            createdAt: new Date().toISOString()
+          };
+          clients.push(newClient);
+          
+          if (mongoose.connection.readyState === 1) {
+            await Client.create(newClient);
+          }
+          
+          saveClientsData();
+          console.log('✅ New client added to marketing list:', newClient);
+        } else {
+          console.log('✅ Client already exists in marketing list');
+        }
+      } catch (clientError) {
+        console.error('❌ Client save error:', clientError);
+      }
+    }
+    
+    // Send email confirmation
+    try {
+      const emailResult = await sendReservationConfirmation(newReservation);
+      console.log('📧 Email confirmation result:', emailResult);
+    } catch (emailError) {
+      console.error('❌ Email confirmation failed:', emailError);
+      // Don't fail the reservation if email fails
+    }
+    
     res.json({ 
       success: true, 
       reservation: newReservation,
