@@ -726,6 +726,11 @@ loadOrdersData().then(() => {
   console.log('🔄 Initialized with empty orders array');
 });
 
+// Load reservations data on startup
+console.log('📅 Loading reservations data on startup...');
+loadReservationsData();
+console.log('✅ Reservations data loaded on startup:', reservations.length, 'reservations');
+
 // Note: loadMenuData() and loadOrdersData() are called after MongoDB connection in app.listen()
 
 const app = express();
@@ -4683,6 +4688,25 @@ function saveClientsData() {
     console.log(`✅ Clients data saved successfully (${clients.length} clients, ${clientsData.length} bytes)`);
   } catch (error) {
     console.error('❌ Error saving clients data:', error);
+  }
+}
+
+function loadReservationsData() {
+  try {
+    // Try to load from primary location first
+    if (fs.existsSync(RESERVATIONS_DATA_FILE)) {
+      const data = fs.readFileSync(RESERVATIONS_DATA_FILE, 'utf8');
+      const reservationsData = JSON.parse(data);
+      reservations = reservationsData.reservations || [];
+      reservationIdCounter = reservationsData.reservationIdCounter || 1;
+      console.log(`✅ Loaded ${reservations.length} reservations from files`);
+    } else {
+      console.log('📁 No reservations data file found, starting fresh');
+    }
+  } catch (error) {
+    console.error('❌ Error loading reservations data:', error);
+    reservations = [];
+    reservationIdCounter = 1;
   }
 }
 
