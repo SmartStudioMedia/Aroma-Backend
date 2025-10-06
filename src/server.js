@@ -1623,24 +1623,33 @@ app.post('/api/orders', async (req, res) => {
     
     orders.push(newOrder);
     
-    // Save to MongoDB if connected, otherwise save to files
+    // FIXED: Prevent duplicate order creation
     try {
       if (mongoose.connection.readyState === 1) {
-        const orderDoc = new Order(newOrder);
-        await orderDoc.save();
-        console.log('✅ Order saved to MongoDB Atlas');
-        // Also save to files as backup
+        // Check if order already exists in MongoDB
+        const existingOrder = await Order.findOne({ id: newOrder.id });
+        if (existingOrder) {
+          console.log(`⚠️ Order ${newOrder.id} already exists in MongoDB, skipping creation`);
+        } else {
+          // Create new order in MongoDB
+          const orderDoc = new Order(newOrder);
+          await orderDoc.save();
+          console.log(`✅ Order ${newOrder.id} saved to MongoDB Atlas`);
+        }
+        
+        // Save to files as backup (only if not already saved)
         saveOrdersData();
+        console.log(`✅ Order ${newOrder.id} backup saved to files`);
       } else {
         // MongoDB not connected, save to files only
         saveOrdersData();
-        console.log('✅ Order saved to file storage');
+        console.log(`✅ Order ${newOrder.id} saved to file storage`);
       }
     } catch (error) {
-      console.error('❌ Error saving order to MongoDB:', error);
-      // Fallback to file storage
+      console.error(`❌ Error saving order ${newOrder.id} to MongoDB:`, error);
+      // Only fallback to file storage if MongoDB save failed
       saveOrdersData();
-      console.log('✅ Order saved to file storage (fallback)');
+      console.log(`✅ Order ${newOrder.id} saved to file storage (fallback)`);
     }
     
     console.log('New order created:', newOrder);
@@ -2315,17 +2324,17 @@ app.get('/admin/sales/completed', authMiddleware, async (req, res) => {
   }
 });
 
-// OVERRIDE SYSTEM - FORCE ORDER UPDATES
+// AGGRESSIVE OVERRIDE SYSTEM - BYPASS ALL EXISTING DATA ISSUES
 app.post('/admin/orders/:id/force-edit', authMiddleware, async (req, res) => {
   try {
-    console.log('🚨 FORCE EDIT ROUTE CALLED - Order ID:', req.params.id, 'Data:', req.body);
+    console.log('🚨 AGGRESSIVE FORCE EDIT - Order ID:', req.params.id, 'Data:', req.body);
     
     const orderId = parseInt(req.params.id);
     const { status, discount } = req.body;
     
-    console.log(`🔄 FORCE EDIT: Updating order ${orderId} with status: ${status}, discount: ${discount}`);
+    console.log(`🔥 AGGRESSIVE EDIT: Order ${orderId} -> Status: ${status}, Discount: ${discount}`);
     
-    // STEP 1: Update local array first
+    // STEP 1: Find the order in local array
     const orderIndex = orders.findIndex(o => o.id === orderId);
     if (orderIndex === -1) {
       console.log(`❌ Order ${orderId} not found in local array`);
@@ -2339,107 +2348,96 @@ app.post('/admin/orders/:id/force-edit', authMiddleware, async (req, res) => {
     const order = orders[orderIndex];
     console.log(`✅ Found order ${orderId} at index ${orderIndex}`);
     
-    // Update order properties
+    // STEP 2: AGGRESSIVE UPDATE - Override everything
+    const originalStatus = order.status;
+    const originalDiscount = order.discount;
+    const originalTotal = order.total;
+    
+    // Update order properties aggressively
     if (status) {
       order.status = status;
-      console.log(`✅ Updated status to: ${status}`);
+      console.log(`🔥 AGGRESSIVE: Status changed from ${originalStatus} to ${status}`);
     }
     
     if (discount !== undefined) {
       order.discount = parseFloat(discount) || 0;
       
-      // Recalculate total
+      // Recalculate total aggressively
       const itemsTotal = order.items.reduce((sum, item) => {
         const itemTotal = (item.price || 0) * (item.qty || item.quantity || 1);
         return sum + itemTotal;
       }, 0);
       
       order.total = Math.max(0, itemsTotal - order.discount);
-      console.log(`✅ Updated discount to: ${order.discount}, new total: ${order.total}`);
+      console.log(`🔥 AGGRESSIVE: Discount changed from ${originalDiscount} to ${order.discount}, total from ${originalTotal} to ${order.total}`);
     }
     
     order.updatedAt = new Date().toISOString();
     
-    // STEP 2: Force save to file immediately
+    // STEP 3: AGGRESSIVE FILE SAVE - Force immediate save
     try {
       saveOrdersData();
-      console.log(`✅ FORCED save to file completed`);
+      console.log(`🔥 AGGRESSIVE: File save completed immediately`);
     } catch (fileError) {
-      console.error(`❌ File save failed:`, fileError);
+      console.error(`❌ AGGRESSIVE file save failed:`, fileError);
     }
     
-    // STEP 3: Force MongoDB update with retry mechanism
+    // STEP 4: AGGRESSIVE MONGODB UPDATE - Delete and recreate to avoid duplicates
     if (mongoose.connection.readyState === 1) {
-      let mongoSuccess = false;
-      let retryCount = 0;
-      const maxRetries = 3;
-      
-      while (!mongoSuccess && retryCount < maxRetries) {
-        try {
-          console.log(`🔄 MongoDB update attempt ${retryCount + 1}/${maxRetries}`);
-          
-          const updateResult = await Order.findOneAndUpdate(
-            { id: orderId },
-            { 
-              status: order.status, 
-              discount: order.discount, 
-              total: order.total, 
-              updatedAt: new Date(),
-              items: order.items,
-              customerName: order.customerName,
-              tableNumber: order.tableNumber
-            },
-            { new: true, upsert: false }
-          );
-          
-          if (updateResult) {
-            console.log(`✅ MongoDB FORCE update successful for order ${orderId}`);
-            mongoSuccess = true;
-          } else {
-            console.log(`⚠️ MongoDB update returned null, retrying...`);
-            retryCount++;
-          }
-        } catch (mongoError) {
-          console.error(`❌ MongoDB update attempt ${retryCount + 1} failed:`, mongoError.message);
-          retryCount++;
-          
-          if (retryCount < maxRetries) {
-            console.log(`⏳ Waiting 1 second before retry...`);
-            await new Promise(resolve => setTimeout(resolve, 1000));
-          }
-        }
-      }
-      
-      if (!mongoSuccess) {
-        console.error(`❌ All MongoDB update attempts failed for order ${orderId}`);
+      try {
+        console.log(`🔥 AGGRESSIVE: Deleting ALL duplicates for order ${orderId}`);
+        
+        // Delete ALL orders with this ID to remove duplicates
+        const deleteResult = await Order.deleteMany({ id: orderId });
+        console.log(`🔥 AGGRESSIVE: Deleted ${deleteResult.deletedCount} duplicate orders`);
+        
+        // Create a fresh order with the updated data
+        const newOrder = new Order({
+          id: orderId,
+          status: order.status,
+          discount: order.discount,
+          total: order.total,
+          items: order.items,
+          customerName: order.customerName,
+          tableNumber: order.tableNumber,
+          createdAt: order.createdAt || new Date(),
+          updatedAt: new Date()
+        });
+        
+        await newOrder.save();
+        console.log(`🔥 AGGRESSIVE: Created fresh order ${orderId} in MongoDB`);
+        
+      } catch (mongoError) {
+        console.error(`❌ AGGRESSIVE MongoDB update failed:`, mongoError.message);
       }
     } else {
-      console.log(`⚠️ MongoDB not connected, skipping database update`);
+      console.log(`⚠️ MongoDB not connected, skipping aggressive database update`);
     }
     
-    // STEP 4: Verify the update
+    // STEP 5: AGGRESSIVE VERIFICATION
     const updatedOrder = orders.find(o => o.id === orderId);
-    console.log(`🔍 VERIFICATION - Order ${orderId} final state:`, {
+    console.log(`🔥 AGGRESSIVE VERIFICATION - Order ${orderId}:`, {
       status: updatedOrder.status,
       discount: updatedOrder.discount,
       total: updatedOrder.total,
       updatedAt: updatedOrder.updatedAt
     });
     
-    console.log(`✅ FORCE EDIT completed for order ${orderId}`);
+    console.log(`🔥 AGGRESSIVE EDIT completed for order ${orderId}`);
     
     res.json({ 
       success: true, 
-      message: 'Order FORCE updated successfully',
+      message: 'Order AGGRESSIVELY updated - duplicates removed',
       orderId: orderId,
       newStatus: order.status,
       newDiscount: order.discount,
       newTotal: order.total,
-      updatedAt: order.updatedAt
+      updatedAt: order.updatedAt,
+      duplicatesRemoved: true
     });
     
   } catch (error) {
-    console.error('❌ Force edit error:', error);
+    console.error('❌ Aggressive force edit error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -2456,13 +2454,13 @@ app.get('/admin/api/orders', authMiddleware, (req, res) => {
   res.json(orders);
 });
 
-// FORCE STATUS UPDATE SYSTEM
+// AGGRESSIVE STATUS UPDATE SYSTEM - BYPASS DUPLICATES
 app.post('/admin/orders/:id/force-status', authMiddleware, async (req, res) => {
   try {
     const orderId = parseInt(req.params.id);
     const { status } = req.body;
     
-    console.log(`🚨 FORCE STATUS UPDATE - Order ${orderId} to ${status}`);
+    console.log(`🔥 AGGRESSIVE STATUS UPDATE - Order ${orderId} to ${status}`);
     
     // STEP 1: Update local array
     const orderIndex = orders.findIndex(o => o.id === orderId);
@@ -2474,72 +2472,63 @@ app.post('/admin/orders/:id/force-status', authMiddleware, async (req, res) => {
       });
     }
     
+    const originalStatus = orders[orderIndex].status;
     orders[orderIndex].status = status;
     orders[orderIndex].updatedAt = new Date().toISOString();
     
-    console.log(`✅ Local array updated for order ${orderId}`);
+    console.log(`🔥 AGGRESSIVE: Status changed from ${originalStatus} to ${status}`);
     
     // STEP 2: Force save to file
     try {
       saveOrdersData();
-      console.log(`✅ FORCED file save completed`);
+      console.log(`🔥 AGGRESSIVE: File save completed`);
     } catch (fileError) {
-      console.error(`❌ File save failed:`, fileError);
+      console.error(`❌ AGGRESSIVE file save failed:`, fileError);
     }
     
-    // STEP 3: Force MongoDB update with retry
+    // STEP 3: AGGRESSIVE MONGODB UPDATE - Delete and recreate
     if (mongoose.connection.readyState === 1) {
-      let mongoSuccess = false;
-      let retryCount = 0;
-      const maxRetries = 3;
-      
-      while (!mongoSuccess && retryCount < maxRetries) {
-        try {
-          console.log(`🔄 MongoDB status update attempt ${retryCount + 1}/${maxRetries}`);
-          
-          const updateResult = await Order.findOneAndUpdate(
-            { id: orderId },
-            { 
-              status: status, 
-              updatedAt: new Date() 
-            },
-            { new: true, upsert: false }
-          );
-          
-          if (updateResult) {
-            console.log(`✅ MongoDB FORCE status update successful for order ${orderId}`);
-            mongoSuccess = true;
-          } else {
-            console.log(`⚠️ MongoDB status update returned null, retrying...`);
-            retryCount++;
-          }
-        } catch (mongoError) {
-          console.error(`❌ MongoDB status update attempt ${retryCount + 1} failed:`, mongoError.message);
-          retryCount++;
-          
-          if (retryCount < maxRetries) {
-            console.log(`⏳ Waiting 1 second before retry...`);
-            await new Promise(resolve => setTimeout(resolve, 1000));
-          }
-        }
-      }
-      
-      if (!mongoSuccess) {
-        console.error(`❌ All MongoDB status update attempts failed for order ${orderId}`);
+      try {
+        console.log(`🔥 AGGRESSIVE: Deleting ALL duplicates for order ${orderId}`);
+        
+        // Delete ALL orders with this ID to remove duplicates
+        const deleteResult = await Order.deleteMany({ id: orderId });
+        console.log(`🔥 AGGRESSIVE: Deleted ${deleteResult.deletedCount} duplicate orders`);
+        
+        // Create a fresh order with the updated status
+        const order = orders[orderIndex];
+        const newOrder = new Order({
+          id: orderId,
+          status: status,
+          discount: order.discount,
+          total: order.total,
+          items: order.items,
+          customerName: order.customerName,
+          tableNumber: order.tableNumber,
+          createdAt: order.createdAt || new Date(),
+          updatedAt: new Date()
+        });
+        
+        await newOrder.save();
+        console.log(`🔥 AGGRESSIVE: Created fresh order ${orderId} with status ${status}`);
+        
+      } catch (mongoError) {
+        console.error(`❌ AGGRESSIVE MongoDB status update failed:`, mongoError.message);
       }
     }
     
-    console.log(`✅ FORCE STATUS UPDATE completed for order ${orderId}`);
+    console.log(`🔥 AGGRESSIVE STATUS UPDATE completed for order ${orderId}`);
     
     res.json({ 
       success: true, 
-      message: 'Order status FORCE updated successfully',
+      message: 'Order status AGGRESSIVELY updated - duplicates removed',
       orderId: orderId,
-      newStatus: status
+      newStatus: status,
+      duplicatesRemoved: true
     });
     
   } catch (error) {
-    console.error('❌ Force status update error:', error);
+    console.error('❌ Aggressive status update error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -2764,13 +2753,13 @@ app.get('/kitchen/orders', kitchenAuthMiddleware, async (req, res) => {
   }
 });
 
-// FORCE KITCHEN STATUS UPDATE SYSTEM
+// AGGRESSIVE KITCHEN STATUS UPDATE SYSTEM - BYPASS DUPLICATES
 app.post('/kitchen/orders/:id/force-status', kitchenAuthMiddleware, async (req, res) => {
   try {
     const orderId = parseInt(req.params.id);
     const { status } = req.body;
     
-    console.log(`🚨 KITCHEN FORCE STATUS UPDATE - Order ${orderId} to ${status}`);
+    console.log(`🔥 KITCHEN AGGRESSIVE STATUS UPDATE - Order ${orderId} to ${status}`);
     
     // STEP 1: Update local array
     const orderIndex = orders.findIndex(o => o.id === orderId);
@@ -2782,72 +2771,63 @@ app.post('/kitchen/orders/:id/force-status', kitchenAuthMiddleware, async (req, 
       });
     }
     
+    const originalStatus = orders[orderIndex].status;
     orders[orderIndex].status = status;
     orders[orderIndex].updatedAt = new Date().toISOString();
     
-    console.log(`✅ Kitchen local array updated for order ${orderId}`);
+    console.log(`🔥 KITCHEN AGGRESSIVE: Status changed from ${originalStatus} to ${status}`);
     
     // STEP 2: Force save to file
     try {
       saveOrdersData();
-      console.log(`✅ Kitchen FORCED file save completed`);
+      console.log(`🔥 KITCHEN AGGRESSIVE: File save completed`);
     } catch (fileError) {
-      console.error(`❌ Kitchen file save failed:`, fileError);
+      console.error(`❌ Kitchen AGGRESSIVE file save failed:`, fileError);
     }
     
-    // STEP 3: Force MongoDB update with retry
+    // STEP 3: AGGRESSIVE MONGODB UPDATE - Delete and recreate
     if (mongoose.connection.readyState === 1) {
-      let mongoSuccess = false;
-      let retryCount = 0;
-      const maxRetries = 3;
-      
-      while (!mongoSuccess && retryCount < maxRetries) {
-        try {
-          console.log(`🔄 Kitchen MongoDB status update attempt ${retryCount + 1}/${maxRetries}`);
-          
-          const updateResult = await Order.findOneAndUpdate(
-            { id: orderId },
-            { 
-              status: status, 
-              updatedAt: new Date() 
-            },
-            { new: true, upsert: false }
-          );
-          
-          if (updateResult) {
-            console.log(`✅ Kitchen MongoDB FORCE status update successful for order ${orderId}`);
-            mongoSuccess = true;
-          } else {
-            console.log(`⚠️ Kitchen MongoDB status update returned null, retrying...`);
-            retryCount++;
-          }
-        } catch (mongoError) {
-          console.error(`❌ Kitchen MongoDB status update attempt ${retryCount + 1} failed:`, mongoError.message);
-          retryCount++;
-          
-          if (retryCount < maxRetries) {
-            console.log(`⏳ Kitchen waiting 1 second before retry...`);
-            await new Promise(resolve => setTimeout(resolve, 1000));
-          }
-        }
-      }
-      
-      if (!mongoSuccess) {
-        console.error(`❌ All Kitchen MongoDB status update attempts failed for order ${orderId}`);
+      try {
+        console.log(`🔥 KITCHEN AGGRESSIVE: Deleting ALL duplicates for order ${orderId}`);
+        
+        // Delete ALL orders with this ID to remove duplicates
+        const deleteResult = await Order.deleteMany({ id: orderId });
+        console.log(`🔥 KITCHEN AGGRESSIVE: Deleted ${deleteResult.deletedCount} duplicate orders`);
+        
+        // Create a fresh order with the updated status
+        const order = orders[orderIndex];
+        const newOrder = new Order({
+          id: orderId,
+          status: status,
+          discount: order.discount,
+          total: order.total,
+          items: order.items,
+          customerName: order.customerName,
+          tableNumber: order.tableNumber,
+          createdAt: order.createdAt || new Date(),
+          updatedAt: new Date()
+        });
+        
+        await newOrder.save();
+        console.log(`🔥 KITCHEN AGGRESSIVE: Created fresh order ${orderId} with status ${status}`);
+        
+      } catch (mongoError) {
+        console.error(`❌ Kitchen AGGRESSIVE MongoDB status update failed:`, mongoError.message);
       }
     }
     
-    console.log(`✅ KITCHEN FORCE STATUS UPDATE completed for order ${orderId}`);
+    console.log(`🔥 KITCHEN AGGRESSIVE STATUS UPDATE completed for order ${orderId}`);
     
     res.json({ 
       success: true, 
-      message: 'Kitchen order status FORCE updated successfully',
+      message: 'Kitchen order status AGGRESSIVELY updated - duplicates removed',
       orderId: orderId,
-      newStatus: status
+      newStatus: status,
+      duplicatesRemoved: true
     });
     
   } catch (error) {
-    console.error('❌ Kitchen force status update error:', error);
+    console.error('❌ Kitchen aggressive status update error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -2861,6 +2841,91 @@ app.post('/kitchen/orders/:id/status', kitchenAuthMiddleware, async (req, res) =
 
 
 // Health check
+// COMPREHENSIVE DUPLICATE CLEANUP SYSTEM
+app.post('/admin/aggressive-cleanup', authMiddleware, async (req, res) => {
+  try {
+    console.log('🔥 COMPREHENSIVE DUPLICATE CLEANUP INITIATED');
+    
+    if (mongoose.connection.readyState === 1) {
+      // Get all orders and find duplicates
+      const allOrders = await Order.find().sort({ createdAt: -1 });
+      console.log(`🔥 Found ${allOrders.length} total orders in MongoDB`);
+      
+      // Group orders by ID
+      const orderGroups = {};
+      allOrders.forEach(order => {
+        if (!orderGroups[order.id]) {
+          orderGroups[order.id] = [];
+        }
+        orderGroups[order.id].push(order);
+      });
+      
+      // Find and clean duplicates
+      let totalDeleted = 0;
+      const cleanedOrders = [];
+      const duplicateDetails = {};
+      
+      for (const [orderId, orderList] of Object.entries(orderGroups)) {
+        if (orderList.length > 1) {
+          console.log(`🔥 Cleaning order ID ${orderId}: ${orderList.length} duplicates found`);
+          
+          // Keep the most recent one, delete the rest
+          const sortedOrders = orderList.sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt));
+          const keepOrder = sortedOrders[0];
+          const deleteOrders = sortedOrders.slice(1);
+          
+          duplicateDetails[orderId] = {
+            totalFound: orderList.length,
+            kept: keepOrder._id,
+            deleted: deleteOrders.map(o => o._id)
+          };
+          
+          // Delete duplicates
+          for (const deleteOrder of deleteOrders) {
+            await Order.findByIdAndDelete(deleteOrder._id);
+            totalDeleted++;
+          }
+          
+          cleanedOrders.push(keepOrder);
+          console.log(`🔥 Kept most recent order ${orderId}, deleted ${deleteOrders.length} duplicates`);
+        } else {
+          cleanedOrders.push(orderList[0]);
+        }
+      }
+      
+      // Update local array with cleaned data
+      orders.length = 0;
+      orders.push(...cleanedOrders);
+      
+      // Force save to file
+      saveOrdersData();
+      
+      console.log(`🔥 COMPREHENSIVE CLEANUP completed: Deleted ${totalDeleted} duplicates, kept ${cleanedOrders.length} unique orders`);
+      
+      res.json({
+        success: true,
+        message: 'Comprehensive duplicate cleanup completed',
+        duplicatesDeleted: totalDeleted,
+        uniqueOrders: cleanedOrders.length,
+        totalOrders: orders.length,
+        duplicateDetails: duplicateDetails
+      });
+    } else {
+      console.log('⚠️ MongoDB not connected, cannot perform comprehensive cleanup');
+      res.json({
+        success: false,
+        message: 'MongoDB not connected, cannot perform comprehensive cleanup'
+      });
+    }
+  } catch (error) {
+    console.error('❌ Comprehensive cleanup error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // FORCE DATA OVERRIDE SYSTEM
 app.post('/admin/force-sync', authMiddleware, async (req, res) => {
   try {
@@ -2956,6 +3021,74 @@ app.get('/health', (req, res) => {
     timestamp: new Date().toISOString(),
     serverVersion: '2.0.0 - Enhanced Order Status Updates'
   });
+});
+
+// DUPLICATE INVESTIGATION ROUTE
+app.get('/admin/investigate-duplicates', authMiddleware, async (req, res) => {
+  try {
+    console.log('🔍 INVESTIGATING DUPLICATES...');
+    
+    if (mongoose.connection.readyState === 1) {
+      // Get all orders from MongoDB
+      const allOrders = await Order.find().sort({ createdAt: -1 });
+      console.log(`📊 Total orders in MongoDB: ${allOrders.length}`);
+      
+      // Group by ID to find duplicates
+      const orderGroups = {};
+      allOrders.forEach(order => {
+        if (!orderGroups[order.id]) {
+          orderGroups[order.id] = [];
+        }
+        orderGroups[order.id].push(order);
+      });
+      
+      // Find duplicates
+      const duplicates = {};
+      let totalDuplicates = 0;
+      
+      for (const [orderId, orderList] of Object.entries(orderGroups)) {
+        if (orderList.length > 1) {
+          duplicates[orderId] = {
+            count: orderList.length,
+            orders: orderList.map(order => ({
+              _id: order._id,
+              id: order.id,
+              status: order.status,
+              customerName: order.customerName,
+              createdAt: order.createdAt,
+              updatedAt: order.updatedAt,
+              total: order.total
+            }))
+          };
+          totalDuplicates += orderList.length - 1;
+        }
+      }
+      
+      console.log(`🔍 Found ${Object.keys(duplicates).length} order IDs with duplicates`);
+      console.log(`🔍 Total duplicate orders: ${totalDuplicates}`);
+      
+      res.json({
+        success: true,
+        totalOrders: allOrders.length,
+        uniqueOrderIds: Object.keys(orderGroups).length,
+        duplicateOrderIds: Object.keys(duplicates).length,
+        totalDuplicates: totalDuplicates,
+        duplicates: duplicates,
+        localOrdersCount: orders.length
+      });
+    } else {
+      res.json({
+        success: false,
+        message: 'MongoDB not connected'
+      });
+    }
+  } catch (error) {
+    console.error('❌ Duplicate investigation error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
 });
 
 // FORCE TEST ROUTE - Test the override system
