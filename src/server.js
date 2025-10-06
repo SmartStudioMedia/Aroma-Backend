@@ -1584,6 +1584,11 @@ app.get('/api/settings', (req, res) => {
 
 app.post('/api/orders', async (req, res) => {
   try {
+    console.log('🚨 ORDER CREATION STARTED');
+    console.log('📥 Request body:', JSON.stringify(req.body, null, 2));
+    console.log('📊 Current orders count before:', orders.length);
+    console.log('🔢 Current orderIdCounter:', orderIdCounter);
+    
     const { items, orderType, tableNumber, customerName, customerEmail, marketingConsent, total } = req.body;
     
     // Validate required fields
@@ -1653,9 +1658,20 @@ app.post('/api/orders', async (req, res) => {
       console.log(`✅ Order ${newOrder.id} saved to file storage (fallback)`);
     }
     
-    console.log('New order created:', newOrder);
+    console.log('🚨 ORDER CREATION COMPLETED');
+    console.log('🆕 New order created:', JSON.stringify(newOrder, null, 2));
     console.log('📊 Current orders count:', orders.length);
+    console.log('🔢 Next orderIdCounter:', orderIdCounter);
     console.log('📧 Marketing consent:', marketingConsent ? 'Yes' : 'No');
+    
+    // CRITICAL: Force immediate data persistence
+    console.log('💾 FORCING IMMEDIATE DATA SAVE...');
+    try {
+      saveOrdersData();
+      console.log('✅ IMMEDIATE SAVE COMPLETED');
+    } catch (saveError) {
+      console.error('❌ IMMEDIATE SAVE FAILED:', saveError);
+    }
     
     // Save client if marketing consent is given
     if (marketingConsent) {
@@ -3192,6 +3208,64 @@ app.get('/debug/all-orders', async (req, res) => {
     res.status(500).json({
       success: false,
       error: error.message
+    });
+  }
+});
+
+// CRITICAL FIX ROUTE - Force complete data reload and sync
+app.get('/debug/force-sync', async (req, res) => {
+  try {
+    console.log('🚨 CRITICAL FIX: Force complete data sync...');
+    
+    // Step 1: Reload from MongoDB if connected
+    if (mongoose.connection.readyState === 1) {
+      console.log('🗄️ MongoDB connected, reloading from database...');
+      const mongoOrders = await Order.find().sort({ createdAt: -1 });
+      console.log(`📊 Found ${mongoOrders.length} orders in MongoDB`);
+      
+      // Clear local array and reload
+      orders.length = 0;
+      orders.push(...mongoOrders);
+      
+      // Update order ID counter
+      orderIdCounter = mongoOrders.length > 0 ? Math.max(...orders.map(o => o.id), 0) + 1 : 1;
+      
+      console.log(`✅ MongoDB sync: ${orders.length} orders loaded, next ID: ${orderIdCounter}`);
+    } else {
+      console.log('⚠️ MongoDB not connected, using file storage...');
+    }
+    
+    // Step 2: Force save to files
+    console.log('💾 Force saving to files...');
+    saveOrdersData();
+    console.log('✅ File save completed');
+    
+    // Step 3: Verify data integrity
+    console.log('🔍 Verifying data integrity...');
+    const verification = {
+      ordersCount: orders.length,
+      orderIds: orders.map(o => o.id),
+      nextOrderId: orderIdCounter,
+      mongodb: {
+        connected: mongoose.connection.readyState === 1,
+        state: mongoose.connection.readyState
+      }
+    };
+    
+    console.log('📊 Verification results:', verification);
+    
+    res.json({
+      success: true,
+      message: 'Critical data sync completed',
+      verification: verification,
+      latestOrders: orders.slice(0, 5)
+    });
+  } catch (error) {
+    console.error('❌ Critical sync error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      stack: error.stack
     });
   }
 });
