@@ -3456,6 +3456,8 @@ app.post('/api/reservations', async (req, res) => {
   try {
     console.log('📅 RESERVATION CREATION STARTED');
     console.log('📥 Request body:', JSON.stringify(req.body, null, 2));
+    console.log('📊 Current reservations count before:', reservations.length);
+    console.log('🔢 Current reservationIdCounter:', reservationIdCounter);
     
     const { 
       customerName, 
@@ -3515,6 +3517,8 @@ app.post('/api/reservations', async (req, res) => {
     
     // Add to local array
     reservations.push(newReservation);
+    console.log('📊 Reservations count after adding:', reservations.length);
+    console.log('🔢 Next reservationIdCounter:', reservationIdCounter);
     
     // Save to MongoDB if connected
     try {
@@ -3559,6 +3563,15 @@ app.post('/api/reservations', async (req, res) => {
     }
     
     console.log('✅ RESERVATION CREATION COMPLETED');
+    
+    // Send email confirmation
+    try {
+      const emailResult = await sendReservationConfirmation(newReservation);
+      console.log('📧 Email confirmation result:', emailResult);
+    } catch (emailError) {
+      console.error('❌ Email confirmation failed:', emailError);
+      // Don't fail the reservation if email fails
+    }
     
     res.json({ 
       success: true, 
@@ -3765,6 +3778,110 @@ app.post('/api/qr/generate-booking', async (req, res) => {
   }
 });
 
+// Email confirmation function for reservations
+async function sendReservationConfirmation(reservation) {
+  try {
+    console.log('📧 SendGrid API Key configured:', !!SENDGRID_API_KEY);
+    console.log('📧 API Key length:', SENDGRID_API_KEY ? SENDGRID_API_KEY.length : 0);
+    
+    if (!SENDGRID_API_KEY) {
+      console.log('⚠️ SendGrid API key not configured - skipping email send');
+      return { success: false, message: 'SendGrid API key not configured' };
+    }
+
+    const formattedDate = new Date(reservation.reservationDate).toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+
+    const msg = {
+      to: reservation.customerEmail,
+      from: EMAIL_FROM,
+      subject: `Reservation Confirmation - ${RESTAURANT_NAME}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0;">
+            <h1 style="margin: 0; font-size: 28px;">🍽️ ${RESTAURANT_NAME}</h1>
+            <p style="margin: 10px 0 0 0; font-size: 16px;">Reservation Confirmation</p>
+          </div>
+          
+          <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px;">
+            <h2 style="color: #2d3748; margin-top: 0;">Hello ${reservation.customerName}!</h2>
+            
+            <p style="color: #4a5568; font-size: 16px; line-height: 1.6;">
+              Thank you for choosing ${RESTAURANT_NAME}! Your table reservation has been confirmed.
+            </p>
+            
+            <div style="background: white; border-radius: 10px; padding: 20px; margin: 20px 0; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+              <h3 style="color: #2d3748; margin-top: 0;">📅 Reservation Details</h3>
+              
+              <div style="display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #e2e8f0;">
+                <strong>Date:</strong>
+                <span style="color: #4a5568;">${formattedDate}</span>
+              </div>
+              
+              <div style="display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #e2e8f0;">
+                <strong>Time:</strong>
+                <span style="color: #4a5568;">${reservation.reservationTime}</span>
+              </div>
+              
+              <div style="display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #e2e8f0;">
+                <strong>Party Size:</strong>
+                <span style="color: #4a5568;">${reservation.partySize} people</span>
+              </div>
+              
+              ${reservation.tableNumber ? `
+              <div style="display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #e2e8f0;">
+                <strong>Table:</strong>
+                <span style="color: #4a5568;">Table ${reservation.tableNumber}</span>
+              </div>
+              ` : ''}
+              
+              ${reservation.specialRequests ? `
+              <div style="padding: 10px 0;">
+                <strong>Special Requests:</strong>
+                <div style="color: #4a5568; margin-top: 5px; font-style: italic;">${reservation.specialRequests}</div>
+              </div>
+              ` : ''}
+            </div>
+            
+            <div style="background: #e8f5e8; border: 2px solid #4caf50; border-radius: 10px; padding: 15px; margin: 20px 0;">
+              <h4 style="color: #2e7d32; margin: 0 0 10px 0;">✅ Status: Confirmed</h4>
+              <p style="color: #388e3c; margin: 0; font-size: 14px;">
+                We look forward to serving you! Please arrive 10 minutes before your reservation time.
+              </p>
+            </div>
+            
+            <div style="background: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 8px; padding: 15px; margin: 20px 0;">
+              <h4 style="color: #0c4a6e; margin: 0 0 10px 0;">📍 Restaurant Information</h4>
+              <p style="color: #0c4a6e; margin: 5px 0;"><strong>Address:</strong> 123 Restaurant Street, City</p>
+              <p style="color: #0c4a6e; margin: 5px 0;"><strong>Phone:</strong> (555) 123-4567</p>
+              <p style="color: #0c4a6e; margin: 5px 0;"><strong>Hours:</strong> Mon-Sun: 11:00 AM - 10:00 PM</p>
+            </div>
+            
+            <p style="color: #4a5568; font-size: 14px; margin-top: 30px;">
+              If you need to modify or cancel your reservation, please contact us at least 2 hours in advance.
+            </p>
+          </div>
+          
+          <div style="background: #333; color: white; padding: 20px; text-align: center; border-radius: 0 0 10px 10px; font-size: 14px;">
+            <p style="margin: 0;">© 2024 ${RESTAURANT_NAME}. All rights reserved.</p>
+          </div>
+        </div>
+      `
+    };
+
+    await sgMail.send(msg);
+    console.log('✅ Reservation confirmation email sent successfully');
+    return { success: true, message: 'Reservation confirmation email sent' };
+  } catch (error) {
+    console.error('❌ Reservation email error:', error);
+    return { success: false, error: error.message };
+  }
+}
+
 // Helper function to check availability
 async function checkAvailability(date, time) {
   try {
@@ -3815,11 +3932,25 @@ async function checkAvailability(date, time) {
   }
 }
 
+// Debug route for reservations
+app.get('/debug/reservations', (req, res) => {
+  res.json({
+    success: true,
+    reservations: reservations,
+    reservationIdCounter: reservationIdCounter,
+    totalReservations: reservations.length,
+    mongoConnection: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected'
+  });
+});
+
 app.get('/health', (req, res) => {
   res.json({ 
     status: 'OK', 
     timestamp: new Date().toISOString(),
-    serverVersion: '2.0.0 - Enhanced Order Status Updates'
+    serverVersion: '2.0.0 - Enhanced Order Status Updates',
+    orders: orders.length,
+    reservations: reservations.length,
+    clients: clients.length
   });
 });
 
