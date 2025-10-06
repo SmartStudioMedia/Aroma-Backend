@@ -215,6 +215,7 @@
             <div class="nav-tabs">
                 <a href="/admin" class="nav-tab active">Dashboard</a>
                 <a href="/admin/orders" class="nav-tab">Orders</a>
+                <a href="/admin/bookings" class="nav-tab">📅 Bookings</a>
                 <a href="/admin/items" class="nav-tab">Menu Items</a>
                 <a href="/admin/categories" class="nav-tab">Categories</a>
                 <a href="/admin/clients" class="nav-tab">Clients</a>
@@ -248,6 +249,11 @@
                 <h3>€<%= stats.completedSales.toFixed(2) %></h3>
                 <p>Completed Sales</p>
                 <small>Revenue from completed orders</small>
+            </a>
+            <a href="/admin/bookings" class="stat-card clickable">
+                <h3><%= stats.bookings || 0 %></h3>
+                <p>📅 Today's Bookings</p>
+                <small>Click to manage reservations</small>
             </a>
         </div>
 
