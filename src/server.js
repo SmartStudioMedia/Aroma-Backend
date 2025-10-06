@@ -705,6 +705,20 @@ async function loadOrdersData() {
 
 // Initialize data files and load data on startup
 initializeDataFiles();
+
+// CRITICAL: Force load orders data immediately on startup
+console.log('🚨 CRITICAL: Loading orders data on startup...');
+loadOrdersData().then(() => {
+  console.log('✅ Orders data loaded on startup:', orders.length, 'orders');
+  console.log('🔢 Order ID counter:', orderIdCounter);
+}).catch(error => {
+  console.error('❌ CRITICAL ERROR loading orders on startup:', error);
+  // Initialize with empty array if loading fails
+  orders = [];
+  orderIdCounter = 1;
+  console.log('🔄 Initialized with empty orders array');
+});
+
 // Note: loadMenuData() and loadOrdersData() are called after MongoDB connection in app.listen()
 
 const app = express();
@@ -1671,6 +1685,15 @@ app.post('/api/orders', async (req, res) => {
       console.log('✅ IMMEDIATE SAVE COMPLETED');
     } catch (saveError) {
       console.error('❌ IMMEDIATE SAVE FAILED:', saveError);
+    }
+    
+    // CRITICAL: Force data reload to ensure synchronization
+    console.log('🔄 FORCING DATA RELOAD FOR SYNCHRONIZATION...');
+    try {
+      await loadOrdersData();
+      console.log('✅ DATA RELOAD COMPLETED - Orders count:', orders.length);
+    } catch (reloadError) {
+      console.error('❌ DATA RELOAD FAILED:', reloadError);
     }
     
     // Save client if marketing consent is given
@@ -3176,6 +3199,54 @@ app.get('/debug/orders', (req, res) => {
     res.status(500).json({
       error: error.message,
       timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// CRITICAL ORDERS DEBUG ROUTE - Show complete orders state
+app.get('/debug/orders-state', async (req, res) => {
+  try {
+    console.log('🔍 CRITICAL ORDERS STATE DEBUG...');
+    
+    const debugInfo = {
+      timestamp: new Date().toISOString(),
+      localOrders: {
+        count: orders.length,
+        array: orders,
+        ids: orders.map(o => o.id),
+        latest: orders.slice(-3)
+      },
+      orderIdCounter: orderIdCounter,
+      mongodb: {
+        connected: mongoose.connection.readyState === 1,
+        state: mongoose.connection.readyState
+      }
+    };
+    
+    // Get MongoDB data if connected
+    if (mongoose.connection.readyState === 1) {
+      try {
+        const mongoOrders = await Order.find().sort({ createdAt: -1 });
+        debugInfo.mongoOrders = {
+          count: mongoOrders.length,
+          ids: mongoOrders.map(o => o.id),
+          latest: mongoOrders.slice(0, 3)
+        };
+        console.log(`🔍 MongoDB has ${mongoOrders.length} orders`);
+      } catch (mongoError) {
+        debugInfo.mongoError = mongoError.message;
+        console.error('❌ MongoDB query error:', mongoError);
+      }
+    }
+    
+    console.log('📊 Debug info:', JSON.stringify(debugInfo, null, 2));
+    res.json(debugInfo);
+  } catch (error) {
+    console.error('❌ Critical orders debug error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      stack: error.stack
     });
   }
 });
