@@ -3711,6 +3711,48 @@ app.post('/api/availability', async (req, res) => {
   }
 });
 
+// QR Code Generation for Bookings
+app.post('/api/qr/generate-booking', async (req, res) => {
+  try {
+    const { url, title, description } = req.body;
+    
+    if (!url) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'URL is required' 
+      });
+    }
+    
+    console.log('🔗 Generating booking QR code for:', url);
+    
+    // Generate QR code
+    const qrCodeDataURL = await QRCode.toDataURL(url, {
+      width: 300,
+      margin: 2,
+      color: {
+        dark: '#000000',
+        light: '#FFFFFF'
+      }
+    });
+    
+    console.log('✅ Booking QR code generated successfully');
+    
+    res.json({
+      success: true,
+      qrCode: qrCodeDataURL,
+      url: url,
+      title: title || 'Book Your Table',
+      description: description || ''
+    });
+  } catch (error) {
+    console.error('❌ Error generating booking QR code:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to generate booking QR code'
+    });
+  }
+});
+
 // Helper function to check availability
 async function checkAvailability(date, time) {
   try {
