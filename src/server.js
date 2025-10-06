@@ -3434,7 +3434,14 @@ app.get('/debug/refresh', async (req, res) => {
 
 // RESERVATION SYSTEM ROUTES
 
-// Get booking page
+// Customer-facing booking page (QR code destination)
+app.get('/book', (req, res) => {
+  res.render('customer_booking', {
+    title: 'Book Your Table - AROMA Restaurant'
+  });
+});
+
+// Admin booking management page (separate from customer booking)
 app.get('/booking', (req, res) => {
   res.render('booking', { title: 'Table Reservation' });
 });
