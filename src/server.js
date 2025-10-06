@@ -1607,7 +1607,8 @@ app.post('/api/orders', async (req, res) => {
           id: item.id || 0,
           name: menuItem ? (typeof menuItem.name === 'string' ? menuItem.name : menuItem.name.en) : 'Unknown Item',
           price: menuItem ? (menuItem.price || 0) : 0,
-          qty: item.qty || 1
+          qty: item.qty || 1,
+          quantity: item.qty || 1  // Add both for compatibility
         };
       }),
       orderType: orderType || 'dine-in',
@@ -3021,6 +3022,75 @@ app.get('/health', (req, res) => {
     timestamp: new Date().toISOString(),
     serverVersion: '2.0.0 - Enhanced Order Status Updates'
   });
+});
+
+// QUANTITY FIELD MIGRATION ROUTE
+app.post('/admin/fix-quantities', authMiddleware, async (req, res) => {
+  try {
+    console.log('🔧 FIXING QUANTITY FIELDS...');
+    
+    if (mongoose.connection.readyState === 1) {
+      // Get all orders
+      const allOrders = await Order.find();
+      console.log(`🔧 Found ${allOrders.length} orders to check`);
+      
+      let fixedCount = 0;
+      
+      for (const order of allOrders) {
+        let needsUpdate = false;
+        
+        // Check each item in the order
+        for (const item of order.items) {
+          // If item has 'qty' but not 'quantity', add 'quantity'
+          if (item.qty && !item.quantity) {
+            item.quantity = item.qty;
+            needsUpdate = true;
+            console.log(`🔧 Fixed item ${item.id} in order ${order.id}: added quantity field`);
+          }
+          // If item has 'quantity' but not 'qty', add 'qty'
+          else if (item.quantity && !item.qty) {
+            item.qty = item.quantity;
+            needsUpdate = true;
+            console.log(`🔧 Fixed item ${item.id} in order ${order.id}: added qty field`);
+          }
+        }
+        
+        // Save the order if it was updated
+        if (needsUpdate) {
+          await order.save();
+          fixedCount++;
+        }
+      }
+      
+      // Update local array
+      orders.length = 0;
+      const updatedOrders = await Order.find().sort({ createdAt: -1 });
+      orders.push(...updatedOrders);
+      
+      // Save to file
+      saveOrdersData();
+      
+      console.log(`🔧 QUANTITY FIX completed: Fixed ${fixedCount} orders`);
+      
+      res.json({
+        success: true,
+        message: 'Quantity fields fixed successfully',
+        ordersFixed: fixedCount,
+        totalOrders: orders.length
+      });
+    } else {
+      res.json({
+        success: false,
+        message: 'MongoDB not connected'
+      });
+    }
+  } catch (error) {
+    console.error('❌ Quantity fix error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
 });
 
 // DUPLICATE INVESTIGATION ROUTE
