@@ -576,12 +576,12 @@
                                 <% order.items.forEach(item => { %>
                                 <div class="item">
                                     <span class="item-name">
-                                        <%= translate(item.name) %> × <%= item.qty %>
+                                        <%= translate(item.name) %> × <%= item.qty || item.quantity || 1 %>
                                     </span>
                                     <span class="item-price">
                                         <% 
                                         const itemPrice = parseFloat(item.price) || 0;
-                                        const itemQty = parseInt(item.qty) || 1;
+                                        const itemQty = parseInt(item.qty || item.quantity) || 1;
                                         const itemTotal = itemPrice * itemQty;
                                         const isValidItemTotal = !isNaN(itemTotal) && isFinite(itemTotal);
                                         const displayItemTotal = isValidItemTotal ? itemTotal : 0;
