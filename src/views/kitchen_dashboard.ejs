@@ -340,7 +340,7 @@
                                 <% order.items.forEach(item => { %>
                                 <div class="item">
                                     <div class="item-name"><%= translate(item.name) %></div>
-                                    <div class="item-qty">Qty: <%= item.qty %></div>
+                                    <div class="item-qty">Qty: <%= item.qty || item.quantity || 1 %></div>
                                 </div>
                                 <% }); %>
                             </div>
@@ -399,7 +399,7 @@
                                 <% order.items.forEach(item => { %>
                                 <div class="item">
                                     <div class="item-name"><%= translate(item.name) %></div>
-                                    <div class="item-qty">Qty: <%= item.qty %></div>
+                                    <div class="item-qty">Qty: <%= item.qty || item.quantity || 1 %></div>
                                 </div>
                                 <% }); %>
                             </div>
