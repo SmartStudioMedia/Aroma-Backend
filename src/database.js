@@ -300,8 +300,35 @@ async function loadDataFromDatabase() {
     
     const categories = await Category.find().sort({ sort_order: 1 });
     const items = await MenuItem.find().sort({ id: 1 });
-    const orders = await Order.find().sort({ createdAt: -1 });
+    const allOrders = await Order.find().sort({ createdAt: -1 });
     const clients = await Client.find().sort({ createdAt: -1 });
+    
+    // FIXED: Remove duplicates from orders
+    console.log(`🔍 Found ${allOrders.length} total orders, checking for duplicates...`);
+    
+    const orderMap = new Map();
+    allOrders.forEach(order => {
+      if (!orderMap.has(order.id)) {
+        orderMap.set(order.id, order);
+      } else {
+        // Keep the most recent order if duplicate found
+        const existingOrder = orderMap.get(order.id);
+        const existingDate = new Date(existingOrder.updatedAt || existingOrder.createdAt);
+        const currentDate = new Date(order.updatedAt || order.createdAt);
+        
+        if (currentDate > existingDate) {
+          orderMap.set(order.id, order);
+          console.log(`🔄 Replaced duplicate order ${order.id} with more recent version`);
+        }
+      }
+    });
+    
+    const orders = Array.from(orderMap.values());
+    const duplicatesRemoved = allOrders.length - orders.length;
+    
+    if (duplicatesRemoved > 0) {
+      console.log(`🧹 Removed ${duplicatesRemoved} duplicate orders`);
+    }
     
     console.log(`✅ Loaded from MongoDB - Categories: ${categories.length}, Items: ${items.length}, Orders: ${orders.length}, Clients: ${clients.length}`);
     
