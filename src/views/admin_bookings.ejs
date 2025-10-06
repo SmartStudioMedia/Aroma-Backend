@@ -483,7 +483,11 @@
         
         <!-- Reservations List -->
         <div class="reservation-list">
-            <h2 style="margin-bottom: 20px; color: #374151;">📋 Today's Reservations</h2>
+            <h2 style="margin-bottom: 20px; color: #374151;">📋 All Reservations</h2>
+            <div style="margin-bottom: 20px;">
+                <button class="btn btn-confirm" onclick="showAllReservations()" style="margin-right: 10px;">All Reservations</button>
+                <button class="btn btn-edit" onclick="showTodayReservations()">Today Only</button>
+            </div>
             <div id="reservationsList">
                 <!-- Reservations will be populated by JavaScript -->
             </div>
@@ -649,16 +653,22 @@
         }
         
         // Display reservations
-        function displayReservations() {
+        function displayReservations(showAll = false) {
             const reservationsList = document.getElementById('reservationsList');
             const today = new Date().toISOString().split('T')[0];
             
-            const todayReservations = reservations.filter(r => 
-                new Date(r.reservationDate).toISOString().split('T')[0] === today
-            );
+            let reservationsToShow;
+            if (showAll) {
+                reservationsToShow = reservations;
+            } else {
+                reservationsToShow = reservations.filter(r => 
+                    new Date(r.reservationDate).toISOString().split('T')[0] === today
+                );
+            }
             
-            if (todayReservations.length === 0) {
-                reservationsList.innerHTML = '<p style="text-align: center; color: #6b7280; padding: 20px;">No reservations for today</p>';
+            if (reservationsToShow.length === 0) {
+                const message = showAll ? 'No reservations found' : 'No reservations for today';
+                reservationsList.innerHTML = `<p style="text-align: center; color: #6b7280; padding: 20px;">${message}</p>`;
                 return;
             }
             
