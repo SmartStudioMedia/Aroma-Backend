@@ -237,13 +237,31 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>📋 Kitchen Orders</h1>
-            <p>Manage all active orders in the kitchen</p>
+            <h1>👨‍🍳 Kitchen Orders</h1>
+            <p>Manage and track order status</p>
             <div class="nav-tabs">
                 <a href="/kitchen" class="nav-tab">Dashboard</a>
-                <a href="/kitchen/orders" class="nav-tab active">All Orders</a>
+                <a href="/kitchen/orders" class="nav-tab <%= dateFilter === 'today' ? 'active' : '' %>">📅 Today's Orders</a>
+                <a href="/kitchen/orders/all" class="nav-tab <%= dateFilter === 'all' ? 'active' : '' %>">📋 All Orders</a>
             </div>
         </div>
+
+        <!-- Daily Filter Info -->
+        <% if (dateFilter === 'today') { %>
+        <div class="daily-info" style="background: #e8f5e8; border: 2px solid #4caf50; border-radius: 10px; padding: 15px; margin-bottom: 20px; text-align: center;">
+            <h3 style="color: #2e7d32; margin: 0;">📅 Today's Orders Only</h3>
+            <p style="color: #388e3c; margin: 5px 0 0 0;">
+                Showing <strong><%= totalOrders %></strong> orders from today (<%= new Date().toDateString() %>)
+            </p>
+        </div>
+        <% } else if (dateFilter === 'all') { %>
+        <div class="all-orders-info" style="background: #fff3e0; border: 2px solid #ff9800; border-radius: 10px; padding: 15px; margin-bottom: 20px; text-align: center;">
+            <h3 style="color: #f57c00; margin: 0;">📋 All Orders</h3>
+            <p style="color: #ef6c00; margin: 5px 0 0 0;">
+                Showing <strong><%= totalOrders %></strong> orders from all time
+            </p>
+        </div>
+        <% } %>
 
         <div class="orders-container">
             <h3>Active Orders</h3>
@@ -336,21 +354,25 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
+                    console.log(`✅ Order ${orderId} updated to ${status}`);
                     location.reload();
                 } else {
-                    alert('Failed to update order status');
+                    alert('Failed to update order: ' + (data.error || 'Unknown error'));
                 }
             })
             .catch(error => {
-                console.error('Error:', error);
-                alert('Error updating order status');
+                console.error('Error updating order:', error);
+                alert('Error updating order: ' + error.message);
             });
         }
-        
-        // Auto-refresh every 30 seconds
-        setInterval(() => {
+
+        // Auto-refresh for today's orders (every 30 seconds)
+        <% if (dateFilter === 'today') { %>
+        setInterval(function() {
+            console.log('🔄 Auto-refreshing today\'s orders...');
             location.reload();
-        }, 30000);
+        }, 30000); // 30 seconds
+        <% } %>
     </script>
 </body>
 </html>
