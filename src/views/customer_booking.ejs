@@ -376,7 +376,8 @@
             };
             
             try {
-                const response = await fetch('/api/reservations', {
+                // Try simple reservation route first (bypasses availability check)
+                const response = await fetch('/api/reservations/simple', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
