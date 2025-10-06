@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Book Your Table - AROMA Restaurant</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .booking-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+        }
+        
+        .restaurant-logo {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #2d3748;
+            margin-bottom: 10px;
+        }
+        
+        .restaurant-tagline {
+            color: #4a5568;
+            margin-bottom: 30px;
+            font-size: 1.1rem;
+        }
+        
+        .booking-form {
+            text-align: left;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2d3748;
+        }
+        
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            background: #fff;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .form-row {
+            display: flex;
+            gap: 15px;
+        }
+        
+        .form-row .form-group {
+            flex: 1;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 20px 0;
+            padding: 15px;
+            background: #f7fafc;
+            border-radius: 10px;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+            margin: 0;
+        }
+        
+        .checkbox-group label {
+            margin: 0;
+            font-size: 14px;
+            color: #4a5568;
+        }
+        
+        .submit-btn {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 20px;
+        }
+        
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        .submit-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border: 1px solid #c3e6cb;
+            display: none;
+        }
+        
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border: 1px solid #f5c6cb;
+            display: none;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #667eea;
+        }
+        
+        .table-info {
+            background: #e8f5e8;
+            border: 2px solid #4caf50;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .table-info h3 {
+            color: #2e7d32;
+            margin-bottom: 5px;
+        }
+        
+        .table-info p {
+            color: #388e3c;
+            margin: 0;
+        }
+        
+        .restaurant-info {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .restaurant-info h3 {
+            color: #2d3748;
+            margin-bottom: 10px;
+        }
+        
+        .restaurant-info p {
+            color: #4a5568;
+            margin: 5px 0;
+        }
+        
+        @media (max-width: 600px) {
+            .booking-container {
+                padding: 30px 20px;
+            }
+            
+            .form-row {
+                flex-direction: column;
+                gap: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="booking-container">
+        <div class="restaurant-logo">🍽️ AROMA</div>
+        <div class="restaurant-tagline">Book Your Perfect Table Experience</div>
+        
+        <div class="restaurant-info">
+            <h3>📍 Restaurant Information</h3>
+            <p><strong>Address:</strong> 123 Restaurant Street, City</p>
+            <p><strong>Phone:</strong> (555) 123-4567</p>
+            <p><strong>Hours:</strong> Mon-Sun: 11:00 AM - 10:00 PM</p>
+        </div>
+        
+        <div id="tableInfo" class="table-info" style="display: none;">
+            <h3>🎯 Reserved Table</h3>
+            <p id="tableNumber">Table 5</p>
+        </div>
+        
+        <form id="bookingForm" class="booking-form">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="customerName">Full Name *</label>
+                    <input type="text" id="customerName" name="customerName" required>
+                </div>
+                <div class="form-group">
+                    <label for="customerPhone">Phone Number *</label>
+                    <input type="tel" id="customerPhone" name="customerPhone" required>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="customerEmail">Email Address *</label>
+                <input type="email" id="customerEmail" name="customerEmail" required>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="reservationDate">Reservation Date *</label>
+                    <input type="date" id="reservationDate" name="reservationDate" required>
+                </div>
+                <div class="form-group">
+                    <label for="reservationTime">Reservation Time *</label>
+                    <select id="reservationTime" name="reservationTime" required>
+                        <option value="">Select Time</option>
+                        <option value="11:00">11:00 AM</option>
+                        <option value="11:30">11:30 AM</option>
+                        <option value="12:00">12:00 PM</option>
+                        <option value="12:30">12:30 PM</option>
+                        <option value="13:00">1:00 PM</option>
+                        <option value="13:30">1:30 PM</option>
+                        <option value="14:00">2:00 PM</option>
+                        <option value="14:30">2:30 PM</option>
+                        <option value="15:00">3:00 PM</option>
+                        <option value="15:30">3:30 PM</option>
+                        <option value="16:00">4:00 PM</option>
+                        <option value="16:30">4:30 PM</option>
+                        <option value="17:00">5:00 PM</option>
+                        <option value="17:30">5:30 PM</option>
+                        <option value="18:00">6:00 PM</option>
+                        <option value="18:30">6:30 PM</option>
+                        <option value="19:00">7:00 PM</option>
+                        <option value="19:30">7:30 PM</option>
+                        <option value="20:00">8:00 PM</option>
+                        <option value="20:30">8:30 PM</option>
+                        <option value="21:00">9:00 PM</option>
+                        <option value="21:30">9:30 PM</option>
+                        <option value="22:00">10:00 PM</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="partySize">Party Size *</label>
+                <select id="partySize" name="partySize" required>
+                    <option value="">Select Party Size</option>
+                    <option value="1">1 Person</option>
+                    <option value="2">2 People</option>
+                    <option value="3">3 People</option>
+                    <option value="4">4 People</option>
+                    <option value="5">5 People</option>
+                    <option value="6">6 People</option>
+                    <option value="7">7 People</option>
+                    <option value="8">8 People</option>
+                    <option value="9">9 People</option>
+                    <option value="10">10 People</option>
+                    <option value="11">11+ People</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="specialRequests">Special Requests (Optional)</label>
+                <textarea id="specialRequests" name="specialRequests" rows="3" placeholder="Any special dietary requirements, celebrations, or requests..."></textarea>
+            </div>
+            
+            <div class="checkbox-group">
+                <input type="checkbox" id="marketingConsent" name="marketingConsent" checked>
+                <label for="marketingConsent">
+                    I agree to receive promotional offers and updates from AROMA Restaurant via email and SMS
+                </label>
+            </div>
+            
+            <button type="submit" class="submit-btn" id="submitBtn">
+                📅 Book My Table
+            </button>
+        </form>
+        
+        <div id="successMessage" class="success-message">
+            <h3>✅ Reservation Confirmed!</h3>
+            <p>Thank you for choosing AROMA! We'll contact you shortly to confirm your reservation details.</p>
+        </div>
+        
+        <div id="errorMessage" class="error-message">
+            <h3>❌ Booking Failed</h3>
+            <p id="errorText">Please try again or contact us directly.</p>
+        </div>
+        
+        <div id="loadingMessage" class="loading" style="display: none;">
+            <h3>🔄 Processing Your Reservation...</h3>
+            <p>Please wait while we confirm your booking.</p>
+        </div>
+    </div>
+
+    <script>
+        // Set minimum date to today
+        document.getElementById('reservationDate').min = new Date().toISOString().split('T')[0];
+        
+        // Check for table parameter in URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const tableNumber = urlParams.get('table');
+        
+        if (tableNumber) {
+            // Show table info and pre-fill
+            document.getElementById('tableInfo').style.display = 'block';
+            document.getElementById('tableNumber').textContent = `Table ${tableNumber}`;
+        }
+        
+        // Handle form submission
+        document.getElementById('bookingForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const submitBtn = document.getElementById('submitBtn');
+            const loadingMessage = document.getElementById('loadingMessage');
+            const successMessage = document.getElementById('successMessage');
+            const errorMessage = document.getElementById('errorMessage');
+            
+            // Show loading state
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Processing...';
+            loadingMessage.style.display = 'block';
+            successMessage.style.display = 'none';
+            errorMessage.style.display = 'none';
+            
+            // Get form data
+            const formData = {
+                customerName: document.getElementById('customerName').value,
+                customerEmail: document.getElementById('customerEmail').value,
+                customerPhone: document.getElementById('customerPhone').value,
+                partySize: parseInt(document.getElementById('partySize').value),
+                reservationDate: document.getElementById('reservationDate').value,
+                reservationTime: document.getElementById('reservationTime').value,
+                specialRequests: document.getElementById('specialRequests').value,
+                marketingConsent: document.getElementById('marketingConsent').checked,
+                tableNumber: tableNumber || null
+            };
+            
+            try {
+                const response = await fetch('/api/reservations', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Show success message
+                    loadingMessage.style.display = 'none';
+                    successMessage.style.display = 'block';
+                    document.getElementById('bookingForm').style.display = 'none';
+                    
+                    // Scroll to success message
+                    successMessage.scrollIntoView({ behavior: 'smooth' });
+                } else {
+                    throw new Error(data.error || 'Booking failed');
+                }
+            } catch (error) {
+                console.error('Booking error:', error);
+                
+                // Show error message
+                loadingMessage.style.display = 'none';
+                errorMessage.style.display = 'block';
+                document.getElementById('errorText').textContent = error.message;
+                
+                // Reset form
+                submitBtn.disabled = false;
+                submitBtn.textContent = '📅 Book My Table';
+            }
+        });
+        
+        // Auto-focus first input
+        document.getElementById('customerName').focus();
+    </script>
+</body>
+</html>
