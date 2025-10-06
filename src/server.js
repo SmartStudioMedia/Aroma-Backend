@@ -2734,11 +2734,43 @@ app.get('/kitchen/orders', kitchenAuthMiddleware, async (req, res) => {
     if (mongoose.connection.readyState === 1) {
       // Get all orders from MongoDB
       allOrders = await Order.find().sort({ createdAt: -1 });
-      console.log(`🍳 SIMPLE KITCHEN: Loaded ${allOrders.length} orders from MongoDB`);
+      console.log(`🍳 KITCHEN ORDERS: Loaded ${allOrders.length} orders from MongoDB`);
+      
+      // Update local array to keep it in sync with MongoDB
+      orders = allOrders;
+      console.log(`🍳 KITCHEN ORDERS: Updated local orders array with ${orders.length} total orders`);
     } else {
       // Use file-based data as fallback
       allOrders = orders;
-      console.log(`🍳 SIMPLE KITCHEN: Using file storage - ${allOrders.length} orders`);
+      console.log(`🍳 KITCHEN ORDERS: Using file storage - ${allOrders.length} orders`);
+    }
+    
+    res.render('kitchen_orders', { 
+      orders: allOrders,
+      title: 'Kitchen Orders'
+    });
+  } catch (error) {
+    console.error('Kitchen orders error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to load orders' 
+    });
+  }
+});
+
+// KITCHEN ORDERS API - For JSON data requests
+app.get('/kitchen/api/orders', kitchenAuthMiddleware, async (req, res) => {
+  try {
+    let allOrders;
+    
+    if (mongoose.connection.readyState === 1) {
+      // Get all orders from MongoDB
+      allOrders = await Order.find().sort({ createdAt: -1 });
+      console.log(`🍳 KITCHEN API: Loaded ${allOrders.length} orders from MongoDB`);
+    } else {
+      // Use file-based data as fallback
+      allOrders = orders;
+      console.log(`🍳 KITCHEN API: Using file storage - ${allOrders.length} orders`);
     }
     
     res.json({ 
@@ -2746,7 +2778,7 @@ app.get('/kitchen/orders', kitchenAuthMiddleware, async (req, res) => {
       orders: allOrders 
     });
   } catch (error) {
-    console.error('Simple kitchen orders error:', error);
+    console.error('Kitchen API orders error:', error);
     res.status(500).json({ 
       success: false, 
       error: 'Failed to load orders' 
