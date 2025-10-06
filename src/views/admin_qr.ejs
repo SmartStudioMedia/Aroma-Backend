@@ -248,9 +248,52 @@
             </div>
         </div>
 
+        <!-- Booking QR Code Generator -->
+        <div class="qr-container" style="margin-bottom: 30px;">
+            <div class="qr-header">
+                <h3>📅 Booking QR Code Generator</h3>
+                <div style="background: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 8px; padding: 12px; margin-top: 10px; font-size: 0.9rem; color: #0c4a6e;">
+                    <strong>💡 Note:</strong> Generate QR codes for table reservations. Customers can scan to book a table directly.
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="bookingQRType">Select QR Code Type</label>
+                <select id="bookingQRType" onchange="updateBookingQRForm()">
+                    <option value="general">General Booking (Any Table)</option>
+                    <option value="table">Specific Table Booking</option>
+                    <option value="custom">Custom Booking Link</option>
+                </select>
+            </div>
+
+            <div id="bookingQRForm">
+                <div class="form-group" id="tableNumberGroup" style="display: none;">
+                    <label for="bookingTableNumber">Table Number</label>
+                    <input type="number" id="bookingTableNumber" placeholder="Enter table number" min="1" max="999">
+                </div>
+
+                <div class="form-group" id="customLinkGroup" style="display: none;">
+                    <label for="customBookingLink">Custom Booking Link</label>
+                    <input type="text" id="customBookingLink" placeholder="Enter custom booking URL">
+                </div>
+
+                <div class="form-group">
+                    <label for="bookingQRTitle">QR Code Title</label>
+                    <input type="text" id="bookingQRTitle" placeholder="e.g., Book Table 5, Reserve Your Table">
+                </div>
+
+                <div class="form-group">
+                    <label for="bookingQRDescription">Description (Optional)</label>
+                    <textarea id="bookingQRDescription" placeholder="Instructions for customers..." rows="3"></textarea>
+                </div>
+
+                <button class="btn btn-primary" onclick="generateBookingQR()">Generate Booking QR Code</button>
+            </div>
+        </div>
+
         <div class="qr-container">
             <div class="qr-header">
-                <h3>Table QR Code Generator</h3>
+                <h3>🍽️ Table Menu QR Code Generator</h3>
                 <div style="background: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 8px; padding: 12px; margin-top: 10px; font-size: 0.9rem; color: #0c4a6e;">
                     <strong>💡 Note:</strong> QR codes point to your frontend URL (currently: <code>https://aroma-frontend-delta.vercel.app</code>). For production, set the <code>FRONTEND_URL</code> environment variable to your actual frontend domain.
                 </div>
@@ -292,6 +335,131 @@
     </div>
 
     <script>
+        // Booking QR Code Functions
+        function updateBookingQRForm() {
+            const qrType = document.getElementById('bookingQRType').value;
+            const tableNumberGroup = document.getElementById('tableNumberGroup');
+            const customLinkGroup = document.getElementById('customLinkGroup');
+            
+            // Hide all groups first
+            tableNumberGroup.style.display = 'none';
+            customLinkGroup.style.display = 'none';
+            
+            // Show relevant group based on selection
+            if (qrType === 'table') {
+                tableNumberGroup.style.display = 'block';
+            } else if (qrType === 'custom') {
+                customLinkGroup.style.display = 'block';
+            }
+        }
+
+        function generateBookingQR() {
+            const qrType = document.getElementById('bookingQRType').value;
+            const title = document.getElementById('bookingQRTitle').value;
+            const description = document.getElementById('bookingQRDescription').value;
+            
+            if (!title.trim()) {
+                showError('Please enter a QR code title');
+                return;
+            }
+            
+            let bookingUrl = '';
+            let qrTitle = title;
+            
+            if (qrType === 'general') {
+                bookingUrl = `${window.location.origin}/booking`;
+                qrTitle = title || 'Book Your Table';
+            } else if (qrType === 'table') {
+                const tableNumber = document.getElementById('bookingTableNumber').value;
+                if (!tableNumber || tableNumber < 1) {
+                    showError('Please enter a valid table number');
+                    return;
+                }
+                bookingUrl = `${window.location.origin}/booking?table=${tableNumber}`;
+                qrTitle = title || `Book Table ${tableNumber}`;
+            } else if (qrType === 'custom') {
+                const customLink = document.getElementById('customBookingLink').value;
+                if (!customLink.trim()) {
+                    showError('Please enter a custom booking link');
+                    return;
+                }
+                bookingUrl = customLink;
+                qrTitle = title || 'Book Your Table';
+            }
+            
+            showLoading();
+            hideError();
+            
+            // Generate QR code using the booking URL
+            generateQRCodeForBooking(bookingUrl, qrTitle, description);
+        }
+
+        function generateQRCodeForBooking(url, title, description) {
+            // Use the existing QR code generation logic but for booking URLs
+            fetch('/api/qr/generate-booking', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    url: url,
+                    title: title,
+                    description: description
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                hideLoading();
+                if (data.success) {
+                    displayBookingQRCode(data);
+                } else {
+                    showError(data.error || 'Failed to generate booking QR code');
+                }
+            })
+            .catch(error => {
+                hideLoading();
+                showError('Error generating booking QR code: ' + error.message);
+            });
+        }
+
+        function displayBookingQRCode(data) {
+            const qrResults = document.getElementById('qrResults');
+            let qrGrid = document.getElementById('qrGrid');
+            
+            if (!qrGrid) {
+                // Create qrGrid if it doesn't exist
+                qrGrid = document.createElement('div');
+                qrGrid.id = 'qrGrid';
+                qrGrid.className = 'qr-grid';
+                qrResults.appendChild(qrGrid);
+            }
+            
+            qrGrid.innerHTML = `
+                <div class="qr-card">
+                    <h4>📅 ${data.title}</h4>
+                    <div class="qr-image">
+                        <img src="${data.qrCode}" alt="Booking QR Code">
+                    </div>
+                    <div class="qr-url">${data.url}</div>
+                    ${data.description ? `<div class="qr-description">${data.description}</div>` : ''}
+                    <div class="qr-actions">
+                        <button class="btn btn-primary btn-sm" onclick="downloadQR('${data.qrCode}', '${data.title}')">Download</button>
+                        <button class="btn btn-success btn-sm" onclick="printQR('${data.qrCode}', '${data.title}')">Print</button>
+                        <button class="btn btn-info btn-sm" onclick="copyQRUrl('${data.url}')">Copy Link</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function copyQRUrl(url) {
+            navigator.clipboard.writeText(url).then(() => {
+                alert('Booking URL copied to clipboard!');
+            }).catch(err => {
+                console.error('Failed to copy URL: ', err);
+                alert('Failed to copy URL');
+            });
+        }
+
         function showLoading() {
             document.getElementById('loadingMessage').style.display = 'block';
             document.getElementById('errorMessage').style.display = 'none';
