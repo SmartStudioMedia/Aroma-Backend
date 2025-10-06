@@ -1952,8 +1952,26 @@ app.get('/admin', authMiddleware, async (req, res) => {
       console.log('📊 Alternative calculation completed:', categoryStats);
     }
     
+    // Get today's bookings count
+    const today = new Date().toISOString().split('T')[0];
+    let todayBookings = 0;
+    
+    if (mongoose.connection.readyState === 1) {
+      const todayReservations = await Reservation.find({
+        reservationDate: {
+          $gte: new Date(today),
+          $lt: new Date(today + 'T23:59:59.999Z')
+        }
+      });
+      todayBookings = todayReservations.length;
+    } else {
+      todayBookings = reservations.filter(r => 
+        new Date(r.reservationDate).toISOString().split('T')[0] === today
+      ).length;
+    }
+    
     res.render('admin_dashboard', {
-      stats: { pending, confirmed, completed, cancelled, totalSales, completedSales },
+      stats: { pending, confirmed, completed, cancelled, totalSales, completedSales, bookings: todayBookings },
       categoryStats,
       orders: mongoOrders,
       menuData: { categories: mongoCategories, items: mongoItems }
