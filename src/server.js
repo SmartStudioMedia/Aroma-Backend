@@ -3123,6 +3123,121 @@ app.post('/admin/orders/:id/force-reload', authMiddleware, async (req, res) => {
   }
 });
 
+// DEBUG ROUTE - Check order creation and data flow
+app.get('/debug/orders', (req, res) => {
+  try {
+    const debugInfo = {
+      timestamp: new Date().toISOString(),
+      localOrders: {
+        count: orders.length,
+        latest: orders.slice(-3), // Last 3 orders
+        ids: orders.map(o => o.id)
+      },
+      orderIdCounter: orderIdCounter,
+      mongodb: {
+        connected: mongoose.connection.readyState === 1,
+        state: mongoose.connection.readyState
+      }
+    };
+
+    // If MongoDB is connected, also check MongoDB data
+    if (mongoose.connection.readyState === 1) {
+      Order.find().sort({ createdAt: -1 }).limit(5).then(mongoOrders => {
+        debugInfo.mongoOrders = {
+          count: mongoOrders.length,
+          latest: mongoOrders.slice(0, 3),
+          ids: mongoOrders.map(o => o.id)
+        };
+        res.json(debugInfo);
+      }).catch(error => {
+        debugInfo.mongoError = error.message;
+        res.json(debugInfo);
+      });
+    } else {
+      res.json(debugInfo);
+    }
+  } catch (error) {
+    res.status(500).json({
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// DEBUG ALL ORDERS ROUTE - Show all orders regardless of date filter
+app.get('/debug/all-orders', async (req, res) => {
+  try {
+    let allOrders;
+    
+    if (mongoose.connection.readyState === 1) {
+      allOrders = await Order.find().sort({ createdAt: -1 });
+      console.log(`🔍 DEBUG ALL ORDERS: Found ${allOrders.length} orders in MongoDB`);
+    } else {
+      allOrders = orders;
+      console.log(`🔍 DEBUG ALL ORDERS: Found ${allOrders.length} orders in local array`);
+    }
+    
+    res.json({
+      success: true,
+      totalOrders: allOrders.length,
+      orders: allOrders,
+      mongodb: {
+        connected: mongoose.connection.readyState === 1,
+        state: mongoose.connection.readyState
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Debug all orders error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// FORCE REFRESH ROUTE - Reload all data from MongoDB
+app.get('/debug/refresh', async (req, res) => {
+  try {
+    console.log('🔄 FORCE REFRESH: Reloading all data...');
+    
+    if (mongoose.connection.readyState === 1) {
+      // Reload orders from MongoDB
+      const mongoOrders = await Order.find().sort({ createdAt: -1 });
+      orders.length = 0;
+      orders.push(...mongoOrders);
+      
+      // Update order ID counter
+      orderIdCounter = mongoOrders.length > 0 ? Math.max(...orders.map(o => o.id), 0) + 1 : 1;
+      
+      // Save to files
+      saveOrdersData();
+      
+      console.log(`✅ FORCE REFRESH: Loaded ${orders.length} orders, next ID: ${orderIdCounter}`);
+      
+      res.json({
+        success: true,
+        message: 'Data refreshed successfully',
+        ordersCount: orders.length,
+        nextOrderId: orderIdCounter,
+        latestOrders: orders.slice(0, 3)
+      });
+    } else {
+      res.json({
+        success: false,
+        message: 'MongoDB not connected',
+        ordersCount: orders.length
+      });
+    }
+  } catch (error) {
+    console.error('❌ Force refresh error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 app.get('/health', (req, res) => {
   res.json({ 
     status: 'OK', 
