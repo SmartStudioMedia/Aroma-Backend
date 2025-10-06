@@ -2702,24 +2702,47 @@ app.delete('/admin/clients/:id', authMiddleware, (req, res) => {
 // Kitchen Staff Routes
 app.get('/kitchen', kitchenAuthMiddleware, async (req, res) => {
   try {
-    let mongoOrders;
+    // Get today's date range
+    const today = new Date();
+    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+    
+    console.log(`🍳 KITCHEN DASHBOARD: Filtering for ${startOfDay.toDateString()}`);
+    
+    let todayOrders;
     
     if (mongoose.connection.readyState === 1) {
-      // Get orders from MongoDB (excluding cancelled)
-      mongoOrders = await Order.find({ status: { $ne: 'cancelled' } }).sort({ createdAt: -1 });
+      // Get today's orders from MongoDB (excluding cancelled)
+      todayOrders = await Order.find({ 
+        status: { $ne: 'cancelled' },
+        createdAt: {
+          $gte: startOfDay,
+          $lt: endOfDay
+        }
+      }).sort({ createdAt: -1 });
+      
+      console.log(`🍳 KITCHEN DASHBOARD: Found ${todayOrders.length} orders for today`);
+      
+      // Update local orders array with all orders
+      orders = await Order.find().sort({ createdAt: -1 });
     } else {
-      // Use file-based data as fallback
-      mongoOrders = orders.filter(o => o.status !== 'cancelled');
+      // Use file-based data as fallback - filter for today
+      todayOrders = orders.filter(order => {
+        const orderDate = new Date(order.createdAt || order.timestamp);
+        return orderDate >= startOfDay && orderDate < endOfDay && order.status !== 'cancelled';
+      });
+      console.log(`🍳 KITCHEN DASHBOARD: Using file storage - ${todayOrders.length} orders for today`);
     }
     
-    const pendingOrders = mongoOrders.filter(o => o.status === 'pending');
-    const confirmedOrders = mongoOrders.filter(o => o.status === 'confirmed');
+    const pendingOrders = todayOrders.filter(o => o.status === 'pending');
+    const confirmedOrders = todayOrders.filter(o => o.status === 'confirmed');
     
     res.render('kitchen_dashboard', {
       pendingOrders,
       confirmedOrders,
-      totalOrders: mongoOrders.length,
-      orders: mongoOrders
+      totalOrders: todayOrders.length,
+      orders: todayOrders,
+      dateFilter: 'today'
     });
   } catch (error) {
     console.error('Kitchen dashboard error:', error);
@@ -2729,31 +2752,83 @@ app.get('/kitchen', kitchenAuthMiddleware, async (req, res) => {
 
 app.get('/kitchen/orders', kitchenAuthMiddleware, async (req, res) => {
   try {
+    // Get today's date range
+    const today = new Date();
+    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+    
+    console.log(`🍳 KITCHEN DAILY ORDERS: Filtering for ${startOfDay.toDateString()}`);
+    
+    let todayOrders;
+    
+    if (mongoose.connection.readyState === 1) {
+      // Get only today's orders from MongoDB
+      todayOrders = await Order.find({
+        createdAt: {
+          $gte: startOfDay,
+          $lt: endOfDay
+        }
+      }).sort({ createdAt: -1 });
+      
+      console.log(`🍳 KITCHEN DAILY: Found ${todayOrders.length} orders for today`);
+      
+      // Update local array to keep it in sync with MongoDB
+      orders = await Order.find().sort({ createdAt: -1 });
+      console.log(`🍳 KITCHEN DAILY: Updated local orders array with ${orders.length} total orders`);
+    } else {
+      // Use file-based data as fallback - filter for today
+      todayOrders = orders.filter(order => {
+        const orderDate = new Date(order.createdAt || order.timestamp);
+        return orderDate >= startOfDay && orderDate < endOfDay;
+      });
+      console.log(`🍳 KITCHEN DAILY: Using file storage - ${todayOrders.length} orders for today`);
+    }
+    
+    res.render('kitchen_orders', { 
+      orders: todayOrders,
+      title: 'Kitchen Orders - Today',
+      dateFilter: 'today',
+      totalOrders: todayOrders.length,
+      dateRange: {
+        start: startOfDay.toDateString(),
+        end: endOfDay.toDateString()
+      }
+    });
+  } catch (error) {
+    console.error('Kitchen daily orders error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to load daily orders' 
+    });
+  }
+});
+
+// KITCHEN ALL ORDERS - For viewing all orders (not just today)
+app.get('/kitchen/orders/all', kitchenAuthMiddleware, async (req, res) => {
+  try {
     let allOrders;
     
     if (mongoose.connection.readyState === 1) {
       // Get all orders from MongoDB
       allOrders = await Order.find().sort({ createdAt: -1 });
-      console.log(`🍳 KITCHEN ORDERS: Loaded ${allOrders.length} orders from MongoDB`);
-      
-      // Update local array to keep it in sync with MongoDB
-      orders = allOrders;
-      console.log(`🍳 KITCHEN ORDERS: Updated local orders array with ${orders.length} total orders`);
+      console.log(`🍳 KITCHEN ALL ORDERS: Loaded ${allOrders.length} orders from MongoDB`);
     } else {
       // Use file-based data as fallback
       allOrders = orders;
-      console.log(`🍳 KITCHEN ORDERS: Using file storage - ${allOrders.length} orders`);
+      console.log(`🍳 KITCHEN ALL ORDERS: Using file storage - ${allOrders.length} orders`);
     }
     
     res.render('kitchen_orders', { 
       orders: allOrders,
-      title: 'Kitchen Orders'
+      title: 'Kitchen Orders - All Time',
+      dateFilter: 'all',
+      totalOrders: allOrders.length
     });
   } catch (error) {
-    console.error('Kitchen orders error:', error);
+    console.error('Kitchen all orders error:', error);
     res.status(500).json({ 
       success: false, 
-      error: 'Failed to load orders' 
+      error: 'Failed to load all orders' 
     });
   }
 });
