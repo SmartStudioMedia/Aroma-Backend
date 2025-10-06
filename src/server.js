@@ -3503,13 +3503,19 @@ app.post('/api/reservations', async (req, res) => {
     }
     
     // Check availability
+    console.log('🔍 Checking availability for:', reservationDate, reservationTime);
     const availability = await checkAvailability(reservationDate, reservationTime);
+    console.log('🔍 Availability check result:', availability);
+    
     if (!availability.available) {
+      console.log('❌ Availability check failed:', availability.reason);
       return res.status(400).json({ 
         success: false, 
         error: availability.reason || 'No availability for selected date and time' 
       });
     }
+    
+    console.log('✅ Availability check passed');
     
     const newReservation = {
       id: reservationIdCounter++,
@@ -3900,13 +3906,23 @@ async function sendReservationConfirmation(reservation) {
 // Helper function to check availability
 async function checkAvailability(date, time) {
   try {
+    console.log('🔍 AVAILABILITY CHECK STARTED');
+    console.log('📅 Date:', date);
+    console.log('🕐 Time:', time);
+    console.log('📊 Current reservations count:', reservations.length);
+    console.log('📊 Availability settings count:', availability.length);
+    
     // Check if date is available
     const dateStr = new Date(date).toDateString();
+    console.log('📅 Date string:', dateStr);
+    
     const dayAvailability = availability.find(a => 
       new Date(a.date).toDateString() === dateStr
     );
+    console.log('📅 Day availability found:', !!dayAvailability);
     
     if (dayAvailability && !dayAvailability.isAvailable) {
+      console.log('❌ Date is blocked:', dayAvailability.blockedReasons);
       return {
         available: false,
         reason: dayAvailability.blockedReasons || 'Date is not available'
@@ -3919,7 +3935,10 @@ async function checkAvailability(date, time) {
       const openTime = dayAvailability.openTime || '12:00';
       const closeTime = dayAvailability.closeTime || '23:00';
       
+      console.log('🕐 Time check - Requested:', requestedTime, 'Open:', openTime, 'Close:', closeTime);
+      
       if (requestedTime < openTime || requestedTime > closeTime) {
+        console.log('❌ Time outside operating hours');
         return {
           available: false,
           reason: `Restaurant is closed at ${time}. Operating hours: ${openTime} - ${closeTime}`
@@ -3932,17 +3951,23 @@ async function checkAvailability(date, time) {
       new Date(r.reservationDate).toDateString() === dateStr
     );
     
+    console.log('📊 Day reservations count:', dayReservations.length);
+    
     const maxReservations = dayAvailability?.maxReservations || 50;
+    console.log('📊 Max reservations allowed:', maxReservations);
+    
     if (dayReservations.length >= maxReservations) {
+      console.log('❌ Max reservations reached for this date');
       return {
         available: false,
         reason: 'No availability for this date'
       };
     }
     
+    console.log('✅ Availability check passed - reservation allowed');
     return { available: true };
   } catch (error) {
-    console.error('Error checking availability:', error);
+    console.error('❌ Error checking availability:', error);
     return { available: false, reason: 'Error checking availability' };
   }
 }
@@ -3956,6 +3981,83 @@ app.get('/debug/reservations', (req, res) => {
     totalReservations: reservations.length,
     mongoConnection: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected'
   });
+});
+
+// Simple reservation creation route (bypasses availability check)
+app.post('/api/reservations/simple', async (req, res) => {
+  try {
+    console.log('📅 SIMPLE RESERVATION CREATION STARTED');
+    console.log('📥 Request body:', JSON.stringify(req.body, null, 2));
+    
+    const { 
+      customerName, 
+      customerEmail, 
+      customerPhone, 
+      partySize, 
+      reservationDate, 
+      reservationTime, 
+      specialRequests, 
+      marketingConsent 
+    } = req.body;
+    
+    // Validate required fields
+    if (!customerName || !customerEmail || !customerPhone || !partySize || !reservationDate || !reservationTime) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'All required fields must be provided' 
+      });
+    }
+    
+    const newReservation = {
+      id: reservationIdCounter++,
+      customerName,
+      customerEmail,
+      customerPhone,
+      partySize: parseInt(partySize),
+      reservationDate: new Date(reservationDate),
+      reservationTime,
+      status: 'pending',
+      specialRequests: specialRequests || '',
+      marketingConsent: marketingConsent === true,
+      tableNumber: null,
+      notes: '',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    
+    console.log('🆕 Simple reservation created:', JSON.stringify(newReservation, null, 2));
+    
+    // Add to local array
+    reservations.push(newReservation);
+    console.log('📊 Reservations count after adding:', reservations.length);
+    
+    // Save to MongoDB if connected
+    try {
+      if (mongoose.connection.readyState === 1) {
+        const reservationDoc = new Reservation(newReservation);
+        await reservationDoc.save();
+        console.log(`✅ Simple reservation ${newReservation.id} saved to MongoDB`);
+      }
+    } catch (mongoError) {
+      console.error('❌ MongoDB save error:', mongoError);
+    }
+    
+    // Save to files
+    saveReservationsData();
+    console.log('✅ Simple reservation saved to files');
+    
+    res.json({ 
+      success: true, 
+      reservation: newReservation,
+      message: 'Simple reservation created successfully'
+    });
+  } catch (error) {
+    console.error('❌ Simple reservation creation error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to create simple reservation' 
+    });
+  }
 });
 
 // Test route to create a sample reservation
