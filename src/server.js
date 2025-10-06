@@ -730,6 +730,7 @@ loadOrdersData().then(() => {
 console.log('📅 Loading reservations data on startup...');
 loadReservationsData();
 console.log('✅ Reservations data loaded on startup:', reservations.length, 'reservations');
+console.log('📅 Sample reservation data:', reservations[0] ? JSON.stringify(reservations[0], null, 2) : 'No reservations found');
 
 // Note: loadMenuData() and loadOrdersData() are called after MongoDB connection in app.listen()
 
@@ -2527,20 +2528,34 @@ app.get('/admin/api/orders', authMiddleware, (req, res) => {
 // Admin Bookings Route
 app.get('/admin/bookings', authMiddleware, async (req, res) => {
   try {
+    console.log('📅 ADMIN BOOKINGS ROUTE CALLED');
+    console.log('📊 Local reservations count:', reservations.length);
+    console.log('🔗 MongoDB connection state:', mongoose.connection.readyState);
+    
     let allReservations;
     
     if (mongoose.connection.readyState === 1) {
+      console.log('📅 Loading reservations from MongoDB...');
       allReservations = await Reservation.find().sort({ reservationDate: 1, reservationTime: 1 });
+      console.log('📅 MongoDB reservations found:', allReservations.length);
+      
+      // Update local array with MongoDB data
+      reservations = allReservations;
+      console.log('📅 Local reservations updated from MongoDB');
     } else {
+      console.log('📅 Using local reservations array');
       allReservations = reservations;
     }
+    
+    console.log('📅 Final reservations to render:', allReservations.length);
+    console.log('📅 Sample reservation:', allReservations[0] ? JSON.stringify(allReservations[0], null, 2) : 'No reservations');
     
     res.render('admin_bookings', { 
       reservations: allReservations,
       title: 'Booking Management'
     });
   } catch (error) {
-    console.error('Admin bookings error:', error);
+    console.error('❌ Admin bookings error:', error);
     res.status(500).json({ 
       success: false, 
       error: 'Failed to load bookings' 
@@ -3941,6 +3956,64 @@ app.get('/debug/reservations', (req, res) => {
     totalReservations: reservations.length,
     mongoConnection: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected'
   });
+});
+
+// Test route to create a sample reservation
+app.post('/debug/create-test-reservation', async (req, res) => {
+  try {
+    console.log('🧪 Creating test reservation...');
+    
+    const testReservation = {
+      id: reservationIdCounter++,
+      customerName: 'Test Customer',
+      customerEmail: 'test@example.com',
+      customerPhone: '555-1234',
+      partySize: 4,
+      reservationDate: new Date(Date.now() + 24 * 60 * 60 * 1000), // Tomorrow
+      reservationTime: '19:00',
+      status: 'pending',
+      specialRequests: 'Test reservation for debugging',
+      marketingConsent: true,
+      tableNumber: '5',
+      notes: '',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    
+    console.log('🧪 Test reservation created:', JSON.stringify(testReservation, null, 2));
+    
+    // Add to local array
+    reservations.push(testReservation);
+    console.log('🧪 Added to local array, count:', reservations.length);
+    
+    // Save to MongoDB if connected
+    try {
+      if (mongoose.connection.readyState === 1) {
+        const reservationDoc = new Reservation(testReservation);
+        await reservationDoc.save();
+        console.log('🧪 Test reservation saved to MongoDB');
+      }
+    } catch (mongoError) {
+      console.error('❌ MongoDB save error:', mongoError);
+    }
+    
+    // Save to files
+    saveReservationsData();
+    console.log('🧪 Test reservation saved to files');
+    
+    res.json({
+      success: true,
+      message: 'Test reservation created',
+      reservation: testReservation,
+      totalReservations: reservations.length
+    });
+  } catch (error) {
+    console.error('❌ Test reservation creation error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
 });
 
 app.get('/health', (req, res) => {
