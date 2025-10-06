@@ -72,10 +72,40 @@ const clientSchema = new mongoose.Schema({
   updatedAt: { type: Date, default: Date.now }
 });
 
+const reservationSchema = new mongoose.Schema({
+  id: Number,
+  customerName: String,
+  customerEmail: String,
+  customerPhone: String,
+  partySize: Number,
+  reservationDate: Date,
+  reservationTime: String,
+  status: { type: String, enum: ['pending', 'confirmed', 'cancelled', 'completed'], default: 'pending' },
+  specialRequests: String,
+  marketingConsent: { type: Boolean, default: true },
+  tableNumber: String,
+  notes: String,
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
+});
+
+const availabilitySchema = new mongoose.Schema({
+  date: Date,
+  isAvailable: { type: Boolean, default: true },
+  openTime: String,
+  closeTime: String,
+  maxReservations: { type: Number, default: 50 },
+  blockedReasons: String,
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
+});
+
 const MenuItem = mongoose.model('MenuItem', menuItemSchema);
 const Category = mongoose.model('Category', categorySchema);
 const Order = mongoose.model('Order', orderSchema);
 const Client = mongoose.model('Client', clientSchema);
+const Reservation = mongoose.model('Reservation', reservationSchema);
+const Availability = mongoose.model('Availability', availabilitySchema);
 
 // Helper function to generate multilingual translations
 function generateMultilingualTranslations(text, type = 'item') {
@@ -397,5 +427,7 @@ module.exports = {
   MenuItem,
   Category,
   Order,
-  Client
+  Client,
+  Reservation,
+  Availability
 };
