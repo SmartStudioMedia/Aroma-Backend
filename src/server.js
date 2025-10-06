@@ -18,7 +18,9 @@ const {
   MenuItem,
   Category,
   Order,
-  Client
+  Client,
+  Reservation,
+  Availability
 } = require('./database');
 
 const PORT = process.env.PORT || 4000;
@@ -316,12 +318,17 @@ let menuData = {
 
 let orders = [];
 let clients = [];
+let reservations = [];
+let availability = [];
 let orderIdCounter = 1;
+let reservationIdCounter = 1;
 
 // Data persistence files - using multiple backup locations for reliability
 const MENU_DATA_FILE = path.join(__dirname, 'data', 'menu-data.json');
 const ORDERS_DATA_FILE = path.join(__dirname, 'data', 'orders-data.json');
 const CLIENTS_DATA_FILE = path.join(__dirname, 'data', 'clients-data.json');
+const RESERVATIONS_DATA_FILE = path.join(__dirname, 'data', 'reservations-data.json');
+const AVAILABILITY_DATA_FILE = path.join(__dirname, 'data', 'availability-data.json');
 const MENU_DATA_BACKUP = path.join(__dirname, 'menu-data.json');
 const ORDERS_DATA_BACKUP = path.join(__dirname, 'orders-data.json');
 const CLIENTS_DATA_BACKUP = path.join(__dirname, 'clients-data.json');
@@ -2494,6 +2501,30 @@ app.get('/admin/api/orders', authMiddleware, (req, res) => {
   res.json(orders);
 });
 
+// Admin Bookings Route
+app.get('/admin/bookings', authMiddleware, async (req, res) => {
+  try {
+    let allReservations;
+    
+    if (mongoose.connection.readyState === 1) {
+      allReservations = await Reservation.find().sort({ reservationDate: 1, reservationTime: 1 });
+    } else {
+      allReservations = reservations;
+    }
+    
+    res.render('admin_bookings', { 
+      reservations: allReservations,
+      title: 'Booking Management'
+    });
+  } catch (error) {
+    console.error('Admin bookings error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to load bookings' 
+    });
+  }
+});
+
 // AGGRESSIVE STATUS UPDATE SYSTEM - BYPASS DUPLICATES
 app.post('/admin/orders/:id/force-status', authMiddleware, async (req, res) => {
   try {
@@ -3383,6 +3414,335 @@ app.get('/debug/refresh', async (req, res) => {
   }
 });
 
+// RESERVATION SYSTEM ROUTES
+
+// Get booking page
+app.get('/booking', (req, res) => {
+  res.render('booking', { title: 'Table Reservation' });
+});
+
+// Create new reservation
+app.post('/api/reservations', async (req, res) => {
+  try {
+    console.log('📅 RESERVATION CREATION STARTED');
+    console.log('📥 Request body:', JSON.stringify(req.body, null, 2));
+    
+    const { 
+      customerName, 
+      customerEmail, 
+      customerPhone, 
+      partySize, 
+      reservationDate, 
+      reservationTime, 
+      specialRequests, 
+      marketingConsent 
+    } = req.body;
+    
+    // Validate required fields
+    if (!customerName || !customerEmail || !customerPhone || !partySize || !reservationDate || !reservationTime) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'All required fields must be provided' 
+      });
+    }
+    
+    // Check if date is in the future
+    const reservationDateTime = new Date(`${reservationDate}T${reservationTime}`);
+    if (reservationDateTime <= new Date()) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Reservation must be for a future date and time' 
+      });
+    }
+    
+    // Check availability
+    const availability = await checkAvailability(reservationDate, reservationTime);
+    if (!availability.available) {
+      return res.status(400).json({ 
+        success: false, 
+        error: availability.reason || 'No availability for selected date and time' 
+      });
+    }
+    
+    const newReservation = {
+      id: reservationIdCounter++,
+      customerName,
+      customerEmail,
+      customerPhone,
+      partySize: parseInt(partySize),
+      reservationDate: new Date(reservationDate),
+      reservationTime,
+      status: 'pending',
+      specialRequests: specialRequests || '',
+      marketingConsent: marketingConsent === true,
+      tableNumber: null,
+      notes: '',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    
+    console.log('🆕 New reservation created:', JSON.stringify(newReservation, null, 2));
+    
+    // Add to local array
+    reservations.push(newReservation);
+    
+    // Save to MongoDB if connected
+    try {
+      if (mongoose.connection.readyState === 1) {
+        const reservationDoc = new Reservation(newReservation);
+        await reservationDoc.save();
+        console.log(`✅ Reservation ${newReservation.id} saved to MongoDB`);
+      }
+    } catch (mongoError) {
+      console.error('❌ MongoDB save error:', mongoError);
+    }
+    
+    // Save to files
+    saveReservationsData();
+    
+    // Save client if marketing consent is given
+    if (marketingConsent) {
+      try {
+        const existingClient = clients.find(c => c.email === customerEmail);
+        if (!existingClient) {
+          const newClient = {
+            id: clients.length > 0 ? Math.max(...clients.map(c => c.id)) + 1 : 1,
+            name: customerName,
+            email: customerEmail,
+            phone: customerPhone,
+            marketingConsent: true,
+            totalOrders: 0,
+            totalSpent: 0,
+            createdAt: new Date().toISOString()
+          };
+          clients.push(newClient);
+          
+          if (mongoose.connection.readyState === 1) {
+            await Client.create(newClient);
+          }
+          
+          saveClientsData();
+        }
+      } catch (clientError) {
+        console.error('❌ Client save error:', clientError);
+      }
+    }
+    
+    console.log('✅ RESERVATION CREATION COMPLETED');
+    
+    res.json({ 
+      success: true, 
+      reservation: newReservation,
+      message: 'Reservation created successfully'
+    });
+  } catch (error) {
+    console.error('❌ Reservation creation error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to create reservation' 
+    });
+  }
+});
+
+// Get all reservations
+app.get('/api/reservations', async (req, res) => {
+  try {
+    let allReservations;
+    
+    if (mongoose.connection.readyState === 1) {
+      allReservations = await Reservation.find().sort({ reservationDate: 1, reservationTime: 1 });
+    } else {
+      allReservations = reservations;
+    }
+    
+    res.json({
+      success: true,
+      reservations: allReservations
+    });
+  } catch (error) {
+    console.error('Error fetching reservations:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch reservations'
+    });
+  }
+});
+
+// Update reservation status
+app.post('/api/reservations/:id/status', async (req, res) => {
+  try {
+    const reservationId = parseInt(req.params.id);
+    const { status } = req.body;
+    
+    // Update local array
+    const reservationIndex = reservations.findIndex(r => r.id === reservationId);
+    if (reservationIndex !== -1) {
+      reservations[reservationIndex].status = status;
+      reservations[reservationIndex].updatedAt = new Date().toISOString();
+    }
+    
+    // Update MongoDB if connected
+    if (mongoose.connection.readyState === 1) {
+      await Reservation.findOneAndUpdate(
+        { id: reservationId },
+        { status, updatedAt: new Date() }
+      );
+    }
+    
+    // Save to files
+    saveReservationsData();
+    
+    res.json({
+      success: true,
+      message: 'Reservation status updated'
+    });
+  } catch (error) {
+    console.error('Error updating reservation status:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update reservation status'
+    });
+  }
+});
+
+// Update reservation
+app.put('/api/reservations/:id', async (req, res) => {
+  try {
+    const reservationId = parseInt(req.params.id);
+    const updateData = req.body;
+    
+    // Update local array
+    const reservationIndex = reservations.findIndex(r => r.id === reservationId);
+    if (reservationIndex !== -1) {
+      reservations[reservationIndex] = { ...reservations[reservationIndex], ...updateData };
+      reservations[reservationIndex].updatedAt = new Date().toISOString();
+    }
+    
+    // Update MongoDB if connected
+    if (mongoose.connection.readyState === 1) {
+      await Reservation.findOneAndUpdate(
+        { id: reservationId },
+        { ...updateData, updatedAt: new Date() }
+      );
+    }
+    
+    // Save to files
+    saveReservationsData();
+    
+    res.json({
+      success: true,
+      message: 'Reservation updated'
+    });
+  } catch (error) {
+    console.error('Error updating reservation:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update reservation'
+    });
+  }
+});
+
+// Update availability
+app.post('/api/availability', async (req, res) => {
+  try {
+    const { date, isAvailable, openTime, closeTime, maxReservations, blockedReasons } = req.body;
+    
+    const availabilityData = {
+      date: new Date(date),
+      isAvailable,
+      openTime,
+      closeTime,
+      maxReservations: parseInt(maxReservations),
+      blockedReasons: blockedReasons || '',
+      updatedAt: new Date()
+    };
+    
+    // Update local array
+    const existingIndex = availability.findIndex(a => 
+      new Date(a.date).toDateString() === new Date(date).toDateString()
+    );
+    
+    if (existingIndex !== -1) {
+      availability[existingIndex] = availabilityData;
+    } else {
+      availability.push(availabilityData);
+    }
+    
+    // Update MongoDB if connected
+    if (mongoose.connection.readyState === 1) {
+      await Availability.findOneAndUpdate(
+        { date: new Date(date) },
+        availabilityData,
+        { upsert: true }
+      );
+    }
+    
+    // Save to files
+    saveAvailabilityData();
+    
+    res.json({
+      success: true,
+      message: 'Availability updated'
+    });
+  } catch (error) {
+    console.error('Error updating availability:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update availability'
+    });
+  }
+});
+
+// Helper function to check availability
+async function checkAvailability(date, time) {
+  try {
+    // Check if date is available
+    const dateStr = new Date(date).toDateString();
+    const dayAvailability = availability.find(a => 
+      new Date(a.date).toDateString() === dateStr
+    );
+    
+    if (dayAvailability && !dayAvailability.isAvailable) {
+      return {
+        available: false,
+        reason: dayAvailability.blockedReasons || 'Date is not available'
+      };
+    }
+    
+    // Check time is within operating hours
+    if (dayAvailability) {
+      const requestedTime = time;
+      const openTime = dayAvailability.openTime || '12:00';
+      const closeTime = dayAvailability.closeTime || '23:00';
+      
+      if (requestedTime < openTime || requestedTime > closeTime) {
+        return {
+          available: false,
+          reason: `Restaurant is closed at ${time}. Operating hours: ${openTime} - ${closeTime}`
+        };
+      }
+    }
+    
+    // Check reservation count for the day
+    const dayReservations = reservations.filter(r => 
+      new Date(r.reservationDate).toDateString() === dateStr
+    );
+    
+    const maxReservations = dayAvailability?.maxReservations || 50;
+    if (dayReservations.length >= maxReservations) {
+      return {
+        available: false,
+        reason: 'No availability for this date'
+      };
+    }
+    
+    return { available: true };
+  } catch (error) {
+    console.error('Error checking availability:', error);
+    return { available: false, reason: 'Error checking availability' };
+  }
+}
+
 app.get('/health', (req, res) => {
   res.json({ 
     status: 'OK', 
@@ -4256,6 +4616,51 @@ function saveClientsData() {
     console.log(`✅ Clients data saved successfully (${clients.length} clients, ${clientsData.length} bytes)`);
   } catch (error) {
     console.error('❌ Error saving clients data:', error);
+  }
+}
+
+function saveReservationsData() {
+  try {
+    const reservationsData = {
+      reservations: reservations,
+      reservationIdCounter: reservationIdCounter
+    };
+    const data = JSON.stringify(reservationsData, null, 2);
+    
+    // Ensure data directory exists before writing
+    const dataDir = path.dirname(RESERVATIONS_DATA_FILE);
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
+    }
+    
+    // Write to primary location
+    fs.writeFileSync(RESERVATIONS_DATA_FILE, data);
+    
+    console.log('✅ Reservations data saved to files');
+  } catch (error) {
+    console.error('❌ Error saving reservations data:', error);
+  }
+}
+
+function saveAvailabilityData() {
+  try {
+    const availabilityData = {
+      availability: availability
+    };
+    const data = JSON.stringify(availabilityData, null, 2);
+    
+    // Ensure data directory exists before writing
+    const dataDir = path.dirname(AVAILABILITY_DATA_FILE);
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
+    }
+    
+    // Write to primary location
+    fs.writeFileSync(AVAILABILITY_DATA_FILE, data);
+    
+    console.log('✅ Availability data saved to files');
+  } catch (error) {
+    console.error('❌ Error saving availability data:', error);
   }
 }
 
