@@ -313,6 +313,18 @@
     </div>
 
     <script>
+        // Translation function
+        function translate(text) {
+            if (typeof text === 'string') {
+                return text;
+            } else if (text && text.en) {
+                return text.en;
+            } else if (text && typeof text === 'object') {
+                return Object.values(text)[0] || text;
+            }
+            return text || 'Unknown Item';
+        }
+
         function updateOrderStatus(orderId, status) {
             fetch(`/kitchen/orders/${orderId}/force-status`, {
                 method: 'POST',
