@@ -367,7 +367,7 @@
             let qrTitle = title;
             
             if (qrType === 'general') {
-                bookingUrl = `${window.location.origin}/booking`;
+                bookingUrl = `${window.location.origin}/book`;
                 qrTitle = title || 'Book Your Table';
             } else if (qrType === 'table') {
                 const tableNumber = document.getElementById('bookingTableNumber').value;
@@ -375,7 +375,7 @@
                     showError('Please enter a valid table number');
                     return;
                 }
-                bookingUrl = `${window.location.origin}/booking?table=${tableNumber}`;
+                bookingUrl = `${window.location.origin}/book?table=${tableNumber}`;
                 qrTitle = title || `Book Table ${tableNumber}`;
             } else if (qrType === 'custom') {
                 const customLink = document.getElementById('customBookingLink').value;
