@@ -340,18 +340,26 @@
         // Load blocked days from server
         let blockedDays = [];
         
+        // Store blocked days with their reasons
+        const blockedDaysMap = new Map();
+        
         async function loadBlockedDays() {
             try {
                 const response = await fetch('/api/availability/blocked');
                 const data = await response.json();
                 if (data.success) {
-                    blockedDays = data.blockedDays.map(day => {
+                    data.blockedDays.forEach(day => {
                         const date = new Date(day.date);
                         const year = date.getFullYear();
                         const month = String(date.getMonth() + 1).padStart(2, '0');
                         const dayNum = String(date.getDate()).padStart(2, '0');
-                        return `${year}-${month}-${dayNum}`;
+                        const dateStr = `${year}-${month}-${dayNum}`;
+                        
+                        // Store date with its reason
+                        blockedDaysMap.set(dateStr, day.reason || 'This date is not available for bookings');
                     });
+                    
+                    blockedDays = Array.from(blockedDaysMap.keys());
                     console.log('📅 Loaded blocked days:', blockedDays);
                 }
             } catch (error) {
@@ -366,7 +374,8 @@
         dateInput.addEventListener('change', function() {
             const selectedDate = this.value;
             if (blockedDays.includes(selectedDate)) {
-                alert('❌ Sorry, this date is not available for bookings. Please select another date.');
+                const reason = blockedDaysMap.get(selectedDate);
+                alert(`❌ Sorry, this date is not available.\n\nReason: ${reason}\n\nPlease select another date.`);
                 this.value = '';
             }
         });
@@ -395,7 +404,8 @@
             
             // Validate date is not blocked
             if (blockedDays.includes(selectedDate)) {
-                alert('❌ This date is not available for bookings. Please select another date.');
+                const reason = blockedDaysMap.get(selectedDate);
+                alert(`❌ Sorry, this date is not available.\n\nReason: ${reason}\n\nPlease select another date.`);
                 return;
             }
             
