@@ -334,7 +334,42 @@
 
     <script>
         // Set minimum date to today
-        document.getElementById('reservationDate').min = new Date().toISOString().split('T')[0];
+        const dateInput = document.getElementById('reservationDate');
+        dateInput.min = new Date().toISOString().split('T')[0];
+        
+        // Load blocked days from server
+        let blockedDays = [];
+        
+        async function loadBlockedDays() {
+            try {
+                const response = await fetch('/api/availability/blocked');
+                const data = await response.json();
+                if (data.success) {
+                    blockedDays = data.blockedDays.map(day => {
+                        const date = new Date(day.date);
+                        const year = date.getFullYear();
+                        const month = String(date.getMonth() + 1).padStart(2, '0');
+                        const dayNum = String(date.getDate()).padStart(2, '0');
+                        return `${year}-${month}-${dayNum}`;
+                    });
+                    console.log('📅 Loaded blocked days:', blockedDays);
+                }
+            } catch (error) {
+                console.error('Error loading blocked days:', error);
+            }
+        }
+        
+        // Load blocked days on page load
+        loadBlockedDays();
+        
+        // Validate date selection
+        dateInput.addEventListener('change', function() {
+            const selectedDate = this.value;
+            if (blockedDays.includes(selectedDate)) {
+                alert('❌ Sorry, this date is not available for bookings. Please select another date.');
+                this.value = '';
+            }
+        });
         
         // Check for table parameter in URL
         const urlParams = new URLSearchParams(window.location.search);
@@ -355,6 +390,15 @@
             const successMessage = document.getElementById('successMessage');
             const errorMessage = document.getElementById('errorMessage');
             
+            // Get form data
+            const selectedDate = document.getElementById('reservationDate').value;
+            
+            // Validate date is not blocked
+            if (blockedDays.includes(selectedDate)) {
+                alert('❌ This date is not available for bookings. Please select another date.');
+                return;
+            }
+            
             // Show loading state
             submitBtn.disabled = true;
             submitBtn.textContent = 'Processing...';
@@ -362,13 +406,12 @@
             successMessage.style.display = 'none';
             errorMessage.style.display = 'none';
             
-            // Get form data
             const formData = {
                 customerName: document.getElementById('customerName').value,
                 customerEmail: document.getElementById('customerEmail').value,
                 customerPhone: document.getElementById('customerPhone').value,
                 partySize: parseInt(document.getElementById('partySize').value),
-                reservationDate: document.getElementById('reservationDate').value,
+                reservationDate: selectedDate,
                 reservationTime: document.getElementById('reservationTime').value,
                 specialRequests: document.getElementById('specialRequests').value,
                 marketingConsent: document.getElementById('marketingConsent').checked,
