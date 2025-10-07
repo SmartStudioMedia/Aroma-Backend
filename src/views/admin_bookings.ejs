@@ -606,21 +606,19 @@
 
     <script>
         let currentDate = new Date();
-        let reservations = [];
+        // Use reservations passed from server instead of empty array
+        let reservations = <%- JSON.stringify(reservations || []) %>;
         let blockedDays = [];
         
+        console.log('📊 Reservations from server:', reservations.length);
+        
         // Initialize calendar
-        async function initCalendar() {
-            console.log('🔄 Initializing calendar...');
+        function initCalendar() {
+            console.log('🔄 Initializing calendar with', reservations.length, 'reservations');
             updateCalendar();
-            console.log('📅 Calendar structure created');
-            
-            await loadReservations();
-            console.log('✅ Reservations loaded:', reservations.length);
-            
-            await loadBlockedDays();
-            console.log('✅ Blocked days loaded:', blockedDays.length);
-            
+            updateReservationCounts();
+            loadBlockedDays();
+            displayReservations(false);
             console.log('🎉 Calendar initialization complete!');
         }
         
@@ -685,10 +683,7 @@
         
         // Update reservation counts for each day
         function updateReservationCounts() {
-            console.log('📊 Updating reservation counts for', reservations.length, 'reservations');
-            
-            if (reservations.length === 0) {
-                console.log('⚠️ No reservations to display');
+            if (!reservations || reservations.length === 0) {
                 return;
             }
             
@@ -697,7 +692,6 @@
             
             reservations.forEach(reservation => {
                 const date = new Date(reservation.reservationDate);
-                // Use local date string to avoid timezone issues
                 const year = date.getFullYear();
                 const month = String(date.getMonth() + 1).padStart(2, '0');
                 const day = String(date.getDate()).padStart(2, '0');
@@ -709,46 +703,25 @@
                 reservationsByDate[dateStr].push(reservation);
             });
             
-            console.log('📅 Reservations grouped by date:', reservationsByDate);
-            
             // Update counts for each date
-            let updatedCount = 0;
             Object.keys(reservationsByDate).forEach(dateStr => {
                 const countElement = document.getElementById(`count-${dateStr}`);
                 if (countElement) {
-                    const count = reservationsByDate[dateStr].length;
-                    countElement.textContent = count;
-                    updatedCount++;
-                    console.log(`✅ Updated ${dateStr}: ${count} bookings`);
-                } else {
-                    console.log(`⚠️ Element not found for date: ${dateStr}`);
+                    countElement.textContent = reservationsByDate[dateStr].length;
                 }
             });
-            
-            console.log(`✅ Updated ${updatedCount} calendar dates with booking counts`);
         }
         
-        // Load reservations
+        // Load reservations from API (for refresh button)
         async function loadReservations() {
             try {
-                console.log('📡 Fetching reservations from API...');
                 const response = await fetch('/api/reservations');
-                console.log('📡 API response status:', response.status);
-                
                 const data = await response.json();
-                console.log('📡 API response data:', data);
-                
                 reservations = data.reservations || [];
-                console.log('📋 Loaded', reservations.length, 'reservations');
-                
-                if (reservations.length > 0) {
-                    console.log('📋 Sample reservation:', reservations[0]);
-                }
-                
                 updateReservationCounts();
-                displayReservations();
+                displayReservations(false);
             } catch (error) {
-                console.error('❌ Error loading reservations:', error);
+                console.error('Error loading reservations:', error);
             }
         }
         
