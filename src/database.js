@@ -65,9 +65,11 @@ const clientSchema = new mongoose.Schema({
   id: Number,
   name: String,
   email: String,
+  phone: String,
   marketingConsent: { type: Boolean, default: false },
   totalOrders: { type: Number, default: 0 },
   totalSpent: { type: Number, default: 0 },
+  totalReservations: { type: Number, default: 0 },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 });
