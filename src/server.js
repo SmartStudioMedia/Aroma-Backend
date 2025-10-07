@@ -3777,6 +3777,103 @@ app.post('/api/availability', async (req, res) => {
   }
 });
 
+// Get blocked days
+app.get('/api/availability/blocked', async (req, res) => {
+  try {
+    let blockedDays;
+    
+    if (mongoose.connection.readyState === 1) {
+      blockedDays = await Availability.find({ isAvailable: false }).sort({ date: 1 });
+    } else {
+      blockedDays = availability.filter(a => !a.isAvailable);
+    }
+    
+    res.json({
+      success: true,
+      blockedDays: blockedDays.map(day => ({
+        date: day.date,
+        reason: day.blockedReasons || ''
+      }))
+    });
+  } catch (error) {
+    console.error('Error fetching blocked days:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch blocked days'
+    });
+  }
+});
+
+// Block or unblock a specific day
+app.post('/api/availability/block', async (req, res) => {
+  try {
+    const { date, isBlocked, reason } = req.body;
+    
+    if (!date) {
+      return res.status(400).json({
+        success: false,
+        error: 'Date is required'
+      });
+    }
+    
+    const availabilityData = {
+      date: new Date(date),
+      isAvailable: !isBlocked,
+      blockedReasons: reason || '',
+      openTime: '12:00',
+      closeTime: '23:00',
+      maxReservations: 50,
+      updatedAt: new Date()
+    };
+    
+    // Update local array
+    const existingIndex = availability.findIndex(a => 
+      new Date(a.date).toDateString() === new Date(date).toDateString()
+    );
+    
+    if (isBlocked) {
+      // Block the day
+      if (existingIndex !== -1) {
+        availability[existingIndex] = availabilityData;
+      } else {
+        availability.push(availabilityData);
+      }
+    } else {
+      // Unblock the day - remove from blocked list
+      if (existingIndex !== -1) {
+        availability.splice(existingIndex, 1);
+      }
+    }
+    
+    // Update MongoDB if connected
+    if (mongoose.connection.readyState === 1) {
+      if (isBlocked) {
+        await Availability.findOneAndUpdate(
+          { date: new Date(date) },
+          availabilityData,
+          { upsert: true }
+        );
+      } else {
+        await Availability.deleteOne({ date: new Date(date) });
+      }
+    }
+    
+    // Save to files
+    saveAvailabilityData();
+    
+    res.json({
+      success: true,
+      message: isBlocked ? 'Day blocked successfully' : 'Day unblocked successfully'
+    });
+  } catch (error) {
+    console.error('Error blocking/unblocking day:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to block/unblock day'
+    });
+  }
+});
+
 // QR Code Generation for Bookings
 app.post('/api/qr/generate-booking', async (req, res) => {
   try {
