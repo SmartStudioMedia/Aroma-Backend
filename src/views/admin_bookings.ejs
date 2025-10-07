@@ -430,66 +430,47 @@
         
         <!-- Availability Controls -->
         <div class="availability-controls">
-            <h2 style="margin-bottom: 20px; color: #374151;">🗓️ Block/Unblock Days</h2>
-            <p style="color: #6b7280; margin-bottom: 15px;">Block specific days or date ranges to prevent bookings (e.g., holidays, private events, maintenance)</p>
+            <h2 style="margin-bottom: 20px; color: #374151;">🗓️ Manage Blocked Days</h2>
+            <p style="color: #6b7280; margin-bottom: 15px;">Easily block or unblock days to control booking availability</p>
             
-            <div style="margin-bottom: 20px;">
-                <label style="display: flex; align-items: center; gap: 10px; color: #374151; font-weight: 600;">
-                    <input type="checkbox" id="useRangeMode" onchange="toggleRangeMode()" style="width: 20px; height: 20px;">
-                    Block Multiple Days (Date Range)
-                </label>
-            </div>
-            
-            <div id="singleDayMode">
-                <div class="form-row">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                <!-- Block Days -->
+                <div style="background: #fef3c7; padding: 20px; border-radius: 10px; border: 2px solid #f59e0b;">
+                    <h3 style="color: #92400e; margin-bottom: 15px;">🚫 Block Days</h3>
                     <div class="form-group">
-                        <label for="blockDate">Select Date to Block/Unblock</label>
-                        <input type="date" id="blockDate" name="blockDate">
+                        <label for="blockDateInput">Select Date(s)</label>
+                        <input type="date" id="blockDateInput" style="width: 100%; padding: 10px; border: 2px solid #f59e0b; border-radius: 8px;">
                     </div>
-                    <div class="form-group">
-                        <label for="blockStatus">Action</label>
-                        <select id="blockStatus" name="blockStatus">
-                            <option value="block">Block Day (No Bookings)</option>
-                            <option value="unblock">Unblock Day (Allow Bookings)</option>
-                        </select>
+                    <div class="form-group" style="margin-top: 10px;">
+                        <label for="blockReasonInput">Reason (Optional)</label>
+                        <input type="text" id="blockReasonInput" placeholder="e.g., Holiday, Private Event" style="width: 100%; padding: 10px; border: 2px solid #f59e0b; border-radius: 8px;">
                     </div>
-                    <div class="form-group">
-                        <label for="blockReason">Reason (Optional)</label>
-                        <input type="text" id="blockReason" name="blockReason" placeholder="e.g., Private event, Holiday, Maintenance">
+                    <button onclick="blockDay()" style="width: 100%; margin-top: 10px; padding: 12px; background: #f59e0b; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
+                        Block Selected Day
+                    </button>
+                    
+                    <div style="margin-top: 15px; padding-top: 15px; border-top: 2px solid #fbbf24;">
+                        <p style="color: #92400e; font-size: 0.9rem; margin-bottom: 10px;">📅 Block Multiple Days:</p>
+                        <div class="form-group">
+                            <label for="blockStartInput">From:</label>
+                            <input type="date" id="blockStartInput" style="width: 100%; padding: 8px; border: 2px solid #f59e0b; border-radius: 8px; margin-bottom: 8px;">
+                        </div>
+                        <div class="form-group">
+                            <label for="blockEndInput">To:</label>
+                            <input type="date" id="blockEndInput" style="width: 100%; padding: 8px; border: 2px solid #f59e0b; border-radius: 8px;">
+                        </div>
+                        <button onclick="blockRange()" style="width: 100%; margin-top: 10px; padding: 10px; background: #d97706; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
+                            Block Date Range
+                        </button>
                     </div>
                 </div>
-                <button class="btn btn-confirm" onclick="blockUnblockDay()">Apply Changes</button>
-            </div>
-            
-            <div id="rangeDayMode" style="display: none;">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="blockStartDate">Start Date</label>
-                        <input type="date" id="blockStartDate" name="blockStartDate">
+                
+                <!-- Blocked Days List -->
+                <div style="background: #fee2e2; padding: 20px; border-radius: 10px; border: 2px solid #dc2626;">
+                    <h3 style="color: #991b1b; margin-bottom: 15px;">🚫 Blocked Days</h3>
+                    <div id="blockedDaysList" style="max-height: 400px; overflow-y: auto;">
+                        <p style="color: #6b7280;">Loading...</p>
                     </div>
-                    <div class="form-group">
-                        <label for="blockEndDate">End Date</label>
-                        <input type="date" id="blockEndDate" name="blockEndDate">
-                    </div>
-                    <div class="form-group">
-                        <label for="rangeBlockStatus">Action</label>
-                        <select id="rangeBlockStatus" name="rangeBlockStatus">
-                            <option value="block">Block All Days in Range</option>
-                            <option value="unblock">Unblock All Days in Range</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="rangeBlockReason">Reason (Optional)</label>
-                        <input type="text" id="rangeBlockReason" name="rangeBlockReason" placeholder="e.g., Summer vacation, Renovation">
-                    </div>
-                </div>
-                <button class="btn btn-confirm" onclick="blockUnblockRange()">Apply to All Days in Range</button>
-            </div>
-            
-            <div style="margin-top: 20px; padding: 15px; background: #f9fafb; border-radius: 8px;">
-                <h3 style="color: #374151; margin-bottom: 10px;">🚫 Currently Blocked Days</h3>
-                <div id="blockedDaysList" style="color: #6b7280;">
-                    Loading...
                 </div>
             </div>
         </div>
@@ -1020,11 +1001,74 @@
             document.getElementById('dateModal').style.display = 'none';
         }
         
-        // Toggle between single day and range mode
-        function toggleRangeMode() {
-            const useRange = document.getElementById('useRangeMode').checked;
-            document.getElementById('singleDayMode').style.display = useRange ? 'none' : 'block';
-            document.getElementById('rangeDayMode').style.display = useRange ? 'block' : 'none';
+        // Block a single day
+        async function blockDay() {
+            const date = document.getElementById('blockDateInput').value;
+            const reason = document.getElementById('blockReasonInput').value;
+            
+            if (!date) {
+                alert('Please select a date to block');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/availability/block', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        date,
+                        isBlocked: true,
+                        reason: reason || ''
+                    })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    alert('✅ Day blocked successfully!');
+                    document.getElementById('blockDateInput').value = '';
+                    document.getElementById('blockReasonInput').value = '';
+                    await loadBlockedDays();
+                    updateCalendar();
+                    updateReservationCounts();
+                } else {
+                    alert('❌ Failed to block day: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error blocking day:', error);
+                alert('❌ Error blocking day');
+            }
+        }
+        
+        // Unblock a single day
+        async function unblockDay(dateStr) {
+            if (!confirm(`Unblock this day?\n${dateStr}`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/availability/block', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        date: dateStr,
+                        isBlocked: false,
+                        reason: ''
+                    })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    alert('✅ Day unblocked successfully!');
+                    await loadBlockedDays();
+                    updateCalendar();
+                    updateReservationCounts();
+                } else {
+                    alert('❌ Failed to unblock day: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error unblocking day:', error);
+                alert('❌ Error unblocking day');
+            }
         }
         
         // Load blocked days from server
@@ -1046,22 +1090,28 @@
         function displayBlockedDays() {
             const blockedDaysList = document.getElementById('blockedDaysList');
             if (blockedDays.length === 0) {
-                blockedDaysList.innerHTML = '<p>No blocked days</p>';
+                blockedDaysList.innerHTML = '<p style="color: #6b7280; text-align: center; padding: 20px;">No blocked days</p>';
                 return;
             }
             
             blockedDaysList.innerHTML = blockedDays.map(day => {
                 const date = new Date(day.date);
+                const dateStr = date.toISOString().split('T')[0];
                 const formattedDate = date.toLocaleDateString('en-US', { 
-                    weekday: 'long', 
+                    weekday: 'short', 
                     year: 'numeric', 
-                    month: 'long', 
+                    month: 'short', 
                     day: 'numeric' 
                 });
                 return `
-                    <div style="padding: 8px; border-bottom: 1px solid #e5e7eb;">
-                        📅 <strong>${formattedDate}</strong>
-                        ${day.reason ? `<br><small style="color: #6b7280;">Reason: ${day.reason}</small>` : ''}
+                    <div style="padding: 12px; border-bottom: 1px solid #fecaca; background: white; margin-bottom: 8px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="font-weight: 600; color: #991b1b;">📅 ${formattedDate}</div>
+                            ${day.reason ? `<div style="font-size: 0.85rem; color: #6b7280; margin-top: 4px;">${day.reason}</div>` : ''}
+                        </div>
+                        <button onclick="unblockDay('${dateStr}')" style="padding: 6px 12px; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 600;">
+                            Unblock
+                        </button>
                     </div>
                 `;
             }).join('');
@@ -1087,50 +1137,11 @@
             });
         }
         
-        // Block or unblock a day
-        async function blockUnblockDay() {
-            const date = document.getElementById('blockDate').value;
-            const action = document.getElementById('blockStatus').value;
-            const reason = document.getElementById('blockReason').value;
-            
-            if (!date) {
-                alert('Please select a date');
-                return;
-            }
-            
-            try {
-                const response = await fetch('/api/availability/block', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        date,
-                        isBlocked: action === 'block',
-                        reason: reason || ''
-                    })
-                });
-                
-                const result = await response.json();
-                if (result.success) {
-                    alert(action === 'block' ? 'Day blocked successfully' : 'Day unblocked successfully');
-                    await loadBlockedDays();
-                    updateCalendar();
-                } else {
-                    alert('Failed to update day: ' + result.error);
-                }
-            } catch (error) {
-                console.error('Error blocking/unblocking day:', error);
-                alert('Error updating day');
-            }
-        }
-        
-        // Block or unblock a range of days
-        async function blockUnblockRange() {
-            const startDate = document.getElementById('blockStartDate').value;
-            const endDate = document.getElementById('blockEndDate').value;
-            const action = document.getElementById('rangeBlockStatus').value;
-            const reason = document.getElementById('rangeBlockReason').value;
+        // Block a range of days
+        async function blockRange() {
+            const startDate = document.getElementById('blockStartInput').value;
+            const endDate = document.getElementById('blockEndInput').value;
+            const reason = document.getElementById('blockReasonInput').value;
             
             if (!startDate || !endDate) {
                 alert('Please select both start and end dates');
@@ -1141,19 +1152,19 @@
             const end = new Date(endDate);
             
             if (end < start) {
-                alert('End date must be after or equal to start date');
+                alert('End date must be after start date');
                 return;
             }
             
             // Calculate number of days
             const dayCount = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
             
-            if (!confirm(`This will ${action} ${dayCount} days. Continue?`)) {
+            if (!confirm(`Block ${dayCount} days from ${startDate} to ${endDate}?`)) {
                 return;
             }
             
             try {
-                // Block/unblock each day in the range
+                // Block each day in the range
                 const promises = [];
                 const currentDate = new Date(start);
                 
@@ -1163,12 +1174,10 @@
                     promises.push(
                         fetch('/api/availability/block', {
                             method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
+                            headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
                                 date: dateStr,
-                                isBlocked: action === 'block',
+                                isBlocked: true,
                                 reason: reason || ''
                             })
                         })
@@ -1179,12 +1188,15 @@
                 
                 await Promise.all(promises);
                 
-                alert(`Successfully ${action === 'block' ? 'blocked' : 'unblocked'} ${dayCount} days!`);
+                alert(`✅ Successfully blocked ${dayCount} days!`);
+                document.getElementById('blockStartInput').value = '';
+                document.getElementById('blockEndInput').value = '';
                 await loadBlockedDays();
                 updateCalendar();
+                updateReservationCounts();
             } catch (error) {
-                console.error('Error blocking/unblocking range:', error);
-                alert('Error updating date range');
+                console.error('Error blocking range:', error);
+                alert('❌ Error blocking date range');
             }
         }
         
