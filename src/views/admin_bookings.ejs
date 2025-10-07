@@ -430,39 +430,33 @@
         
         <!-- Availability Controls -->
         <div class="availability-controls">
-            <h2 style="margin-bottom: 20px; color: #374151;">🗓️ Manage Availability</h2>
+            <h2 style="margin-bottom: 20px; color: #374151;">🗓️ Block/Unblock Days</h2>
+            <p style="color: #6b7280; margin-bottom: 15px;">Block specific days to prevent bookings (e.g., holidays, private events, maintenance)</p>
             <div class="form-row">
                 <div class="form-group">
-                    <label for="availabilityDate">Date</label>
-                    <input type="date" id="availabilityDate" name="availabilityDate">
+                    <label for="blockDate">Select Date to Block/Unblock</label>
+                    <input type="date" id="blockDate" name="blockDate">
                 </div>
                 <div class="form-group">
-                    <label for="availabilityStatus">Status</label>
-                    <select id="availabilityStatus" name="availabilityStatus">
-                        <option value="available">Available</option>
-                        <option value="unavailable">Unavailable</option>
+                    <label for="blockStatus">Action</label>
+                    <select id="blockStatus" name="blockStatus">
+                        <option value="block">Block Day (No Bookings)</option>
+                        <option value="unblock">Unblock Day (Allow Bookings)</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label for="openTime">Open Time</label>
-                    <input type="time" id="openTime" name="openTime" value="12:00">
-                </div>
-                <div class="form-group">
-                    <label for="closeTime">Close Time</label>
-                    <input type="time" id="closeTime" name="closeTime" value="23:00">
+                    <label for="blockReason">Reason (Optional)</label>
+                    <input type="text" id="blockReason" name="blockReason" placeholder="e.g., Private event, Holiday, Maintenance">
                 </div>
             </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="maxReservations">Max Reservations</label>
-                    <input type="number" id="maxReservations" name="maxReservations" value="50" min="1">
-                </div>
-                <div class="form-group">
-                    <label for="blockedReasons">Reason (if unavailable)</label>
-                    <input type="text" id="blockedReasons" name="blockedReasons" placeholder="e.g., Private event, Maintenance">
+            <button class="btn btn-confirm" onclick="blockUnblockDay()">Apply Changes</button>
+            
+            <div style="margin-top: 20px; padding: 15px; background: #f9fafb; border-radius: 8px;">
+                <h3 style="color: #374151; margin-bottom: 10px;">🚫 Currently Blocked Days</h3>
+                <div id="blockedDaysList" style="color: #6b7280;">
+                    Loading...
                 </div>
             </div>
-            <button class="btn btn-confirm" onclick="updateAvailability()">Update Availability</button>
         </div>
         
         <!-- Calendar View -->
@@ -578,11 +572,13 @@
     <script>
         let currentDate = new Date();
         let reservations = [];
+        let blockedDays = [];
         
         // Initialize calendar
         function initCalendar() {
             updateCalendar();
             loadReservations();
+            loadBlockedDays();
         }
         
         // Update calendar display
@@ -626,9 +622,14 @@
                     dayElement.classList.add('today');
                 }
                 
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                const dateId = `${year}-${month}-${day}`;
+                
                 dayElement.innerHTML = `
                     <div class="day-number">${date.getDate()}</div>
-                    <div class="reservation-count" id="count-${date.toISOString().split('T')[0]}">0</div>
+                    <div class="reservation-count" id="count-${dateId}">0</div>
                 `;
                 
                 dayElement.onclick = () => selectDate(date);
@@ -641,12 +642,22 @@
         // Update reservation counts for each day
         function updateReservationCounts() {
             reservations.forEach(reservation => {
-                const dateStr = new Date(reservation.reservationDate).toISOString().split('T')[0];
+                const date = new Date(reservation.reservationDate);
+                // Use local date string to avoid timezone issues
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                const dateStr = `${year}-${month}-${day}`;
+                
                 const countElement = document.getElementById(`count-${dateStr}`);
                 if (countElement) {
-                    const dayReservations = reservations.filter(r => 
-                        new Date(r.reservationDate).toISOString().split('T')[0] === dateStr
-                    );
+                    const dayReservations = reservations.filter(r => {
+                        const rDate = new Date(r.reservationDate);
+                        const rYear = rDate.getFullYear();
+                        const rMonth = String(rDate.getMonth() + 1).padStart(2, '0');
+                        const rDay = String(rDate.getDate()).padStart(2, '0');
+                        return `${rYear}-${rMonth}-${rDay}` === dateStr;
+                    });
                     countElement.textContent = dayReservations.length;
                 }
             });
@@ -677,15 +688,23 @@
         // Display reservations
         function displayReservations(showAll = false) {
             const reservationsList = document.getElementById('reservationsList');
-            const today = new Date().toISOString().split('T')[0];
+            const todayDate = new Date();
+            const todayYear = todayDate.getFullYear();
+            const todayMonth = String(todayDate.getMonth() + 1).padStart(2, '0');
+            const todayDay = String(todayDate.getDate()).padStart(2, '0');
+            const today = `${todayYear}-${todayMonth}-${todayDay}`;
             
             let reservationsToShow;
             if (showAll) {
                 reservationsToShow = reservations;
             } else {
-                reservationsToShow = reservations.filter(r => 
-                    new Date(r.reservationDate).toISOString().split('T')[0] === today
-                );
+                reservationsToShow = reservations.filter(r => {
+                    const rDate = new Date(r.reservationDate);
+                    const rYear = rDate.getFullYear();
+                    const rMonth = String(rDate.getMonth() + 1).padStart(2, '0');
+                    const rDay = String(rDate.getDate()).padStart(2, '0');
+                    return `${rYear}-${rMonth}-${rDay}` === today;
+                });
             }
             
             if (reservationsToShow.length === 0) {
@@ -694,10 +713,21 @@
                 return;
             }
             
-            reservationsList.innerHTML = reservationsToShow.map(reservation => `
+            reservationsList.innerHTML = reservationsToShow.map(reservation => {
+                const reservationDate = new Date(reservation.reservationDate);
+                const formattedDate = reservationDate.toLocaleDateString('en-US', { 
+                    weekday: 'short', 
+                    year: 'numeric', 
+                    month: 'short', 
+                    day: 'numeric' 
+                });
+                
+                return `
                 <div class="reservation-item">
                     <div class="reservation-header">
-                        <div class="reservation-time">${reservation.reservationTime}</div>
+                        <div>
+                            <div class="reservation-time">${formattedDate} at ${reservation.reservationTime}</div>
+                        </div>
                         <div class="reservation-status status-${reservation.status}">${reservation.status}</div>
                     </div>
                     <div class="reservation-details">
@@ -732,18 +762,13 @@
                     ` : ''}
                     <div class="reservation-actions">
                         <button class="btn btn-edit" onclick="editReservation(${reservation.id})">Edit</button>
-                        ${reservation.status === 'pending' ? `
-                            <button class="btn btn-confirm" onclick="updateReservationStatus(${reservation.id}, 'confirmed')">Confirm</button>
-                        ` : ''}
-                        ${reservation.status === 'confirmed' ? `
-                            <button class="btn btn-complete" onclick="updateReservationStatus(${reservation.id}, 'completed')">Complete</button>
-                        ` : ''}
-                        ${reservation.status !== 'cancelled' && reservation.status !== 'completed' ? `
+                        ${reservation.status !== 'cancelled' ? `
                             <button class="btn btn-cancel" onclick="updateReservationStatus(${reservation.id}, 'cancelled')">Cancel</button>
                         ` : ''}
                     </div>
                 </div>
-            `).join('');
+                `;
+            }).join('');
         }
         
         // Update reservation status
@@ -852,10 +877,18 @@
         }
         
         function selectDate(date) {
-            const dateStr = date.toISOString().split('T')[0];
-            const dayReservations = reservations.filter(r => 
-                new Date(r.reservationDate).toISOString().split('T')[0] === dateStr
-            );
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const dateStr = `${year}-${month}-${day}`;
+            
+            const dayReservations = reservations.filter(r => {
+                const rDate = new Date(r.reservationDate);
+                const rYear = rDate.getFullYear();
+                const rMonth = String(rDate.getMonth() + 1).padStart(2, '0');
+                const rDay = String(rDate.getDate()).padStart(2, '0');
+                return `${rYear}-${rMonth}-${rDay}` === dateStr;
+            });
             
             const modal = document.getElementById('dateModal');
             const modalTitle = document.getElementById('dateModalTitle');
@@ -911,13 +944,7 @@
                         ` : ''}
                         <div class="reservation-actions">
                             <button class="btn btn-edit" onclick="editReservation(${reservation.id}); closeDateModal();">Edit</button>
-                            ${reservation.status === 'pending' ? `
-                                <button class="btn btn-confirm" onclick="updateReservationStatus(${reservation.id}, 'confirmed')">Confirm</button>
-                            ` : ''}
-                            ${reservation.status === 'confirmed' ? `
-                                <button class="btn btn-complete" onclick="updateReservationStatus(${reservation.id}, 'completed')">Complete</button>
-                            ` : ''}
-                            ${reservation.status !== 'cancelled' && reservation.status !== 'completed' ? `
+                            ${reservation.status !== 'cancelled' ? `
                                 <button class="btn btn-cancel" onclick="updateReservationStatus(${reservation.id}, 'cancelled')">Cancel</button>
                             ` : ''}
                         </div>
@@ -930,6 +957,104 @@
         
         function closeDateModal() {
             document.getElementById('dateModal').style.display = 'none';
+        }
+        
+        // Load blocked days from server
+        async function loadBlockedDays() {
+            try {
+                const response = await fetch('/api/availability/blocked');
+                const data = await response.json();
+                if (data.success) {
+                    blockedDays = data.blockedDays || [];
+                    displayBlockedDays();
+                    markBlockedDaysOnCalendar();
+                }
+            } catch (error) {
+                console.error('Error loading blocked days:', error);
+            }
+        }
+        
+        // Display list of blocked days
+        function displayBlockedDays() {
+            const blockedDaysList = document.getElementById('blockedDaysList');
+            if (blockedDays.length === 0) {
+                blockedDaysList.innerHTML = '<p>No blocked days</p>';
+                return;
+            }
+            
+            blockedDaysList.innerHTML = blockedDays.map(day => {
+                const date = new Date(day.date);
+                const formattedDate = date.toLocaleDateString('en-US', { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                });
+                return `
+                    <div style="padding: 8px; border-bottom: 1px solid #e5e7eb;">
+                        📅 <strong>${formattedDate}</strong>
+                        ${day.reason ? `<br><small style="color: #6b7280;">Reason: ${day.reason}</small>` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        // Mark blocked days on calendar
+        function markBlockedDaysOnCalendar() {
+            blockedDays.forEach(day => {
+                const date = new Date(day.date);
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const dayNum = String(date.getDate()).padStart(2, '0');
+                const dateId = `${year}-${month}-${dayNum}`;
+                
+                const countElement = document.getElementById(`count-${dateId}`);
+                if (countElement) {
+                    const dayElement = countElement.closest('.calendar-day');
+                    if (dayElement) {
+                        dayElement.classList.add('unavailable');
+                        dayElement.title = `Blocked: ${day.reason || 'No bookings allowed'}`;
+                    }
+                }
+            });
+        }
+        
+        // Block or unblock a day
+        async function blockUnblockDay() {
+            const date = document.getElementById('blockDate').value;
+            const action = document.getElementById('blockStatus').value;
+            const reason = document.getElementById('blockReason').value;
+            
+            if (!date) {
+                alert('Please select a date');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/availability/block', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        date,
+                        isBlocked: action === 'block',
+                        reason: reason || ''
+                    })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    alert(action === 'block' ? 'Day blocked successfully' : 'Day unblocked successfully');
+                    loadBlockedDays();
+                    updateCalendar();
+                } else {
+                    alert('Failed to update day: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error blocking/unblocking day:', error);
+                alert('Error updating day');
+            }
         }
         
         // Handle edit form submission
