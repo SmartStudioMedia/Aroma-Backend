@@ -605,36 +605,29 @@
     </div>
 
     <script>
+        // SIMPLE APPROACH - Server passes data directly
+        const reservations = <%- JSON.stringify(reservations || []) %>;
         let currentDate = new Date();
-        // Load reservations from server on page load
-        let reservations = <%- JSON.stringify(reservations || []) %>;
         let blockedDays = [];
         
-        console.log('📊 Initial reservations from server:', reservations.length);
+        console.log('🚀 BOOKINGS PAGE LOADED');
+        console.log('📊 Reservations count:', reservations.length);
         if (reservations.length > 0) {
-            console.log('📋 Sample reservation:', reservations[0]);
-        } else {
-            console.warn('⚠️ NO RESERVATIONS LOADED FROM SERVER!');
+            console.log('✅ Sample booking:', reservations[0]);
         }
         
-        // Initialize calendar
+        // Initialize calendar on page load
         function initCalendar() {
-            console.log('🔄 Initializing calendar with', reservations.length, 'reservations');
-            
-            if (reservations.length === 0) {
-                console.warn('⚠️ WARNING: Initializing calendar with NO reservations!');
-                console.log('🔍 Check if server is passing reservations correctly');
+            try {
+                console.log('📅 Starting calendar initialization...');
+                updateCalendar();
+                updateReservationCounts();
+                displayReservations(false);
+                loadBlockedDays();
+                console.log('✅ Calendar ready!');
+            } catch (error) {
+                console.error('❌ Calendar initialization error:', error);
             }
-            
-            updateCalendar();
-            console.log('✅ Calendar structure created');
-            
-            updateReservationCounts();
-            console.log('✅ Reservation counts updated');
-            
-            loadBlockedDays();
-            displayReservations(false);
-            console.log('🎉 Calendar initialization complete!');
         }
         
         // Update calendar display
