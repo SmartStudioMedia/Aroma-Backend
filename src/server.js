@@ -3556,9 +3556,25 @@ app.post('/api/reservations', async (req, res) => {
     saveReservationsData();
     
     // Save client if marketing consent is given
+    console.log('📊 Marketing consent value:', marketingConsent);
+    console.log('📊 Current clients count:', clients.length);
+    
     if (marketingConsent) {
       try {
-        const existingClient = clients.find(c => c.email === customerEmail);
+        console.log('✅ Marketing consent given, proceeding to save client...');
+        
+        // Check if client exists in MongoDB first, then local array
+        let existingClient = null;
+        if (mongoose.connection.readyState === 1) {
+          existingClient = await Client.findOne({ email: customerEmail });
+          console.log('🔍 MongoDB check - existing client:', existingClient ? 'Found' : 'Not found');
+        }
+        
+        if (!existingClient) {
+          existingClient = clients.find(c => c.email === customerEmail);
+          console.log('🔍 Local array check - existing client:', existingClient ? 'Found' : 'Not found');
+        }
+        
         if (!existingClient) {
           const newClient = {
             id: clients.length > 0 ? Math.max(...clients.map(c => c.id)) + 1 : 1,
@@ -3572,35 +3588,53 @@ app.post('/api/reservations', async (req, res) => {
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString()
           };
+          
+          console.log('🆕 Creating new client:', JSON.stringify(newClient, null, 2));
+          
+          // Add to local array first
           clients.push(newClient);
+          console.log('✅ Added to local clients array, new count:', clients.length);
           
+          // Save to MongoDB
           if (mongoose.connection.readyState === 1) {
-            await Client.create(newClient);
+            try {
+              const clientDoc = await Client.create(newClient);
+              console.log('✅ Client saved to MongoDB:', clientDoc._id);
+            } catch (mongoErr) {
+              console.error('❌ MongoDB save error:', mongoErr);
+            }
           }
           
+          // Save to file
           saveClientsData();
-          console.log('✅ New client created from reservation:', newClient.email);
+          console.log('✅ Clients data saved to file');
+          console.log('✅ NEW CLIENT CREATED SUCCESSFULLY FROM RESERVATION');
         } else {
+          console.log('ℹ️ Client already exists, updating...');
           // Update existing client's reservation count
-          existingClient.totalReservations = (existingClient.totalReservations || 0) + 1;
-          existingClient.updatedAt = new Date().toISOString();
-          
-          if (mongoose.connection.readyState === 1) {
-            await Client.findOneAndUpdate(
-              { id: existingClient.id }, 
-              { 
-                totalReservations: existingClient.totalReservations,
-                updatedAt: existingClient.updatedAt
-              }
-            );
+          if (existingClient._id) {
+            // MongoDB object
+            await Client.findByIdAndUpdate(existingClient._id, {
+              $inc: { totalReservations: 1 },
+              updatedAt: new Date()
+            });
+            console.log('✅ Updated client in MongoDB');
+          } else {
+            // Local array object
+            existingClient.totalReservations = (existingClient.totalReservations || 0) + 1;
+            existingClient.updatedAt = new Date().toISOString();
+            console.log('✅ Updated client in local array');
           }
           
           saveClientsData();
-          console.log('✅ Updated existing client reservation count:', existingClient.email);
+          console.log('✅ Updated existing client reservation count');
         }
       } catch (clientError) {
-        console.error('❌ Client save error:', clientError);
+        console.error('❌ CLIENT SAVE ERROR:', clientError);
+        console.error('❌ Error stack:', clientError.stack);
       }
+    } else {
+      console.log('⚠️ Marketing consent NOT given, skipping client save');
     }
     
     console.log('✅ RESERVATION CREATION COMPLETED');
@@ -4208,9 +4242,25 @@ app.post('/api/reservations/simple', async (req, res) => {
     console.log('✅ Simple reservation saved to files');
     
     // Save client if marketing consent is given
+    console.log('📊 Marketing consent value:', marketingConsent);
+    console.log('📊 Current clients count:', clients.length);
+    
     if (marketingConsent) {
       try {
-        const existingClient = clients.find(c => c.email === customerEmail);
+        console.log('✅ Marketing consent given, proceeding to save client...');
+        
+        // Check if client exists in MongoDB first, then local array
+        let existingClient = null;
+        if (mongoose.connection.readyState === 1) {
+          existingClient = await Client.findOne({ email: customerEmail });
+          console.log('🔍 MongoDB check - existing client:', existingClient ? 'Found' : 'Not found');
+        }
+        
+        if (!existingClient) {
+          existingClient = clients.find(c => c.email === customerEmail);
+          console.log('🔍 Local array check - existing client:', existingClient ? 'Found' : 'Not found');
+        }
+        
         if (!existingClient) {
           const newClient = {
             id: clients.length > 0 ? Math.max(...clients.map(c => c.id)) + 1 : 1,
@@ -4224,35 +4274,53 @@ app.post('/api/reservations/simple', async (req, res) => {
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString()
           };
+          
+          console.log('🆕 Creating new client:', JSON.stringify(newClient, null, 2));
+          
+          // Add to local array first
           clients.push(newClient);
+          console.log('✅ Added to local clients array, new count:', clients.length);
           
+          // Save to MongoDB
           if (mongoose.connection.readyState === 1) {
-            await Client.create(newClient);
+            try {
+              const clientDoc = await Client.create(newClient);
+              console.log('✅ Client saved to MongoDB:', clientDoc._id);
+            } catch (mongoErr) {
+              console.error('❌ MongoDB save error:', mongoErr);
+            }
           }
           
+          // Save to file
           saveClientsData();
-          console.log('✅ New client added to marketing list from simple reservation:', newClient);
+          console.log('✅ Clients data saved to file');
+          console.log('✅ NEW CLIENT CREATED SUCCESSFULLY FROM RESERVATION');
         } else {
+          console.log('ℹ️ Client already exists, updating...');
           // Update existing client's reservation count
-          existingClient.totalReservations = (existingClient.totalReservations || 0) + 1;
-          existingClient.updatedAt = new Date().toISOString();
-          
-          if (mongoose.connection.readyState === 1) {
-            await Client.findOneAndUpdate(
-              { id: existingClient.id }, 
-              { 
-                totalReservations: existingClient.totalReservations,
-                updatedAt: existingClient.updatedAt
-              }
-            );
+          if (existingClient._id) {
+            // MongoDB object
+            await Client.findByIdAndUpdate(existingClient._id, {
+              $inc: { totalReservations: 1 },
+              updatedAt: new Date()
+            });
+            console.log('✅ Updated client in MongoDB');
+          } else {
+            // Local array object
+            existingClient.totalReservations = (existingClient.totalReservations || 0) + 1;
+            existingClient.updatedAt = new Date().toISOString();
+            console.log('✅ Updated client in local array');
           }
           
           saveClientsData();
-          console.log('✅ Client already exists - updated reservation count');
+          console.log('✅ Updated existing client reservation count');
         }
       } catch (clientError) {
-        console.error('❌ Client save error:', clientError);
+        console.error('❌ CLIENT SAVE ERROR:', clientError);
+        console.error('❌ Error stack:', clientError.stack);
       }
+    } else {
+      console.log('⚠️ Marketing consent NOT given, skipping client save');
     }
     
     // Send email confirmation
