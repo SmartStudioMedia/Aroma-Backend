@@ -4147,6 +4147,27 @@ app.post('/api/reservations/simple', async (req, res) => {
       });
     }
     
+    // Check if date is blocked
+    const requestDate = new Date(reservationDate);
+    const dateStr = `${requestDate.getFullYear()}-${String(requestDate.getMonth() + 1).padStart(2, '0')}-${String(requestDate.getDate()).padStart(2, '0')}`;
+    
+    const isBlocked = availability.some(a => {
+      if (a.isAvailable) return false; // Not blocked if available
+      const aDate = new Date(a.date);
+      const aDateStr = `${aDate.getFullYear()}-${String(aDate.getMonth() + 1).padStart(2, '0')}-${String(aDate.getDate()).padStart(2, '0')}`;
+      return aDateStr === dateStr;
+    });
+    
+    if (isBlocked) {
+      console.log('❌ Date is blocked:', dateStr);
+      return res.status(400).json({
+        success: false,
+        error: 'This date is not available for bookings. Please select another date.'
+      });
+    }
+    
+    console.log('✅ Date is available:', dateStr);
+    
     const newReservation = {
       id: reservationIdCounter++,
       customerName,
