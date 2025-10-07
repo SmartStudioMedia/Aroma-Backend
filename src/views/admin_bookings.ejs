@@ -611,9 +611,17 @@
         
         // Initialize calendar
         async function initCalendar() {
+            console.log('🔄 Initializing calendar...');
             updateCalendar();
+            console.log('📅 Calendar structure created');
+            
             await loadReservations();
+            console.log('✅ Reservations loaded:', reservations.length);
+            
             await loadBlockedDays();
+            console.log('✅ Blocked days loaded:', blockedDays.length);
+            
+            console.log('🎉 Calendar initialization complete!');
         }
         
         // Update calendar display
@@ -677,6 +685,16 @@
         
         // Update reservation counts for each day
         function updateReservationCounts() {
+            console.log('📊 Updating reservation counts for', reservations.length, 'reservations');
+            
+            if (reservations.length === 0) {
+                console.log('⚠️ No reservations to display');
+                return;
+            }
+            
+            // Group reservations by date
+            const reservationsByDate = {};
+            
             reservations.forEach(reservation => {
                 const date = new Date(reservation.reservationDate);
                 // Use local date string to avoid timezone issues
@@ -685,30 +703,52 @@
                 const day = String(date.getDate()).padStart(2, '0');
                 const dateStr = `${year}-${month}-${day}`;
                 
+                if (!reservationsByDate[dateStr]) {
+                    reservationsByDate[dateStr] = [];
+                }
+                reservationsByDate[dateStr].push(reservation);
+            });
+            
+            console.log('📅 Reservations grouped by date:', reservationsByDate);
+            
+            // Update counts for each date
+            let updatedCount = 0;
+            Object.keys(reservationsByDate).forEach(dateStr => {
                 const countElement = document.getElementById(`count-${dateStr}`);
                 if (countElement) {
-                    const dayReservations = reservations.filter(r => {
-                        const rDate = new Date(r.reservationDate);
-                        const rYear = rDate.getFullYear();
-                        const rMonth = String(rDate.getMonth() + 1).padStart(2, '0');
-                        const rDay = String(rDate.getDate()).padStart(2, '0');
-                        return `${rYear}-${rMonth}-${rDay}` === dateStr;
-                    });
-                    countElement.textContent = dayReservations.length;
+                    const count = reservationsByDate[dateStr].length;
+                    countElement.textContent = count;
+                    updatedCount++;
+                    console.log(`✅ Updated ${dateStr}: ${count} bookings`);
+                } else {
+                    console.log(`⚠️ Element not found for date: ${dateStr}`);
                 }
             });
+            
+            console.log(`✅ Updated ${updatedCount} calendar dates with booking counts`);
         }
         
         // Load reservations
         async function loadReservations() {
             try {
+                console.log('📡 Fetching reservations from API...');
                 const response = await fetch('/api/reservations');
+                console.log('📡 API response status:', response.status);
+                
                 const data = await response.json();
+                console.log('📡 API response data:', data);
+                
                 reservations = data.reservations || [];
+                console.log('📋 Loaded', reservations.length, 'reservations');
+                
+                if (reservations.length > 0) {
+                    console.log('📋 Sample reservation:', reservations[0]);
+                }
+                
                 updateReservationCounts();
                 displayReservations();
             } catch (error) {
-                console.error('Error loading reservations:', error);
+                console.error('❌ Error loading reservations:', error);
             }
         }
         
