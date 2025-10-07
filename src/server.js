@@ -4151,18 +4151,19 @@ app.post('/api/reservations/simple', async (req, res) => {
     const requestDate = new Date(reservationDate);
     const dateStr = `${requestDate.getFullYear()}-${String(requestDate.getMonth() + 1).padStart(2, '0')}-${String(requestDate.getDate()).padStart(2, '0')}`;
     
-    const isBlocked = availability.some(a => {
+    const blockedDay = availability.find(a => {
       if (a.isAvailable) return false; // Not blocked if available
       const aDate = new Date(a.date);
       const aDateStr = `${aDate.getFullYear()}-${String(aDate.getMonth() + 1).padStart(2, '0')}-${String(aDate.getDate()).padStart(2, '0')}`;
       return aDateStr === dateStr;
     });
     
-    if (isBlocked) {
-      console.log('❌ Date is blocked:', dateStr);
+    if (blockedDay) {
+      const blockReason = blockedDay.blockedReasons || 'This date is not available for bookings';
+      console.log('❌ Date is blocked:', dateStr, 'Reason:', blockReason);
       return res.status(400).json({
         success: false,
-        error: 'This date is not available for bookings. Please select another date.'
+        error: `Sorry, this date is not available. ${blockReason}. Please select another date.`
       });
     }
     
