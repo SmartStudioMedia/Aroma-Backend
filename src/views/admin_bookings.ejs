@@ -671,7 +671,8 @@
                 calendarGrid.appendChild(dayElement);
             }
             
-            updateReservationCounts();
+            // Don't call updateReservationCounts here - it will be called after loadReservations
+            // This ensures the calendar updates with correct counts after data is loaded
         }
         
         // Update reservation counts for each day
@@ -900,11 +901,15 @@
         function previousMonth() {
             currentDate.setMonth(currentDate.getMonth() - 1);
             updateCalendar();
+            updateReservationCounts();
+            markBlockedDaysOnCalendar();
         }
         
         function nextMonth() {
             currentDate.setMonth(currentDate.getMonth() + 1);
             updateCalendar();
+            updateReservationCounts();
+            markBlockedDaysOnCalendar();
         }
         
         function refreshCalendar() {
