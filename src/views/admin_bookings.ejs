@@ -613,13 +613,25 @@
         console.log('📊 Initial reservations from server:', reservations.length);
         if (reservations.length > 0) {
             console.log('📋 Sample reservation:', reservations[0]);
+        } else {
+            console.warn('⚠️ NO RESERVATIONS LOADED FROM SERVER!');
         }
         
         // Initialize calendar
         function initCalendar() {
             console.log('🔄 Initializing calendar with', reservations.length, 'reservations');
+            
+            if (reservations.length === 0) {
+                console.warn('⚠️ WARNING: Initializing calendar with NO reservations!');
+                console.log('🔍 Check if server is passing reservations correctly');
+            }
+            
             updateCalendar();
+            console.log('✅ Calendar structure created');
+            
             updateReservationCounts();
+            console.log('✅ Reservation counts updated');
+            
             loadBlockedDays();
             displayReservations(false);
             console.log('🎉 Calendar initialization complete!');
