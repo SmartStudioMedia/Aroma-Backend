@@ -453,6 +453,12 @@
                                 <div class="detail-label">Email</div>
                                 <div class="detail-value"><%= client.email %></div>
                             </div>
+                            <% if (client.phone) { %>
+                            <div class="detail-item">
+                                <div class="detail-label">Phone</div>
+                                <div class="detail-value"><%= client.phone %></div>
+                            </div>
+                            <% } %>
                             <div class="detail-item">
                                 <div class="detail-label">Marketing Consent</div>
                                 <div class="detail-value">
@@ -464,6 +470,10 @@
                             <div class="detail-item">
                                 <div class="detail-label">Total Orders</div>
                                 <div class="detail-value"><%= client.totalOrders || 0 %></div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Total Reservations</div>
+                                <div class="detail-value"><%= client.totalReservations || 0 %></div>
                             </div>
                             <div class="detail-item">
                                 <div class="detail-label">Total Spent</div>
@@ -674,3 +684,4 @@
     </script>
 </body>
 </html>
+
