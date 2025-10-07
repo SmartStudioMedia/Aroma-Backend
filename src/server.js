@@ -3809,6 +3809,8 @@ app.post('/api/availability/block', async (req, res) => {
   try {
     const { date, isBlocked, reason } = req.body;
     
+    console.log('📅 Block/Unblock request:', { date, isBlocked, reason });
+    
     if (!date) {
       return res.status(400).json({
         success: false,
@@ -3816,8 +3818,13 @@ app.post('/api/availability/block', async (req, res) => {
       });
     }
     
+    // Parse date as local date to avoid timezone issues
+    const [year, month, day] = date.split('-').map(Number);
+    const localDate = new Date(year, month - 1, day);
+    console.log('📅 Parsed date:', localDate.toISOString());
+    
     const availabilityData = {
-      date: new Date(date),
+      date: localDate,
       isAvailable: !isBlocked,
       blockedReasons: reason || '',
       openTime: '12:00',
@@ -3826,22 +3833,30 @@ app.post('/api/availability/block', async (req, res) => {
       updatedAt: new Date()
     };
     
-    // Update local array
-    const existingIndex = availability.findIndex(a => 
-      new Date(a.date).toDateString() === new Date(date).toDateString()
-    );
+    // Update local array - use date string comparison
+    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const existingIndex = availability.findIndex(a => {
+      const aDate = new Date(a.date);
+      const aDateStr = `${aDate.getFullYear()}-${String(aDate.getMonth() + 1).padStart(2, '0')}-${String(aDate.getDate()).padStart(2, '0')}`;
+      return aDateStr === dateStr;
+    });
     
     if (isBlocked) {
       // Block the day
       if (existingIndex !== -1) {
         availability[existingIndex] = availabilityData;
+        console.log('✅ Updated existing blocked day');
       } else {
         availability.push(availabilityData);
+        console.log('✅ Added new blocked day');
       }
     } else {
-      // Unblock the day - remove from blocked list
+      // Unblock the day - remove from array
       if (existingIndex !== -1) {
         availability.splice(existingIndex, 1);
+        console.log('✅ Removed blocked day from local array');
+      } else {
+        console.log('⚠️ Day not found in local array');
       }
     }
     
@@ -3849,12 +3864,19 @@ app.post('/api/availability/block', async (req, res) => {
     if (mongoose.connection.readyState === 1) {
       if (isBlocked) {
         await Availability.findOneAndUpdate(
-          { date: new Date(date) },
+          { date: localDate },
           availabilityData,
           { upsert: true }
         );
+        console.log('✅ Blocked day in MongoDB');
       } else {
-        await Availability.deleteOne({ date: new Date(date) });
+        // Delete by date range to handle timezone differences
+        const startOfDay = new Date(year, month - 1, day, 0, 0, 0);
+        const endOfDay = new Date(year, month - 1, day, 23, 59, 59);
+        const result = await Availability.deleteMany({
+          date: { $gte: startOfDay, $lte: endOfDay }
+        });
+        console.log('✅ Unblocked day in MongoDB, deleted:', result.deletedCount);
       }
     }
     
@@ -3866,7 +3888,7 @@ app.post('/api/availability/block', async (req, res) => {
       message: isBlocked ? 'Day blocked successfully' : 'Day unblocked successfully'
     });
   } catch (error) {
-    console.error('Error blocking/unblocking day:', error);
+    console.error('❌ Error blocking/unblocking day:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to block/unblock day'
