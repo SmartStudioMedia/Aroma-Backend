@@ -3568,7 +3568,9 @@ app.post('/api/reservations', async (req, res) => {
             marketingConsent: true,
             totalOrders: 0,
             totalSpent: 0,
-            createdAt: new Date().toISOString()
+            totalReservations: 1,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
           };
           clients.push(newClient);
           
@@ -3577,6 +3579,24 @@ app.post('/api/reservations', async (req, res) => {
           }
           
           saveClientsData();
+          console.log('✅ New client created from reservation:', newClient.email);
+        } else {
+          // Update existing client's reservation count
+          existingClient.totalReservations = (existingClient.totalReservations || 0) + 1;
+          existingClient.updatedAt = new Date().toISOString();
+          
+          if (mongoose.connection.readyState === 1) {
+            await Client.findOneAndUpdate(
+              { id: existingClient.id }, 
+              { 
+                totalReservations: existingClient.totalReservations,
+                updatedAt: existingClient.updatedAt
+              }
+            );
+          }
+          
+          saveClientsData();
+          console.log('✅ Updated existing client reservation count:', existingClient.email);
         }
       } catch (clientError) {
         console.error('❌ Client save error:', clientError);
@@ -4059,7 +4079,9 @@ app.post('/api/reservations/simple', async (req, res) => {
             marketingConsent: true,
             totalOrders: 0,
             totalSpent: 0,
-            createdAt: new Date().toISOString()
+            totalReservations: 1,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
           };
           clients.push(newClient);
           
@@ -4068,9 +4090,24 @@ app.post('/api/reservations/simple', async (req, res) => {
           }
           
           saveClientsData();
-          console.log('✅ New client added to marketing list:', newClient);
+          console.log('✅ New client added to marketing list from simple reservation:', newClient);
         } else {
-          console.log('✅ Client already exists in marketing list');
+          // Update existing client's reservation count
+          existingClient.totalReservations = (existingClient.totalReservations || 0) + 1;
+          existingClient.updatedAt = new Date().toISOString();
+          
+          if (mongoose.connection.readyState === 1) {
+            await Client.findOneAndUpdate(
+              { id: existingClient.id }, 
+              { 
+                totalReservations: existingClient.totalReservations,
+                updatedAt: existingClient.updatedAt
+              }
+            );
+          }
+          
+          saveClientsData();
+          console.log('✅ Client already exists - updated reservation count');
         }
       } catch (clientError) {
         console.error('❌ Client save error:', clientError);
