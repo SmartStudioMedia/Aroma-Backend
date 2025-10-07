@@ -606,11 +606,14 @@
 
     <script>
         let currentDate = new Date();
-        // Use reservations passed from server instead of empty array
+        // Load reservations from server on page load
         let reservations = <%- JSON.stringify(reservations || []) %>;
         let blockedDays = [];
         
-        console.log('📊 Reservations from server:', reservations.length);
+        console.log('📊 Initial reservations from server:', reservations.length);
+        if (reservations.length > 0) {
+            console.log('📋 Sample reservation:', reservations[0]);
+        }
         
         // Initialize calendar
         function initCalendar() {
@@ -676,9 +679,6 @@
                 dayElement.onclick = () => selectDate(date);
                 calendarGrid.appendChild(dayElement);
             }
-            
-            // Don't call updateReservationCounts here - it will be called after loadReservations
-            // This ensures the calendar updates with correct counts after data is loaded
         }
         
         // Update reservation counts for each day
@@ -692,6 +692,7 @@
             
             reservations.forEach(reservation => {
                 const date = new Date(reservation.reservationDate);
+                // Use local date string to avoid timezone issues
                 const year = date.getFullYear();
                 const month = String(date.getMonth() + 1).padStart(2, '0');
                 const day = String(date.getDate()).padStart(2, '0');
@@ -707,12 +708,14 @@
             Object.keys(reservationsByDate).forEach(dateStr => {
                 const countElement = document.getElementById(`count-${dateStr}`);
                 if (countElement) {
-                    countElement.textContent = reservationsByDate[dateStr].length;
+                    const count = reservationsByDate[dateStr].length;
+                    countElement.textContent = count;
+                    console.log(`✅ ${dateStr}: ${count} bookings`);
                 }
             });
         }
         
-        // Load reservations from API (for refresh button)
+        // Load reservations (for refresh button)
         async function loadReservations() {
             try {
                 const response = await fetch('/api/reservations');
