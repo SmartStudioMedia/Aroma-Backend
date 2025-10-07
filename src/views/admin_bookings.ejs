@@ -494,6 +494,19 @@
         </div>
     </div>
     
+    <!-- Date Bookings Modal -->
+    <div class="modal" id="dateModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title" id="dateModalTitle">📅 Bookings</h3>
+                <button class="close-btn" onclick="closeDateModal()">&times;</button>
+            </div>
+            <div id="dateModalContent">
+                <!-- Date reservations will be populated by JavaScript -->
+            </div>
+        </div>
+    </div>
+    
     <!-- Edit Reservation Modal -->
     <div class="modal" id="editModal">
         <div class="modal-content">
@@ -652,6 +665,15 @@
             }
         }
         
+        // Helper functions for filtering
+        function showAllReservations() {
+            displayReservations(true);
+        }
+        
+        function showTodayReservations() {
+            displayReservations(false);
+        }
+        
         // Display reservations
         function displayReservations(showAll = false) {
             const reservationsList = document.getElementById('reservationsList');
@@ -672,7 +694,7 @@
                 return;
             }
             
-            reservationsList.innerHTML = todayReservations.map(reservation => `
+            reservationsList.innerHTML = reservationsToShow.map(reservation => `
                 <div class="reservation-item">
                     <div class="reservation-header">
                         <div class="reservation-time">${reservation.reservationTime}</div>
@@ -830,8 +852,84 @@
         }
         
         function selectDate(date) {
-            console.log('Selected date:', date);
-            // You can implement date-specific actions here
+            const dateStr = date.toISOString().split('T')[0];
+            const dayReservations = reservations.filter(r => 
+                new Date(r.reservationDate).toISOString().split('T')[0] === dateStr
+            );
+            
+            const modal = document.getElementById('dateModal');
+            const modalTitle = document.getElementById('dateModalTitle');
+            const modalContent = document.getElementById('dateModalContent');
+            
+            const formattedDate = date.toLocaleDateString('en-US', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            });
+            
+            modalTitle.textContent = `📅 Bookings for ${formattedDate}`;
+            
+            if (dayReservations.length === 0) {
+                modalContent.innerHTML = '<p style="text-align: center; color: #6b7280; padding: 20px;">No bookings for this date</p>';
+            } else {
+                modalContent.innerHTML = dayReservations.map(reservation => `
+                    <div class="reservation-item" style="margin-bottom: 15px;">
+                        <div class="reservation-header">
+                            <div class="reservation-time">${reservation.reservationTime}</div>
+                            <div class="reservation-status status-${reservation.status}">${reservation.status}</div>
+                        </div>
+                        <div class="reservation-details">
+                            <div class="detail-item">
+                                <div class="detail-label">Customer</div>
+                                <div class="detail-value">${reservation.customerName}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Party Size</div>
+                                <div class="detail-value">${reservation.partySize} people</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Phone</div>
+                                <div class="detail-value">${reservation.customerPhone}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Email</div>
+                                <div class="detail-value">${reservation.customerEmail}</div>
+                            </div>
+                            ${reservation.tableNumber ? `
+                            <div class="detail-item">
+                                <div class="detail-label">Table</div>
+                                <div class="detail-value">${reservation.tableNumber}</div>
+                            </div>
+                            ` : ''}
+                        </div>
+                        ${reservation.specialRequests ? `
+                        <div class="detail-item" style="margin-top: 10px;">
+                            <div class="detail-label">Special Requests</div>
+                            <div class="detail-value">${reservation.specialRequests}</div>
+                        </div>
+                        ` : ''}
+                        <div class="reservation-actions">
+                            <button class="btn btn-edit" onclick="editReservation(${reservation.id}); closeDateModal();">Edit</button>
+                            ${reservation.status === 'pending' ? `
+                                <button class="btn btn-confirm" onclick="updateReservationStatus(${reservation.id}, 'confirmed')">Confirm</button>
+                            ` : ''}
+                            ${reservation.status === 'confirmed' ? `
+                                <button class="btn btn-complete" onclick="updateReservationStatus(${reservation.id}, 'completed')">Complete</button>
+                            ` : ''}
+                            ${reservation.status !== 'cancelled' && reservation.status !== 'completed' ? `
+                                <button class="btn btn-cancel" onclick="updateReservationStatus(${reservation.id}, 'cancelled')">Cancel</button>
+                            ` : ''}
+                        </div>
+                    </div>
+                `).join('');
+            }
+            
+            modal.style.display = 'block';
+        }
+        
+        function closeDateModal() {
+            document.getElementById('dateModal').style.display = 'none';
         }
         
         // Handle edit form submission
