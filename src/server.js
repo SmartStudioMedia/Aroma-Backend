@@ -3232,6 +3232,43 @@ app.post('/admin/orders/:id/force-reload', authMiddleware, async (req, res) => {
 });
 
 // DEBUG ROUTE - Check order creation and data flow
+// Debug route for clients
+app.get('/debug/clients', async (req, res) => {
+  try {
+    const debugInfo = {
+      timestamp: new Date().toISOString(),
+      localClients: {
+        count: clients.length,
+        all: clients,
+        emails: clients.map(c => c.email)
+      },
+      mongodb: {
+        connected: mongoose.connection.readyState === 1,
+        state: mongoose.connection.readyState
+      }
+    };
+
+    // If MongoDB is connected, also check MongoDB data
+    if (mongoose.connection.readyState === 1) {
+      try {
+        const mongoClients = await Client.find().sort({ createdAt: -1 });
+        debugInfo.mongoClients = {
+          count: mongoClients.length,
+          all: mongoClients,
+          emails: mongoClients.map(c => c.email)
+        };
+      } catch (error) {
+        debugInfo.mongoError = error.message;
+      }
+    }
+    
+    res.json(debugInfo);
+  } catch (error) {
+    console.error('Debug clients error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.get('/debug/orders', (req, res) => {
   try {
     const debugInfo = {
