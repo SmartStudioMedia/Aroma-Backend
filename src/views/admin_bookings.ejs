@@ -153,43 +153,43 @@
             box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
         }
         
+        /* Blocked days - RED BOX */
         .calendar-day.unavailable {
             background: #fee2e2;
-            border-color: #fca5a5;
+            border: 2px solid #dc2626;
             cursor: not-allowed;
         }
         
         .calendar-day.unavailable .day-number {
             color: #dc2626;
-            text-decoration: line-through;
-        }
-        
-        .calendar-day.has-bookings {
-            background: #fef2f2;
-            border-color: #fca5a5;
-        }
-        
-        .calendar-day.has-bookings:hover {
-            background: #fee2e2;
-            border-color: #f87171;
+            font-weight: 700;
         }
         
         .day-number {
-            font-weight: 700;
-            font-size: 1.2rem;
+            font-weight: 600;
+            font-size: 1.1rem;
             margin-bottom: 8px;
-            color: #6b7280;
+            color: #2d3748;
         }
         
-        /* Days with bookings have RED numbers */
-        .calendar-day.has-bookings .day-number {
-            color: #dc2626;
-            font-size: 1.4rem;
-            font-weight: 800;
-        }
-        
-        /* Hide count badge, show only red numbers */
+        /* Booking count badge - RED CIRCLE with number */
         .reservation-count {
+            background: #dc2626;
+            color: white;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+            font-weight: 700;
+            margin: 5px auto 0;
+            box-shadow: 0 2px 8px rgba(220, 38, 38, 0.3);
+        }
+        
+        /* Hide count for days with 0 bookings */
+        .reservation-count.hidden {
             display: none;
         }
         
@@ -685,9 +685,10 @@
                 // Add data-date attribute for easy selection
                 dayElement.setAttribute('data-date', dateId);
                 
-                // Only show day number - no count badge
+                // Show day number and count badge (hidden by default)
                 dayElement.innerHTML = `
                     <div class="day-number">${date.getDate()}</div>
+                    <div class="reservation-count hidden" id="count-${dateId}">0</div>
                 `;
                 
                 dayElement.onclick = () => selectDate(date);
@@ -699,9 +700,10 @@
         function updateReservationCounts() {
             console.log('🔄 Updating reservation counts on calendar...');
             
-            // First, remove all has-bookings classes
-            document.querySelectorAll('.calendar-day').forEach(day => {
-                day.classList.remove('has-bookings');
+            // First, hide all count badges
+            document.querySelectorAll('.reservation-count').forEach(count => {
+                count.classList.add('hidden');
+                count.textContent = '0';
             });
             
             if (!reservations || reservations.length === 0) {
@@ -726,16 +728,18 @@
                 reservationsByDate[dateStr].push(reservation);
             });
             
-            // Add has-bookings class to days with reservations
+            // Show count in RED CIRCLE for days with bookings
             Object.keys(reservationsByDate).forEach(dateStr => {
-                const dayElement = document.querySelector(`[data-date="${dateStr}"]`);
-                if (dayElement) {
-                    dayElement.classList.add('has-bookings');
-                    console.log(`✅ ${dateStr}: ${reservationsByDate[dateStr].length} bookings - marked in red`);
+                const countElement = document.getElementById(`count-${dateStr}`);
+                if (countElement) {
+                    const count = reservationsByDate[dateStr].length;
+                    countElement.textContent = count;
+                    countElement.classList.remove('hidden'); // Show the red circle
+                    console.log(`✅ ${dateStr}: ${count} bookings - showing red circle`);
                 }
             });
             
-            console.log('✅ Calendar updated with booking indicators');
+            console.log('✅ Calendar updated with booking counts in red circles');
         }
         
         // Load reservations (for refresh button)
