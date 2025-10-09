@@ -1618,6 +1618,9 @@ app.post('/api/orders', async (req, res) => {
     
     const { items, orderType, tableNumber, customerName, customerEmail, marketingConsent, total } = req.body;
     
+    // Log table number specifically
+    console.log('🪑 TABLE NUMBER RECEIVED:', tableNumber, '(type:', typeof tableNumber, ')');
+    
     // Validate required fields
     if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ success: false, error: 'Items are required' });
@@ -1630,6 +1633,10 @@ app.post('/api/orders', async (req, res) => {
     if (!customerName || !customerEmail) {
       return res.status(400).json({ success: false, error: 'Customer name and email are required' });
     }
+    
+    // Ensure table number is stored as string for consistency
+    const normalizedTableNumber = tableNumber ? String(tableNumber) : null;
+    console.log('🪑 TABLE NUMBER NORMALIZED:', normalizedTableNumber);
     
     const newOrder = {
       id: orderIdCounter++,
@@ -1644,7 +1651,7 @@ app.post('/api/orders', async (req, res) => {
         };
       }),
       orderType: orderType || 'dine-in',
-      tableNumber: tableNumber || null,
+      tableNumber: normalizedTableNumber,
       customerName: customerName,
       customerEmail: customerEmail,
       marketingConsent: marketingConsent || false,
@@ -1668,6 +1675,7 @@ app.post('/api/orders', async (req, res) => {
           const orderDoc = new Order(newOrder);
           await orderDoc.save();
           console.log(`✅ Order ${newOrder.id} saved to MongoDB Atlas`);
+          console.log(`🪑 Order table number in MongoDB: ${orderDoc.tableNumber}`);
         }
         
         // Save to files as backup (only if not already saved)
@@ -1995,6 +2003,12 @@ app.get('/admin/orders', authMiddleware, async (req, res) => {
     if (mongoose.connection.readyState === 1) {
       mongoOrders = await Order.find().sort({ createdAt: -1 });
       console.log(`📊 ADMIN ORDERS: Loaded ${mongoOrders.length} orders from MongoDB`);
+      
+      // Log table numbers for debugging (first 10 orders)
+      console.log('📊 ADMIN ORDERS: Sample of orders with table numbers:');
+      mongoOrders.slice(0, 10).forEach(order => {
+        console.log(`  📋 Order ${order.id}: Table ${order.tableNumber}, Status: ${order.status}`);
+      });
       
       // Update local array to keep it in sync with MongoDB
       orders = mongoOrders;
@@ -2831,6 +2845,11 @@ app.get('/kitchen', kitchenAuthMiddleware, async (req, res) => {
       
       console.log(`🍳 KITCHEN DASHBOARD: Found ${todayOrders.length} orders for today`);
       
+      // Log table numbers for debugging
+      todayOrders.forEach(order => {
+        console.log(`  📋 Order ${order.id}: Table ${order.tableNumber}, Status: ${order.status}`);
+      });
+      
       // Update local orders array with all orders
       orders = await Order.find().sort({ createdAt: -1 });
     } else {
@@ -2879,6 +2898,11 @@ app.get('/kitchen/orders', kitchenAuthMiddleware, async (req, res) => {
       }).sort({ createdAt: -1 });
       
       console.log(`🍳 KITCHEN DAILY: Found ${todayOrders.length} orders for today`);
+      
+      // Log table numbers for debugging
+      todayOrders.forEach(order => {
+        console.log(`  📋 Order ${order.id}: Table ${order.tableNumber}, Status: ${order.status}`);
+      });
       
       // Update local array to keep it in sync with MongoDB
       orders = await Order.find().sort({ createdAt: -1 });
