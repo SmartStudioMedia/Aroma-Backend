@@ -516,8 +516,9 @@
                 return;
             }
 
-            if (endTable - startTable > 20) {
-                showError('Maximum 20 tables can be generated at once');
+            // Removed table limit - can generate unlimited tables
+            if (endTable - startTable > 200) {
+                showError('Maximum 200 tables can be generated at once for performance reasons');
                 return;
             }
 
