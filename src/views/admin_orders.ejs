@@ -478,12 +478,20 @@
                 </div>
                 
                 <div class="control-group">
+                    <label for="tableFilter">🪑 Table Number</label>
+                    <select id="tableFilter" onchange="filterOrders()">
+                        <option value="all">All Tables</option>
+                    </select>
+                </div>
+                
+                <div class="control-group">
                     <label for="sortBy">🔄 Sort By</label>
                     <select id="sortBy" onchange="sortOrders()">
                         <option value="newest">🆕 Newest First</option>
                         <option value="oldest">📅 Oldest First</option>
                         <option value="total-high">💰 Total (High to Low)</option>
                         <option value="total-low">💵 Total (Low to High)</option>
+                        <option value="table">🪑 Table Number</option>
                         <option value="status">📊 Status</option>
                     </select>
                 </div>
@@ -515,7 +523,7 @@
                     </div>
                 <% } else { %>
                     <% orders.forEach(order => { %>
-                    <div class="order-card" data-order-id="<%= order.id %>" data-status="<%= order.status %>" data-type="<%= order.orderType %>" data-total="<%= order.total || 0 %>" data-date="<%= new Date(order.createdAt).toISOString() %>" data-discount="<%= order.discount || 0 %>" data-notes="<%= order.notes || '' %>">
+                    <div class="order-card" data-order-id="<%= order.id %>" data-status="<%= order.status %>" data-type="<%= order.orderType %>" data-table="<%= order.tableNumber || '' %>" data-total="<%= order.total || 0 %>" data-date="<%= new Date(order.createdAt).toISOString() %>" data-discount="<%= order.discount || 0 %>" data-notes="<%= order.notes || '' %>">
                         <div class="order-header">
                             <div class="order-id">Order #<%= order.id %></div>
                             <div class="order-time"><%= new Date(order.createdAt).toLocaleString() %></div>
@@ -787,13 +795,45 @@
                 id: card.dataset.orderId,
                 status: card.dataset.status,
                 type: card.dataset.type,
+                table: card.dataset.table || null,
                 total: parseFloat(card.dataset.total),
                 date: new Date(card.dataset.date)
             }));
             filteredOrders = [...allOrders];
+            
+            // Populate table filter dropdown
+            populateTableFilter();
+            
             updateOrdersDisplay();
             setDefaultDateRange();
         });
+        
+        // Populate table filter with unique table numbers
+        function populateTableFilter() {
+            const tableFilter = document.getElementById('tableFilter');
+            const tables = new Set();
+            
+            allOrders.forEach(order => {
+                if (order.table && order.table !== 'null' && order.table !== 'undefined') {
+                    tables.add(order.table);
+                }
+            });
+            
+            // Sort table numbers numerically
+            const sortedTables = Array.from(tables).sort((a, b) => {
+                const numA = parseInt(a) || 0;
+                const numB = parseInt(b) || 0;
+                return numA - numB;
+            });
+            
+            // Add options to dropdown
+            sortedTables.forEach(table => {
+                const option = document.createElement('option');
+                option.value = table;
+                option.textContent = `Table ${table}`;
+                tableFilter.appendChild(option);
+            });
+        }
         
         // Time period functions
         function setTimePeriod(period) {
@@ -871,11 +911,13 @@
         function filterOrders() {
             const statusFilter = document.getElementById('statusFilter').value;
             const typeFilter = document.getElementById('typeFilter').value;
+            const tableFilter = document.getElementById('tableFilter').value;
             
             filteredOrders = allOrders.filter(order => {
                 const statusMatch = statusFilter === 'all' || order.status === statusFilter;
                 const typeMatch = typeFilter === 'all' || order.type === typeFilter;
-                return statusMatch && typeMatch;
+                const tableMatch = tableFilter === 'all' || order.table === tableFilter;
+                return statusMatch && typeMatch && tableMatch;
             });
             
             updateOrdersDisplay();
@@ -911,6 +953,11 @@
                         return b.total - a.total;
                     case 'total-low':
                         return a.total - b.total;
+                    case 'table':
+                        // Sort by table number (handle null/undefined tables)
+                        const tableA = a.table ? parseInt(a.table) || 0 : 0;
+                        const tableB = b.table ? parseInt(b.table) || 0 : 0;
+                        return tableA - tableB;
                     case 'status':
                         return a.status.localeCompare(b.status);
                     default:
@@ -919,11 +966,18 @@
             });
             
             updateOrdersDisplay();
+            
+            // Re-append elements in sorted order to update DOM
+            const container = document.getElementById('ordersList');
+            filteredOrders.forEach(order => {
+                container.appendChild(order.element);
+            });
         }
         
         function clearFilters() {
             document.getElementById('statusFilter').value = 'all';
             document.getElementById('typeFilter').value = 'all';
+            document.getElementById('tableFilter').value = 'all';
             document.getElementById('sortBy').value = 'newest';
             document.getElementById('searchOrders').value = '';
             
