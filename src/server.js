@@ -1000,6 +1000,13 @@ async function sendOrderConfirmation(order, customerEmail, customerName) {
               ${order.marketingConsent ? `<p style="margin: 5px 0; color: #28a745;"><strong>✓ Marketing Communications:</strong> Opted In</p>` : '<p style="margin: 5px 0; color: #dc3545;"><strong>✗ Marketing Communications:</strong> Opted Out</p>'}
             </div>
             
+            ${order.notes && order.notes.trim() ? `
+            <div style="background: #fee2e2; border: 2px solid #dc2626; padding: 15px; border-radius: 8px; margin: 20px 0;">
+              <h3 style="color: #dc2626; margin-top: 0; font-size: 16px;">⚠️ SPECIAL INSTRUCTIONS</h3>
+              <p style="margin: 0; color: #dc2626; font-weight: 700; white-space: pre-wrap;">${order.notes}</p>
+            </div>
+            ` : ''}
+            
             <h3 style="color: #333;">Your Order:</h3>
             <div style="border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
               ${orderItems.map(item => `
@@ -2630,7 +2637,11 @@ app.post('/admin/orders/:id/force-status', authMiddleware, async (req, res) => {
           total: order.total,
           items: order.items,
           customerName: order.customerName,
+          customerEmail: order.customerEmail,
+          orderType: order.orderType,
           tableNumber: order.tableNumber,
+          notes: order.notes || '', // Preserve notes!
+          marketingConsent: order.marketingConsent,
           createdAt: order.createdAt || new Date(),
           updatedAt: new Date()
         });
@@ -3046,7 +3057,11 @@ app.post('/kitchen/orders/:id/force-status', kitchenAuthMiddleware, async (req, 
           total: order.total,
           items: order.items,
           customerName: order.customerName,
+          customerEmail: order.customerEmail,
+          orderType: order.orderType,
           tableNumber: order.tableNumber,
+          notes: order.notes || '', // Preserve notes!
+          marketingConsent: order.marketingConsent,
           createdAt: order.createdAt || new Date(),
           updatedAt: new Date()
         });
