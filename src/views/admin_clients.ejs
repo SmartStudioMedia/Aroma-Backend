@@ -561,7 +561,14 @@
                 }
             });
             
+            // Re-render the clients in the new sorted order
             updateClientsDisplay();
+            
+            // Re-append elements in sorted order to update DOM
+            const container = document.querySelector('.clients-grid');
+            filteredClients.forEach(client => {
+                container.appendChild(client.element);
+            });
         }
         
         function clearFilters() {
@@ -684,3 +691,4 @@
     </script>
 </body>
 </html>
+
