@@ -53,6 +53,7 @@ const orderSchema = new mongoose.Schema({
   customerEmail: String,
   orderType: String,
   tableNumber: String,
+  notes: String, // Special instructions for kitchen
   marketingConsent: Boolean,
   total: Number,
   discount: Number,
