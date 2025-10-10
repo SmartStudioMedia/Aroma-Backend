@@ -2442,6 +2442,7 @@ app.post('/admin/orders/:id/force-edit', authMiddleware, async (req, res) => {
     
     const order = orders[orderIndex];
     console.log(`✅ Found order ${orderId} at index ${orderIndex}`);
+    console.log(`📝 Order notes BEFORE update:`, order.notes);
     
     // STEP 2: AGGRESSIVE UPDATE - Override everything
     const originalStatus = order.status;
@@ -2486,7 +2487,7 @@ app.post('/admin/orders/:id/force-edit', authMiddleware, async (req, res) => {
         const deleteResult = await Order.deleteMany({ id: orderId });
         console.log(`🔥 AGGRESSIVE: Deleted ${deleteResult.deletedCount} duplicate orders`);
         
-        // Create a fresh order with the updated data
+        // Create a fresh order with the updated data - PRESERVE ALL FIELDS
         const newOrder = new Order({
           id: orderId,
           status: order.status,
@@ -2494,13 +2495,18 @@ app.post('/admin/orders/:id/force-edit', authMiddleware, async (req, res) => {
           total: order.total,
           items: order.items,
           customerName: order.customerName,
+          customerEmail: order.customerEmail,
+          orderType: order.orderType,
           tableNumber: order.tableNumber,
+          notes: order.notes || '', // PRESERVE NOTES!
+          marketingConsent: order.marketingConsent,
           createdAt: order.createdAt || new Date(),
           updatedAt: new Date()
         });
         
         await newOrder.save();
         console.log(`🔥 AGGRESSIVE: Created fresh order ${orderId} in MongoDB`);
+        console.log(`📝 Order notes AFTER MongoDB save:`, newOrder.notes);
         
       } catch (mongoError) {
         console.error(`❌ AGGRESSIVE MongoDB update failed:`, mongoError.message);
@@ -2610,6 +2616,7 @@ app.post('/admin/orders/:id/force-status', authMiddleware, async (req, res) => {
     orders[orderIndex].updatedAt = new Date().toISOString();
     
     console.log(`🔥 AGGRESSIVE: Status changed from ${originalStatus} to ${status}`);
+    console.log(`📝 Notes preserved in local array:`, orders[orderIndex].notes);
     
     // STEP 2: Force save to file
     try {
@@ -3030,6 +3037,7 @@ app.post('/kitchen/orders/:id/force-status', kitchenAuthMiddleware, async (req, 
     orders[orderIndex].updatedAt = new Date().toISOString();
     
     console.log(`🔥 KITCHEN AGGRESSIVE: Status changed from ${originalStatus} to ${status}`);
+    console.log(`📝 Notes preserved in local array:`, orders[orderIndex].notes);
     
     // STEP 2: Force save to file
     try {
