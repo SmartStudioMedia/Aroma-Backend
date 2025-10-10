@@ -442,10 +442,10 @@
                     </div>
                 <% } else { %>
                     <% clients.forEach(client => { %>
-                    <div class="client-card" data-client-id="<%= client.id %>" data-name="<%= client.name %>" data-email="<%= client.email %>" data-marketing="<%= client.marketingConsent %>" data-date="<%= new Date(client.createdAt).toISOString() %>">
+                    <div class="client-card" data-client-id="<%= client.id %>" data-name="<%= client.name %>" data-email="<%= client.email %>" data-marketing="<%= client.marketingConsent %>" data-date="<%= new Date(client.updatedAt || client.createdAt).toISOString() %>">
                         <div class="client-header">
                             <div class="client-name"><%= client.name %></div>
-                            <div class="client-date"><%= new Date(client.createdAt).toLocaleDateString() %></div>
+                            <div class="client-date">Last Order: <%= new Date(client.updatedAt || client.createdAt).toLocaleDateString() %></div>
                         </div>
                         
                         <div class="client-details">
@@ -607,7 +607,7 @@
         
         function exportClients() {
             const csvContent = [
-                ['Name', 'Email', 'Marketing Consent', 'Total Orders', 'Total Spent', 'Date Added'],
+                ['Name', 'Email', 'Marketing Consent', 'Total Orders', 'Total Spent', 'Last Order Date'],
                 ...filteredClients.map(client => {
                     const clientElement = client.element;
                     return [
@@ -639,7 +639,7 @@
             }
             
             const csvContent = [
-                ['Name', 'Email', 'Date Added'],
+                ['Name', 'Email', 'Last Order Date'],
                 ...marketingClients.map(client => [
                     client.name,
                     client.email,
@@ -684,4 +684,3 @@
     </script>
 </body>
 </html>
-
