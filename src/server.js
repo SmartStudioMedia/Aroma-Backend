@@ -1616,10 +1616,11 @@ app.post('/api/orders', async (req, res) => {
     console.log('📊 Current orders count before:', orders.length);
     console.log('🔢 Current orderIdCounter:', orderIdCounter);
     
-    const { items, orderType, tableNumber, customerName, customerEmail, marketingConsent, total } = req.body;
+    const { items, orderType, tableNumber, customerName, customerEmail, notes, marketingConsent, total } = req.body;
     
     // Log table number specifically
     console.log('🪑 TABLE NUMBER RECEIVED:', tableNumber, '(type:', typeof tableNumber, ')');
+    console.log('📝 NOTES RECEIVED:', notes);
     
     // Validate required fields
     if (!items || !Array.isArray(items) || items.length === 0) {
@@ -1654,6 +1655,7 @@ app.post('/api/orders', async (req, res) => {
       tableNumber: normalizedTableNumber,
       customerName: customerName,
       customerEmail: customerEmail,
+      notes: notes || '', // Special instructions for kitchen
       marketingConsent: marketingConsent || false,
       total: parseFloat(total) || 0,
       status: 'pending',
