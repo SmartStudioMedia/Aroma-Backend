@@ -1750,9 +1750,10 @@ app.post('/api/orders', async (req, res) => {
           saveClientsData();
           console.log('✅ New client added to marketing list:', newClient);
         } else {
-          // Update existing client
+          // Update existing client with most recent order date
           existingClient.totalOrders = (existingClient.totalOrders || 0) + 1;
           existingClient.totalSpent = (existingClient.totalSpent || 0) + parseFloat(total);
+          existingClient.updatedAt = new Date().toISOString();
           
           // Update in MongoDB if connected
           if (mongoose.connection.readyState === 1) {
@@ -1761,12 +1762,12 @@ app.post('/api/orders', async (req, res) => {
               totalSpent: existingClient.totalSpent,
               updatedAt: new Date()
             });
-            console.log('✅ Updated client in MongoDB:', existingClient);
+            console.log('✅ Updated client in MongoDB with latest order date:', existingClient);
           }
           
           // Update in file storage
           saveClientsData();
-          console.log('✅ Existing client updated:', existingClient);
+          console.log('✅ Existing client updated with latest order date:', existingClient);
         }
       } catch (error) {
         console.error('❌ Error saving client:', error);
