@@ -565,7 +565,7 @@
             updateClientsDisplay();
             
             // Re-append elements in sorted order to update DOM
-            const container = document.querySelector('.clients-grid');
+            const container = document.getElementById('clientsList');
             filteredClients.forEach(client => {
                 container.appendChild(client.element);
             });
