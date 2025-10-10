@@ -498,7 +498,6 @@
                         <option value="all">All Types</option>
                         <option value="dine-in">🏠 Dine In</option>
                         <option value="takeaway">📦 Takeaway</option>
-                        <option value="delivery">🚚 Delivery</option>
                     </select>
                 </div>
                 
@@ -873,13 +872,45 @@
             const dateRangePicker = document.getElementById('dateRangePicker');
             if (period === 'all') {
                 dateRangePicker.style.display = 'none';
-                filterByTimePeriod('all');
             } else {
                 dateRangePicker.style.display = 'flex';
-                filterByTimePeriod(period);
+                // Set default date range based on period
+                setDateRangeForPeriod(period);
             }
             
-            updateOrdersDisplay();
+            // Apply time period filter
+            filterByTimePeriod(period);
+            // Then apply other filters on top
+            applyAllFilters();
+        }
+        
+        function setDateRangeForPeriod(period) {
+            const now = new Date();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            let startDate;
+            
+            switch(period) {
+                case 'daily':
+                    startDate = new Date(today);
+                    break;
+                case 'weekly':
+                    startDate = new Date(today);
+                    startDate.setDate(startDate.getDate() - 7);
+                    break;
+                case 'monthly':
+                    startDate = new Date(today);
+                    startDate.setMonth(startDate.getMonth() - 1);
+                    break;
+                case 'yearly':
+                    startDate = new Date(today);
+                    startDate.setFullYear(startDate.getFullYear() - 1);
+                    break;
+                default:
+                    startDate = new Date(today);
+            }
+            
+            document.getElementById('startDate').value = startDate.toISOString().split('T')[0];
+            document.getElementById('endDate').value = today.toISOString().split('T')[0];
         }
         
         function filterByTimePeriod(period) {
@@ -921,32 +952,58 @@
         }
         
         function applyDateRange() {
-            const startDate = new Date(document.getElementById('startDate').value);
-            const endDate = new Date(document.getElementById('endDate').value);
+            const startDateValue = document.getElementById('startDate').value;
+            const endDateValue = document.getElementById('endDate').value;
+            
+            if (!startDateValue || !endDateValue) {
+                alert('Please select both start and end dates');
+                return;
+            }
+            
+            const startDate = new Date(startDateValue);
+            startDate.setHours(0, 0, 0, 0);
+            const endDate = new Date(endDateValue);
             endDate.setHours(23, 59, 59, 999); // Include entire end date
             
+            // Filter by date range first
             filteredOrders = allOrders.filter(order => {
                 const orderDate = new Date(order.date);
                 return orderDate >= startDate && orderDate <= endDate;
             });
             
-            updateOrdersDisplay();
+            // Then apply other filters
+            applyAllFilters();
         }
         
-        // Filter functions
-        function filterOrders() {
+        // Apply all filters (status, type, table) to current filtered orders
+        function applyAllFilters() {
             const statusFilter = document.getElementById('statusFilter').value;
             const typeFilter = document.getElementById('typeFilter').value;
             const tableFilter = document.getElementById('tableFilter').value;
             
-            filteredOrders = allOrders.filter(order => {
+            // Apply filters to already time-filtered orders
+            const tempFiltered = filteredOrders.filter(order => {
                 const statusMatch = statusFilter === 'all' || order.status === statusFilter;
                 const typeMatch = typeFilter === 'all' || order.type === typeFilter;
                 const tableMatch = tableFilter === 'all' || order.table === tableFilter;
                 return statusMatch && typeMatch && tableMatch;
             });
             
+            filteredOrders = tempFiltered;
             updateOrdersDisplay();
+        }
+        
+        // Filter functions
+        function filterOrders() {
+            // Re-apply time period filter first
+            if (currentTimePeriod && currentTimePeriod !== 'all') {
+                filterByTimePeriod(currentTimePeriod);
+            } else {
+                filteredOrders = [...allOrders];
+            }
+            
+            // Then apply status, type, and table filters
+            applyAllFilters();
         }
         
         function searchOrders() {
