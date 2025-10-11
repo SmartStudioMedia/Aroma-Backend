@@ -28,6 +28,8 @@ const ADMIN_USER = process.env.ADMIN_USER || 'admin';
 const ADMIN_PASS = process.env.ADMIN_PASS || 'changeme';
 const KITCHEN_USER = process.env.KITCHEN_USER || 'kitchen';
 const KITCHEN_PASS = process.env.KITCHEN_PASS || 'kitchen123';
+const WAITER_USER = process.env.WAITER_USER || 'waiter';
+const WAITER_PASS = process.env.WAITER_PASS || 'waiter123';
 
 // MongoDB connection
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/aroma-restaurant';
@@ -1119,6 +1121,13 @@ const kitchenAuthMiddleware = basicAuth({
   users: { [KITCHEN_USER]: KITCHEN_PASS },
   challenge: true,
   realm: 'Kitchen Staff Area'
+});
+
+// Basic auth for waiter routes
+const waiterAuthMiddleware = basicAuth({
+  users: { [WAITER_USER]: WAITER_PASS },
+  challenge: true,
+  realm: 'Waiter Area'
 });
 
 // Root route - redirect to admin or show API info
@@ -3103,6 +3112,217 @@ app.post('/kitchen/orders/:id/status', kitchenAuthMiddleware, async (req, res) =
   // Redirect to the force status route
   req.url = req.url.replace('/status', '/force-status');
   return app._router.handle(req, res);
+});
+
+
+// ========================================
+// WAITER ROUTES (Limited Access)
+// ========================================
+
+// Waiter Dashboard
+app.get('/waiter', waiterAuthMiddleware, async (req, res) => {
+  try {
+    const today = new Date();
+    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+    
+    // Get stats for the dashboard
+    const pendingOrders = ordersData.filter(o => o.status === 'pending').length;
+    const confirmedOrders = ordersData.filter(o => o.status === 'confirmed').length;
+    const menuItems = menuData.items.filter(item => item.active).length;
+    
+    // Get today's reservations from database
+    let todayReservations = 0;
+    if (mongoose.connection.readyState === 1) {
+      todayReservations = await Reservation.countDocuments({
+        date: {
+          $gte: startOfDay,
+          $lt: endOfDay
+        }
+      });
+    }
+    
+    res.render('waiter_dashboard', {
+      pendingOrders,
+      confirmedOrders,
+      todayReservations,
+      menuItems
+    });
+  } catch (error) {
+    console.error('Error loading waiter dashboard:', error);
+    res.status(500).send('Error loading dashboard');
+  }
+});
+
+// Waiter Orders (same as admin orders but waiter access)
+app.get('/waiter/orders', waiterAuthMiddleware, async (req, res) => {
+  try {
+    await loadDataFromDatabase();
+    
+    let allOrders = [];
+    
+    if (mongoose.connection.readyState === 1) {
+      allOrders = await Order.find().sort({ createdAt: -1 }).lean();
+    } else {
+      allOrders = ordersData;
+    }
+    
+    res.render('waiter_orders', { orders: allOrders });
+  } catch (error) {
+    console.error('Error loading waiter orders:', error);
+    res.status(500).send('Error loading orders');
+  }
+});
+
+// Waiter Bookings (view only)
+app.get('/waiter/bookings', waiterAuthMiddleware, async (req, res) => {
+  try {
+    let reservations = [];
+    
+    if (mongoose.connection.readyState === 1) {
+      reservations = await Reservation.find().sort({ date: 1, time: 1 }).lean();
+    }
+    
+    res.render('waiter_bookings', { reservations });
+  } catch (error) {
+    console.error('Error loading waiter bookings:', error);
+    res.status(500).send('Error loading bookings');
+  }
+});
+
+// Waiter Menu (view only)
+app.get('/waiter/menu', waiterAuthMiddleware, async (req, res) => {
+  try {
+    await loadDataFromDatabase();
+    
+    let items = [];
+    let categories = [];
+    
+    if (mongoose.connection.readyState === 1) {
+      items = await MenuItem.find().lean();
+      categories = await Category.find().lean();
+    } else {
+      items = menuData.items;
+      categories = menuData.categories;
+    }
+    
+    res.render('waiter_menu', { items, categories });
+  } catch (error) {
+    console.error('Error loading waiter menu:', error);
+    res.status(500).send('Error loading menu');
+  }
+});
+
+// Waiter Categories (view only)
+app.get('/waiter/categories', waiterAuthMiddleware, async (req, res) => {
+  try {
+    await loadDataFromDatabase();
+    
+    let categories = [];
+    
+    if (mongoose.connection.readyState === 1) {
+      categories = await Category.find().lean();
+    } else {
+      categories = menuData.categories;
+    }
+    
+    res.render('waiter_categories', { categories });
+  } catch (error) {
+    console.error('Error loading waiter categories:', error);
+    res.status(500).send('Error loading categories');
+  }
+});
+
+// Waiter QR Codes
+app.get('/waiter/qr', waiterAuthMiddleware, (req, res) => {
+  res.render('waiter_qr');
+});
+
+// Waiter Order Status Update
+app.post('/waiter/orders/:id/status', waiterAuthMiddleware, async (req, res) => {
+  try {
+    const orderId = parseInt(req.params.id);
+    const { status } = req.body;
+    
+    console.log(`🔄 Waiter updating order ${orderId} to status: ${status}`);
+    
+    // Update in MongoDB
+    if (mongoose.connection.readyState === 1) {
+      await Order.deleteMany({ id: orderId });
+      const orderIndex = ordersData.findIndex(o => o.id === orderId);
+      if (orderIndex !== -1) {
+        ordersData[orderIndex].status = status;
+        await Order.create(ordersData[orderIndex]);
+      }
+    } else {
+      // Update in local array
+      const orderIndex = ordersData.findIndex(o => o.id === orderId);
+      if (orderIndex !== -1) {
+        ordersData[orderIndex].status = status;
+        saveOrdersData();
+      }
+    }
+    
+    res.json({ success: true, newStatus: status });
+  } catch (error) {
+    console.error('❌ Waiter order status update error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Waiter Get Order Data
+app.get('/waiter/orders/:id/data', waiterAuthMiddleware, async (req, res) => {
+  try {
+    const orderId = parseInt(req.params.id);
+    let order = null;
+    
+    if (mongoose.connection.readyState === 1) {
+      order = await Order.findOne({ id: orderId }).lean();
+    } else {
+      order = ordersData.find(o => o.id === orderId);
+    }
+    
+    if (!order) {
+      return res.status(404).json({ success: false, error: 'Order not found' });
+    }
+    
+    res.json({ success: true, order });
+  } catch (error) {
+    console.error('❌ Error fetching order data:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Waiter Edit Order
+app.post('/waiter/orders/:id/edit', waiterAuthMiddleware, async (req, res) => {
+  try {
+    const orderId = parseInt(req.params.id);
+    const { status, discount } = req.body;
+    
+    console.log(`🔄 Waiter editing order ${orderId}:`, { status, discount });
+    
+    const orderIndex = ordersData.findIndex(o => o.id === orderId);
+    if (orderIndex === -1) {
+      return res.status(404).json({ success: false, error: 'Order not found' });
+    }
+    
+    // Update order
+    if (status) ordersData[orderIndex].status = status;
+    if (discount !== undefined) ordersData[orderIndex].discount = discount;
+    
+    // Update in MongoDB
+    if (mongoose.connection.readyState === 1) {
+      await Order.deleteMany({ id: orderId });
+      await Order.create(ordersData[orderIndex]);
+    } else {
+      saveOrdersData();
+    }
+    
+    res.json({ success: true, order: ordersData[orderIndex] });
+  } catch (error) {
+    console.error('❌ Waiter order edit error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
 
