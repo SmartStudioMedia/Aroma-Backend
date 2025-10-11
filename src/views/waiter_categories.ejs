@@ -334,7 +334,7 @@
     <div class="container">
         <div class="header">
             <h1>📑 Waiter Categories</h1>
-            <p>View menu categories (Read-Only)</p>
+            <p>View menu categories and manage availability</p>
             <div class="nav-tabs">
                 <a href="/waiter" class="nav-tab">Dashboard</a>
                 <a href="/waiter/orders" class="nav-tab">📋 Orders</a>
@@ -347,8 +347,8 @@
 
         <div class="categories-container">
             <div class="categories-header">
-                <h3>Menu Categories (View Only)</h3>
-                <p style="color: #6b7280;">Contact admin to make changes</p>
+                <h3>Menu Categories Management</h3>
+                <p style="color: #6b7280;">Activate or deactivate categories as needed</p>
             </div>
 
             <div class="categories-grid">
@@ -380,9 +380,9 @@
                     </div>
                     
                     <div class="category-actions">
-                        <span style="color: <%= category.active ? '#059669' : '#dc2626' %>; font-weight: bold;">
-                            <%= category.active ? '✓ Active' : '✗ Inactive' %>
-                        </span>
+                        <button class="btn btn-<%= category.active ? 'danger' : 'success' %> btn-sm" onclick="toggleCategoryStatus(<%= category.id %>, <%= !category.active %>)">
+                            <%= category.active ? 'Deactivate' : 'Activate' %>
+                        </button>
                     </div>
                 </div>
                 <% }); %>
