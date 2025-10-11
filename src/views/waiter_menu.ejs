@@ -408,7 +408,7 @@
     <div class="container">
         <div class="header">
             <h1>🍔 Waiter Menu</h1>
-            <p>View restaurant menu items (Read-Only)</p>
+            <p>View restaurant menu items and manage availability</p>
             <div class="nav-tabs">
                 <a href="/waiter" class="nav-tab">Dashboard</a>
                 <a href="/waiter/orders" class="nav-tab">📋 Orders</a>
@@ -421,8 +421,8 @@
 
         <div class="items-container">
             <div class="items-header">
-                <h3>Menu Items (View Only)</h3>
-                <p style="color: #6b7280;">Contact admin to make changes</p>
+                <h3>Menu Items Management</h3>
+                <p style="color: #6b7280;">Activate or deactivate items as needed</p>
             </div>
 
             <!-- Category Tabs -->
@@ -493,9 +493,9 @@
                     <div class="item-price">€<%= (item.price || 0).toFixed(2) %></div>
                     
                     <div class="item-actions">
-                        <span style="color: <%= item.active ? '#059669' : '#dc2626' %>; font-weight: bold;">
-                            <%= item.active ? '✓ Active' : '✗ Inactive' %>
-                        </span>
+                        <button class="btn btn-<%= item.active ? 'danger' : 'success' %> btn-sm" onclick="toggleItemStatus(<%= item.id %>, <%= !item.active %>)">
+                            <%= item.active ? 'Deactivate' : 'Activate' %>
+                        </button>
                     </div>
                 </div>
                 <% }); %>
