@@ -3122,13 +3122,16 @@ app.post('/kitchen/orders/:id/status', kitchenAuthMiddleware, async (req, res) =
 // Waiter Dashboard
 app.get('/waiter', waiterAuthMiddleware, async (req, res) => {
   try {
+    // Load data first
+    await loadDataFromDatabase();
+    
     const today = new Date();
     const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
     
-    // Get stats for the dashboard
-    const pendingOrders = ordersData.filter(o => o.status === 'pending').length;
-    const confirmedOrders = ordersData.filter(o => o.status === 'confirmed').length;
+    // Get stats for the dashboard - use 'orders' not 'ordersData'
+    const pendingOrders = orders.filter(o => o.status === 'pending').length;
+    const confirmedOrders = orders.filter(o => o.status === 'confirmed').length;
     const menuItems = menuData.items.filter(item => item.active).length;
     
     // Get today's reservations from database
@@ -3149,8 +3152,10 @@ app.get('/waiter', waiterAuthMiddleware, async (req, res) => {
       menuItems
     });
   } catch (error) {
-    console.error('Error loading waiter dashboard:', error);
-    res.status(500).send('Error loading dashboard');
+    console.error('❌ Error loading waiter dashboard:', error);
+    console.error('Error details:', error.message);
+    console.error('Stack:', error.stack);
+    res.status(500).send('Error loading dashboard: ' + error.message);
   }
 });
 
@@ -3164,13 +3169,14 @@ app.get('/waiter/orders', waiterAuthMiddleware, async (req, res) => {
     if (mongoose.connection.readyState === 1) {
       allOrders = await Order.find().sort({ createdAt: -1 }).lean();
     } else {
-      allOrders = ordersData;
+      allOrders = orders; // Use 'orders' not 'ordersData'
     }
     
     res.render('waiter_orders', { orders: allOrders });
   } catch (error) {
-    console.error('Error loading waiter orders:', error);
-    res.status(500).send('Error loading orders');
+    console.error('❌ Error loading waiter orders:', error);
+    console.error('Error details:', error.message);
+    res.status(500).send('Error loading orders: ' + error.message);
   }
 });
 
@@ -3249,16 +3255,16 @@ app.post('/waiter/orders/:id/status', waiterAuthMiddleware, async (req, res) => 
     // Update in MongoDB
     if (mongoose.connection.readyState === 1) {
       await Order.deleteMany({ id: orderId });
-      const orderIndex = ordersData.findIndex(o => o.id === orderId);
+      const orderIndex = orders.findIndex(o => o.id === orderId);
       if (orderIndex !== -1) {
-        ordersData[orderIndex].status = status;
-        await Order.create(ordersData[orderIndex]);
+        orders[orderIndex].status = status;
+        await Order.create(orders[orderIndex]);
       }
     } else {
       // Update in local array
-      const orderIndex = ordersData.findIndex(o => o.id === orderId);
+      const orderIndex = orders.findIndex(o => o.id === orderId);
       if (orderIndex !== -1) {
-        ordersData[orderIndex].status = status;
+        orders[orderIndex].status = status;
         saveOrdersData();
       }
     }
@@ -3279,7 +3285,7 @@ app.get('/waiter/orders/:id/data', waiterAuthMiddleware, async (req, res) => {
     if (mongoose.connection.readyState === 1) {
       order = await Order.findOne({ id: orderId }).lean();
     } else {
-      order = ordersData.find(o => o.id === orderId);
+      order = orders.find(o => o.id === orderId);
     }
     
     if (!order) {
@@ -3301,24 +3307,24 @@ app.post('/waiter/orders/:id/edit', waiterAuthMiddleware, async (req, res) => {
     
     console.log(`🔄 Waiter editing order ${orderId}:`, { status, discount });
     
-    const orderIndex = ordersData.findIndex(o => o.id === orderId);
+    const orderIndex = orders.findIndex(o => o.id === orderId);
     if (orderIndex === -1) {
       return res.status(404).json({ success: false, error: 'Order not found' });
     }
     
     // Update order
-    if (status) ordersData[orderIndex].status = status;
-    if (discount !== undefined) ordersData[orderIndex].discount = discount;
+    if (status) orders[orderIndex].status = status;
+    if (discount !== undefined) orders[orderIndex].discount = discount;
     
     // Update in MongoDB
     if (mongoose.connection.readyState === 1) {
       await Order.deleteMany({ id: orderId });
-      await Order.create(ordersData[orderIndex]);
+      await Order.create(orders[orderIndex]);
     } else {
       saveOrdersData();
     }
     
-    res.json({ success: true, order: ordersData[orderIndex] });
+    res.json({ success: true, order: orders[orderIndex] });
   } catch (error) {
     console.error('❌ Waiter order edit error:', error);
     res.status(500).json({ success: false, error: error.message });
