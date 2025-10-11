@@ -3219,23 +3219,27 @@ app.get('/waiter/menu', waiterAuthMiddleware, async (req, res) => {
   }
 });
 
-// Waiter Categories (view only)
+// Waiter Categories (with toggle permission)
 app.get('/waiter/categories', waiterAuthMiddleware, async (req, res) => {
   try {
     await loadDataFromDatabase();
     
     let categories = [];
+    let items = [];
     
     if (mongoose.connection.readyState === 1) {
       categories = await Category.find().lean();
+      items = await MenuItem.find().lean();
     } else {
       categories = menuData.categories;
+      items = menuData.items;
     }
     
-    res.render('waiter_categories', { categories });
+    res.render('waiter_categories', { categories, items });
   } catch (error) {
-    console.error('Error loading waiter categories:', error);
-    res.status(500).send('Error loading categories');
+    console.error('❌ Error loading waiter categories:', error);
+    console.error('Error details:', error.message);
+    res.status(500).send('Error loading categories: ' + error.message);
   }
 });
 
