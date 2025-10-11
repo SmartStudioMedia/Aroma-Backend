@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AROMA Restaurant - Waiter QR Codes</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header h1 {
+            color: #2d3748;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .nav-tabs {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .nav-tab {
+            padding: 12px 24px;
+            background: #4f46e5;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+        
+        .nav-tab:hover {
+            background: #3730a3;
+            transform: translateY(-2px);
+        }
+        
+        .nav-tab.active {
+            background: #059669;
+        }
+        
+        .qr-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        
+        .qr-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .qr-header h3 {
+            font-size: 1.5rem;
+            color: #2d3748;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn-primary {
+            background: #4f46e5;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #3730a3;
+            transform: translateY(-2px);
+        }
+        
+        .btn-success {
+            background: #059669;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #047857;
+        }
+        
+        .btn-sm {
+            padding: 8px 16px;
+            font-size: 0.875rem;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #374151;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: #4f46e5;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        
+        .qr-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .qr-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            border: 1px solid #e5e7eb;
+        }
+        
+        .qr-card h4 {
+            color: #1f2937;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+        }
+        
+        .qr-image {
+            width: 200px;
+            height: 200px;
+            margin: 0 auto 15px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f9fafb;
+        }
+        
+        .qr-image img {
+            max-width: 100%;
+            max-height: 100%;
+            border-radius: 4px;
+        }
+        
+        .qr-url {
+            font-size: 0.875rem;
+            color: #6b7280;
+            word-break: break-all;
+            margin-bottom: 15px;
+        }
+        
+        .qr-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6b7280;
+        }
+        
+        .error {
+            background: #fee2e2;
+            color: #991b1b;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .qr-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔲 Waiter QR Codes</h1>
+            <p>Generate QR codes for restaurant tables</p>
+            <div class="nav-tabs">
+                <a href="/waiter" class="nav-tab">Dashboard</a>
+                <a href="/waiter/orders" class="nav-tab">📋 Orders</a>
+                <a href="/waiter/bookings" class="nav-tab">📅 Bookings</a>
+                <a href="/waiter/menu" class="nav-tab">🍔 Menu</a>
+                <a href="/waiter/categories" class="nav-tab">📑 Categories</a>
+                <a href="/waiter/qr" class="nav-tab active">🔲 QR Codes</a>
+            </div>
+        </div>
+
+        <!-- Booking QR Code Generator -->
+        <div class="qr-container" style="margin-bottom: 30px;">
+            <div class="qr-header">
+                <h3>📅 Booking QR Code Generator</h3>
+                <div style="background: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 8px; padding: 12px; margin-top: 10px; font-size: 0.9rem; color: #0c4a6e;">
+                    <strong>💡 Note:</strong> Generate QR codes for table reservations. Customers can scan to book a table directly.
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="bookingQRType">Select QR Code Type</label>
+                <select id="bookingQRType" onchange="updateBookingQRForm()">
+                    <option value="general">General Booking (Any Table)</option>
+                    <option value="table">Specific Table Booking</option>
+                    <option value="custom">Custom Booking Link</option>
+                </select>
+            </div>
+
+            <div id="bookingQRForm">
+                <div class="form-group" id="tableNumberGroup" style="display: none;">
+                    <label for="bookingTableNumber">Table Number</label>
+                    <input type="number" id="bookingTableNumber" placeholder="Enter table number" min="1" max="999">
+                </div>
+
+                <div class="form-group" id="customLinkGroup" style="display: none;">
+                    <label for="customBookingLink">Custom Booking Link</label>
+                    <input type="text" id="customBookingLink" placeholder="Enter custom booking URL">
+                </div>
+
+                <div class="form-group">
+                    <label for="bookingQRTitle">QR Code Title</label>
+                    <input type="text" id="bookingQRTitle" placeholder="e.g., Book Table 5, Reserve Your Table">
+                </div>
+
+                <div class="form-group">
+                    <label for="bookingQRDescription">Description (Optional)</label>
+                    <textarea id="bookingQRDescription" placeholder="Instructions for customers..." rows="3"></textarea>
+                </div>
+
+                <button class="btn btn-primary" onclick="generateBookingQR()">Generate Booking QR Code</button>
+            </div>
+        </div>
+
+        <div class="qr-container">
+            <div class="qr-header">
+                <h3>🍽️ Table Menu QR Code Generator</h3>
+                <div style="background: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 8px; padding: 12px; margin-top: 10px; font-size: 0.9rem; color: #0c4a6e;">
+                    <strong>💡 Note:</strong> QR codes point to your frontend URL (currently: <code>https://aroma-frontend-delta.vercel.app</code>). For production, set the <code>FRONTEND_URL</code> environment variable to your actual frontend domain.
+                </div>
+            </div>
+
+            <!-- Single QR Code Generation -->
+            <div class="form-group">
+                <label for="singleTableNumber">Generate QR Code for Single Table</label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="number" id="singleTableNumber" placeholder="Enter table number" min="1" max="999">
+                    <button class="btn btn-primary" onclick="generateSingleQR()">Generate QR</button>
+                </div>
+            </div>
+
+            <!-- Batch QR Code Generation -->
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="startTable">Start Table Number</label>
+                    <input type="number" id="startTable" placeholder="1" min="1" max="999">
+                </div>
+                <div class="form-group">
+                    <label for="endTable">End Table Number</label>
+                    <input type="number" id="endTable" placeholder="10" min="1" max="999">
+                </div>
+            </div>
+            <div style="margin-bottom: 20px;">
+                <button class="btn btn-success" onclick="generateBatchQR()">Generate Batch QR Codes</button>
+            </div>
+
+            <!-- QR Codes Display -->
+            <div id="qrResults">
+                <div class="loading" id="loadingMessage" style="display: none;">
+                    <p>🔄 Generating QR codes...</p>
+                </div>
+                <div id="errorMessage" class="error" style="display: none;"></div>
+                <div id="qrGrid" class="qr-grid"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Booking QR Code Functions
+        function updateBookingQRForm() {
+            const qrType = document.getElementById('bookingQRType').value;
+            const tableNumberGroup = document.getElementById('tableNumberGroup');
+            const customLinkGroup = document.getElementById('customLinkGroup');
+            
+            // Hide all groups first
+            tableNumberGroup.style.display = 'none';
+            customLinkGroup.style.display = 'none';
+            
+            // Show relevant group based on selection
+            if (qrType === 'table') {
+                tableNumberGroup.style.display = 'block';
+            } else if (qrType === 'custom') {
+                customLinkGroup.style.display = 'block';
+            }
+        }
+
+        function generateBookingQR() {
+            const qrType = document.getElementById('bookingQRType').value;
+            const title = document.getElementById('bookingQRTitle').value;
+            const description = document.getElementById('bookingQRDescription').value;
+            
+            if (!title.trim()) {
+                showError('Please enter a QR code title');
+                return;
+            }
+            
+            let bookingUrl = '';
+            let qrTitle = title;
+            
+            if (qrType === 'general') {
+                bookingUrl = `${window.location.origin}/book`;
+                qrTitle = title || 'Book Your Table';
+            } else if (qrType === 'table') {
+                const tableNumber = document.getElementById('bookingTableNumber').value;
+                if (!tableNumber || tableNumber < 1) {
+                    showError('Please enter a valid table number');
+                    return;
+                }
+                bookingUrl = `${window.location.origin}/book?table=${tableNumber}`;
+                qrTitle = title || `Book Table ${tableNumber}`;
+            } else if (qrType === 'custom') {
+                const customLink = document.getElementById('customBookingLink').value;
+                if (!customLink.trim()) {
+                    showError('Please enter a custom booking link');
+                    return;
+                }
+                bookingUrl = customLink;
+                qrTitle = title || 'Book Your Table';
+            }
+            
+            showLoading();
+            hideError();
+            
+            // Generate QR code using the booking URL
+            generateQRCodeForBooking(bookingUrl, qrTitle, description);
+        }
+
+        function generateQRCodeForBooking(url, title, description) {
+            // Use the existing QR code generation logic but for booking URLs
+            fetch('/api/qr/generate-booking', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    url: url,
+                    title: title,
+                    description: description
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                hideLoading();
+                if (data.success) {
+                    displayBookingQRCode(data);
+                } else {
+                    showError(data.error || 'Failed to generate booking QR code');
+                }
+            })
+            .catch(error => {
+                hideLoading();
+                showError('Error generating booking QR code: ' + error.message);
+            });
+        }
+
+        function displayBookingQRCode(data) {
+            const qrResults = document.getElementById('qrResults');
+            let qrGrid = document.getElementById('qrGrid');
+            
+            if (!qrGrid) {
+                // Create qrGrid if it doesn't exist
+                qrGrid = document.createElement('div');
+                qrGrid.id = 'qrGrid';
+                qrGrid.className = 'qr-grid';
+                qrResults.appendChild(qrGrid);
+            }
+            
+            qrGrid.innerHTML = `
+                <div class="qr-card">
+                    <h4>📅 ${data.title}</h4>
+                    <div class="qr-image">
+                        <img src="${data.qrCode}" alt="Booking QR Code">
+                    </div>
+                    <div class="qr-url">${data.url}</div>
+                    ${data.description ? `<div class="qr-description">${data.description}</div>` : ''}
+                    <div class="qr-actions">
+                        <button class="btn btn-primary btn-sm" onclick="downloadQR('${data.qrCode}', '${data.title}')">Download</button>
+                        <button class="btn btn-success btn-sm" onclick="printQR('${data.qrCode}', '${data.title}')">Print</button>
+                        <button class="btn btn-info btn-sm" onclick="copyQRUrl('${data.url}')">Copy Link</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function copyQRUrl(url) {
+            navigator.clipboard.writeText(url).then(() => {
+                alert('Booking URL copied to clipboard!');
+            }).catch(err => {
+                console.error('Failed to copy URL: ', err);
+                alert('Failed to copy URL');
+            });
+        }
+
+        function showLoading() {
+            document.getElementById('loadingMessage').style.display = 'block';
+            document.getElementById('errorMessage').style.display = 'none';
+            document.getElementById('qrGrid').innerHTML = '';
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingMessage').style.display = 'none';
+        }
+
+        function showError(message) {
+            document.getElementById('errorMessage').textContent = message;
+            document.getElementById('errorMessage').style.display = 'block';
+            hideLoading();
+        }
+
+        function hideError() {
+            document.getElementById('errorMessage').style.display = 'none';
+        }
+
+        function generateSingleQR() {
+            const tableNumber = document.getElementById('singleTableNumber').value;
+            
+            if (!tableNumber || tableNumber < 1) {
+                showError('Please enter a valid table number');
+                return;
+            }
+
+            showLoading();
+            hideError();
+
+            fetch(`/api/qr/generate/${tableNumber}`)
+                .then(response => response.json())
+                .then(data => {
+                    hideLoading();
+                    if (data.success) {
+                        displayQRCode(data);
+                    } else {
+                        showError(data.error || 'Failed to generate QR code');
+                    }
+                })
+                .catch(error => {
+                    hideLoading();
+                    showError('Error generating QR code: ' + error.message);
+                });
+        }
+
+        function generateBatchQR() {
+            const startTable = parseInt(document.getElementById('startTable').value);
+            const endTable = parseInt(document.getElementById('endTable').value);
+            
+            if (!startTable || !endTable || startTable < 1 || endTable < startTable) {
+                showError('Please enter valid start and end table numbers');
+                return;
+            }
+
+            // Removed table limit - can generate unlimited tables
+            if (endTable - startTable > 200) {
+                showError('Maximum 200 tables can be generated at once for performance reasons');
+                return;
+            }
+
+            showLoading();
+            hideError();
+
+            fetch(`/api/qr/batch/${startTable}/${endTable}`)
+                .then(response => response.json())
+                .then(data => {
+                    hideLoading();
+                    if (data.success) {
+                        displayBatchQRCodes(data.qrCodes);
+                    } else {
+                        showError(data.error || 'Failed to generate QR codes');
+                    }
+                })
+                .catch(error => {
+                    hideLoading();
+                    showError('Error generating QR codes: ' + error.message);
+                });
+        }
+
+        function displayQRCode(qrData) {
+            const qrGrid = document.getElementById('qrGrid');
+            qrGrid.innerHTML = `
+                <div class="qr-card">
+                    <h4>Table ${qrData.tableNumber}</h4>
+                    <div class="qr-image">
+                        <img src="${qrData.qrCode}" alt="QR Code for Table ${qrData.tableNumber}">
+                    </div>
+                    <div class="qr-url">${qrData.qrUrl}</div>
+                    <div class="qr-actions">
+                        <button class="btn btn-primary btn-sm" onclick="downloadQR('${qrData.qrCode}', 'table-${qrData.tableNumber}')">Download</button>
+                        <button class="btn btn-success btn-sm" onclick="printQR('${qrData.qrCode}', 'Table ${qrData.tableNumber}')">Print</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function displayBatchQRCodes(qrCodes) {
+            const qrGrid = document.getElementById('qrGrid');
+            qrGrid.innerHTML = '';
+
+            qrCodes.forEach(qrData => {
+                const qrCard = document.createElement('div');
+                qrCard.className = 'qr-card';
+                qrCard.innerHTML = `
+                    <h4>Table ${qrData.tableNumber}</h4>
+                    <div class="qr-image">
+                        <img src="${qrData.qrCode}" alt="QR Code for Table ${qrData.tableNumber}">
+                    </div>
+                    <div class="qr-url">${qrData.qrUrl}</div>
+                    <div class="qr-actions">
+                        <button class="btn btn-primary btn-sm" onclick="downloadQR('${qrData.qrCode}', 'table-${qrData.tableNumber}')">Download</button>
+                        <button class="btn btn-success btn-sm" onclick="printQR('${qrData.qrCode}', 'Table ${qrData.tableNumber}')">Print</button>
+                    </div>
+                `;
+                qrGrid.appendChild(qrCard);
+            });
+        }
+
+        function downloadQR(qrCodeDataUrl, filename) {
+            const link = document.createElement('a');
+            link.download = `${filename}-qr-code.png`;
+            link.href = qrCodeDataUrl;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function printQR(qrCodeDataUrl, title) {
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <html>
+                    <head>
+                        <title>Print ${title} QR Code</title>
+                        <style>
+                            body { 
+                                font-family: Arial, sans-serif; 
+                                text-align: center; 
+                                padding: 20px;
+                            }
+                            .qr-container {
+                                margin: 20px auto;
+                                max-width: 300px;
+                            }
+                            .qr-image {
+                                border: 1px solid #ccc;
+                                padding: 10px;
+                                margin: 10px 0;
+                            }
+                            .qr-image img {
+                                max-width: 100%;
+                                height: auto;
+                            }
+                            .table-title {
+                                font-size: 18px;
+                                font-weight: bold;
+                                margin-bottom: 10px;
+                            }
+                            .instructions {
+                                font-size: 12px;
+                                color: #666;
+                                margin-top: 10px;
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="qr-container">
+                            <div class="table-title">${title}</div>
+                            <div class="qr-image">
+                                <img src="${qrCodeDataUrl}" alt="QR Code">
+                            </div>
+                            <div class="instructions">
+                                Scan this QR code to access the menu for this table
+                            </div>
+                        </div>
+                    </body>
+                </html>
+            `);
+            printWindow.document.close();
+            printWindow.print();
+        }
+    </script>
+</body>
+</html>

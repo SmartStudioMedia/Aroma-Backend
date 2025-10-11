@@ -1,0 +1,1235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AROMA Restaurant - Waiter Orders</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header h1 {
+            color: #2d3748;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .nav-tabs {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .nav-tab {
+            padding: 12px 24px;
+            background: #4f46e5;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+        
+        .nav-tab:hover {
+            background: #3730a3;
+            transform: translateY(-2px);
+        }
+        
+        .nav-tab.active {
+            background: #f59e0b;
+        }
+        
+        /* Controls Section */
+        .controls-section {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .control-group label {
+            font-weight: 600;
+            color: #374151;
+            font-size: 0.9rem;
+            margin-bottom: 4px;
+        }
+        
+        .control-group select,
+        .control-group input {
+            padding: 10px 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+            background: white;
+        }
+        
+        .control-group select:focus,
+        .control-group input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        
+        .search-group {
+            grid-column: 1 / -1;
+        }
+        
+        .search-group input {
+            width: 100%;
+            padding: 12px 16px;
+            font-size: 1rem;
+        }
+        
+        .controls-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #e5e7eb;
+        }
+        
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+        
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #2563eb;
+        }
+        
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #4b5563;
+        }
+        
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #059669;
+        }
+        
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+        
+        /* Time Period Tabs */
+        .time-period-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .time-tab {
+            padding: 10px 20px;
+            background: #f3f4f6;
+            color: #374151;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+        
+        .time-tab:hover {
+            background: #e5e7eb;
+        }
+        
+        .time-tab.active {
+            background: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }
+        
+        /* Date Range Picker */
+        .date-range-picker {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .date-input {
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+        
+        /* Orders Display */
+        .orders-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        
+        .orders-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .orders-count {
+            font-size: 1.1rem;
+            color: #6b7280;
+        }
+        
+        .order-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+        }
+        
+        .order-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+        
+        .order-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .order-id {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #2d3748;
+        }
+        
+        .order-time {
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+        
+        .order-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .detail-item {
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+        }
+        
+        .detail-label {
+            font-size: 0.8rem;
+            color: #6b7280;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+        
+        .detail-value {
+            font-size: 1rem;
+            color: #1f2937;
+            font-weight: 600;
+        }
+        
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .status-pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .status-confirmed {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        
+        .status-completed {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .status-cancelled {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .item-list {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            border: 1px solid #e5e7eb;
+            margin-bottom: 15px;
+        }
+        
+        /* Special Instructions / Notes - RED AND BOLD */
+        .order-notes-display {
+            background: #fee2e2;
+            border: 2px solid #dc2626;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .order-notes-display h4 {
+            color: #dc2626;
+            font-weight: 700;
+            margin-bottom: 8px;
+            font-size: 1.1rem;
+        }
+        
+        .order-notes-content {
+            color: #dc2626;
+            font-weight: 700;
+            font-size: 1rem;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        
+        .item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        
+        .item:last-child {
+            border-bottom: none;
+        }
+        
+        .item-name {
+            font-weight: 500;
+            color: #374151;
+        }
+        
+        .item-price {
+            color: #6b7280;
+            font-weight: 600;
+        }
+        
+        .order-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .no-orders {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6b7280;
+        }
+        
+        .no-orders h3 {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .no-orders p {
+            font-size: 1rem;
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .controls-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .control-group {
+                width: 100%;
+            }
+            
+            .control-group select,
+            .control-group input {
+                width: 100%;
+            }
+            
+            .date-range-picker {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .order-details {
+                grid-template-columns: 1fr;
+            }
+            
+            .order-actions {
+                flex-direction: column;
+            }
+            
+            .btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📋 Waiter Orders</h1>
+            <div class="nav-tabs">
+                <a href="/waiter" class="nav-tab">Dashboard</a>
+                <a href="/waiter/orders" class="nav-tab active">📋 Orders</a>
+                <a href="/waiter/bookings" class="nav-tab">📅 Bookings</a>
+                <a href="/waiter/menu" class="nav-tab">🍔 Menu</a>
+                <a href="/waiter/categories" class="nav-tab">📑 Categories</a>
+                <a href="/waiter/qr" class="nav-tab">🔲 QR Codes</a>
+            </div>
+        </div>
+
+        <!-- Controls Section -->
+        <div class="controls-section">
+            <h2 style="margin-bottom: 20px; color: #374151;">🔍 Filter & Search Orders</h2>
+            
+            <!-- Time Period Tabs -->
+            <div class="time-period-tabs">
+                <div class="time-tab active" onclick="setTimePeriod('daily')">📅 Daily</div>
+                <div class="time-tab" onclick="setTimePeriod('weekly')">📊 Weekly</div>
+                <div class="time-tab" onclick="setTimePeriod('monthly')">📈 Monthly</div>
+                <div class="time-tab" onclick="setTimePeriod('yearly')">📆 Yearly</div>
+                <div class="time-tab" onclick="setTimePeriod('all')">🔄 All Time</div>
+            </div>
+            
+            <!-- Date Range Picker -->
+            <div class="date-range-picker" id="dateRangePicker" style="display: none;">
+                <label for="startDate">From:</label>
+                <input type="date" id="startDate" class="date-input">
+                <label for="endDate">To:</label>
+                <input type="date" id="endDate" class="date-input">
+                <button class="btn btn-primary" onclick="applyDateRange()">Apply Range</button>
+            </div>
+            
+            <!-- Filter Controls -->
+            <div class="controls-grid">
+                <div class="control-group">
+                    <label for="statusFilter">📊 Status Filter</label>
+                    <select id="statusFilter" onchange="filterOrders()">
+                        <option value="all">All Statuses</option>
+                        <option value="pending">⏳ Pending</option>
+                        <option value="confirmed">✅ Confirmed</option>
+                        <option value="completed">🎉 Completed</option>
+                        <option value="cancelled">❌ Cancelled</option>
+                    </select>
+                </div>
+                
+                <div class="control-group">
+                    <label for="typeFilter">🍽️ Order Type</label>
+                    <select id="typeFilter" onchange="filterOrders()">
+                        <option value="all">All Types</option>
+                        <option value="dine-in">🏠 Dine In</option>
+                        <option value="takeaway">📦 Takeaway</option>
+                    </select>
+                </div>
+                
+                <div class="control-group">
+                    <label for="tableFilter">🪑 Table Number</label>
+                    <select id="tableFilter" onchange="filterOrders()">
+                        <option value="all">All Tables</option>
+                    </select>
+                </div>
+                
+                <div class="control-group">
+                    <label for="sortBy">🔄 Sort By</label>
+                    <select id="sortBy" onchange="sortOrders()">
+                        <option value="newest">🆕 Newest First</option>
+                        <option value="oldest">📅 Oldest First</option>
+                        <option value="total-high">💰 Total (High to Low)</option>
+                        <option value="total-low">💵 Total (Low to High)</option>
+                        <option value="table">🪑 Table Number</option>
+                        <option value="status">📊 Status</option>
+                    </select>
+                </div>
+                
+                <div class="search-group">
+                    <label for="searchOrders">🔍 Search Orders</label>
+                    <input type="text" id="searchOrders" placeholder="Search by order ID, customer name, or email..." onkeyup="searchOrders()">
+                </div>
+            </div>
+            
+            <div class="controls-actions">
+                <button class="btn btn-secondary" onclick="clearFilters()">🧹 Clear All Filters</button>
+                <button class="btn btn-primary" onclick="exportOrders()">📊 Export Orders</button>
+            </div>
+        </div>
+
+        <!-- Orders Display -->
+        <div class="orders-container">
+            <div class="orders-header">
+                <h2 id="ordersTitle">📋 All Orders</h2>
+                <div class="orders-count" id="ordersCount">Loading...</div>
+            </div>
+            
+            <div id="ordersList">
+                <% if (!orders || orders.length === 0) { %>
+                    <div class="no-orders">
+                        <h3>No orders found</h3>
+                        <p>There are no orders to display at the moment.</p>
+                    </div>
+                <% } else { %>
+                    <% orders.forEach(order => { %>
+                    <div class="order-card" data-order-id="<%= order.id %>" data-status="<%= order.status %>" data-type="<%= order.orderType %>" data-table="<%= order.tableNumber || '' %>" data-total="<%= order.total || 0 %>" data-date="<%= new Date(order.createdAt).toISOString() %>" data-discount="<%= order.discount || 0 %>" data-notes="<%= order.notes || '' %>">
+                        <div class="order-header">
+                            <div class="order-id">Order #<%= order.id %></div>
+                            <div class="order-time"><%= new Date(order.createdAt).toLocaleString() %></div>
+                        </div>
+                        
+                        <div class="order-details">
+                            <div class="detail-item">
+                                <div class="detail-label">Customer</div>
+                                <div class="detail-value"><%= order.customerName || 'N/A' %></div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Email</div>
+                                <div class="detail-value"><%= order.customerEmail || 'N/A' %></div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Type</div>
+                                <div class="detail-value"><%= order.orderType %></div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Total</div>
+                                <div class="detail-value">
+                                    <% 
+                                    const total = parseFloat(order.total);
+                                    const isValidTotal = !isNaN(total) && isFinite(total);
+                                    const displayTotal = isValidTotal ? total : 0;
+                                    %>
+                                    €<%= displayTotal.toFixed(2) %>
+                                    <% if (order.discount && order.discount > 0) { %>
+                                        <small style="color: #10b981; font-size: 0.8rem;">(Discount: -€<%= parseFloat(order.discount).toFixed(2) %>)</small>
+                                    <% } %>
+                                </div>
+                            </div>
+                            <% if (order.discount && order.discount > 0) { %>
+                            <div class="detail-item">
+                                <div class="detail-label">Discount</div>
+                                <div class="detail-value" style="color: #10b981;">-€<%= parseFloat(order.discount).toFixed(2) %></div>
+                            </div>
+                            <% } %>
+                            <% if (order.notes && order.notes.trim()) { %>
+                            <div class="detail-item">
+                                <div class="detail-label">Notes</div>
+                                <div class="detail-value" style="font-style: italic; color: #6b7280;"><%= order.notes %></div>
+                            </div>
+                            <% } %>
+                            <div class="detail-item">
+                                <div class="detail-label">Status</div>
+                                <div class="detail-value">
+                                    <span class="status-badge status-<%= order.status %>">
+                                        <%= order.status.charAt(0).toUpperCase() + order.status.slice(1) %>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Special Instructions / Notes - RED AND BOLD -->
+                        <% if (order.notes && order.notes.trim()) { %>
+                        <div class="order-notes-display">
+                            <h4>⚠️ SPECIAL INSTRUCTIONS</h4>
+                            <div class="order-notes-content"><%= order.notes %></div>
+                        </div>
+                        <% } %>
+                        
+                        <div class="item-list">
+                            <h4 style="margin-bottom: 10px; color: #374151;">Order Items:</h4>
+                            <% if (order.items && order.items.length > 0) { %>
+                                <% order.items.forEach(item => { %>
+                                <div class="item">
+                                    <span class="item-name">
+                                        <%= translate(item.name) %> × <%= item.qty || item.quantity || 1 %>
+                                    </span>
+                                    <span class="item-price">
+                                        <% 
+                                        const itemPrice = parseFloat(item.price) || 0;
+                                        const itemQty = parseInt(item.qty || item.quantity) || 1;
+                                        const itemTotal = itemPrice * itemQty;
+                                        const isValidItemTotal = !isNaN(itemTotal) && isFinite(itemTotal);
+                                        const displayItemTotal = isValidItemTotal ? itemTotal : 0;
+                                        %>
+                                        €<%= displayItemTotal.toFixed(2) %>
+                                    </span>
+                                </div>
+                                <% }); %>
+                            <% } else { %>
+                                <p style="color: #6b7280; font-style: italic;">No items found</p>
+                            <% } %>
+                        </div>
+                        
+                        <div class="order-actions">
+                            <button class="btn btn-secondary" onclick="editOrder(<%= order.id %>)">✏️ Edit Order</button>
+                            <% if (order.status === 'pending') { %>
+                                <button class="btn btn-success" onclick="updateOrderStatus(<%= order.id %>, 'confirmed')">Confirm Order</button>
+                            <% } else if (order.status === 'confirmed') { %>
+                                <button class="btn btn-primary" onclick="updateOrderStatus(<%= order.id %>, 'completed')">Mark Complete</button>
+                            <% } %>
+                            <% if (order.status !== 'cancelled' && order.status !== 'completed') { %>
+                                <button class="btn btn-danger" onclick="updateOrderStatus(<%= order.id %>, 'cancelled')">Cancel Order</button>
+                            <% } %>
+                        </div>
+                    </div>
+                    <% }); %>
+                <% } %>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Order Modal -->
+    <div id="editOrderModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>✏️ Edit Order</h2>
+                <span class="close" onclick="closeEditModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="editOrderForm">
+                    <input type="hidden" id="editOrderId">
+                    
+                    <div class="form-group">
+                        <label for="editOrderStatus">Order Status:</label>
+                        <select id="editOrderStatus" required>
+                            <option value="pending">⏳ Pending</option>
+                            <option value="confirmed">✅ Confirmed</option>
+                            <option value="completed">🎉 Completed</option>
+                            <option value="cancelled">❌ Cancelled</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="editDiscount">Discount Amount (€):</label>
+                        <input type="number" id="editDiscount" min="0" step="0.01" value="0">
+                        <small>Enter discount amount to subtract from total</small>
+                    </div>
+                    
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+                        <button type="submit" class="btn btn-primary">💾 Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        /* Modal Styles */
+        .modal {
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+        }
+        
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 0;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        
+        .modal-header {
+            padding: 20px 25px;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px 15px 0 0;
+        }
+        
+        .modal-header h2 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+        
+        .close {
+            color: white;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: opacity 0.3s ease;
+        }
+        
+        .close:hover {
+            opacity: 0.7;
+        }
+        
+        .modal-body {
+            padding: 25px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #374151;
+        }
+        
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        
+        .form-group small {
+            color: #6b7280;
+            font-size: 0.8rem;
+            margin-top: 4px;
+            display: block;
+        }
+        
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+        }
+        
+        @media (max-width: 768px) {
+            .modal-content {
+                width: 95%;
+                margin: 10% auto;
+            }
+            
+            .modal-actions {
+                flex-direction: column;
+            }
+            
+            .modal-actions .btn {
+                width: 100%;
+            }
+        }
+    </style>
+
+    <script>
+        let allOrders = [];
+        let filteredOrders = [];
+        let currentTimePeriod = 'daily';
+        
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            allOrders = Array.from(document.querySelectorAll('.order-card')).map(card => ({
+                element: card,
+                id: card.dataset.orderId,
+                status: card.dataset.status,
+                type: card.dataset.type,
+                table: card.dataset.table || null,
+                total: parseFloat(card.dataset.total),
+                date: new Date(card.dataset.date)
+            }));
+            filteredOrders = [...allOrders];
+            
+            // Populate table filter dropdown
+            populateTableFilter();
+            
+            updateOrdersDisplay();
+            setDefaultDateRange();
+        });
+        
+        // Populate table filter with unique table numbers
+        function populateTableFilter() {
+            const tableFilter = document.getElementById('tableFilter');
+            const tables = new Set();
+            
+            allOrders.forEach(order => {
+                if (order.table && order.table !== 'null' && order.table !== 'undefined') {
+                    tables.add(order.table);
+                }
+            });
+            
+            // Sort table numbers numerically
+            const sortedTables = Array.from(tables).sort((a, b) => {
+                const numA = parseInt(a) || 0;
+                const numB = parseInt(b) || 0;
+                return numA - numB;
+            });
+            
+            // Add options to dropdown
+            sortedTables.forEach(table => {
+                const option = document.createElement('option');
+                option.value = table;
+                option.textContent = `Table ${table}`;
+                tableFilter.appendChild(option);
+            });
+        }
+        
+        // Time period functions
+        function setTimePeriod(period) {
+            currentTimePeriod = period;
+            
+            // Update active tab
+            document.querySelectorAll('.time-tab').forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Show/hide date range picker
+            const dateRangePicker = document.getElementById('dateRangePicker');
+            if (period === 'all') {
+                dateRangePicker.style.display = 'none';
+            } else {
+                dateRangePicker.style.display = 'flex';
+                // Set default date range based on period
+                setDateRangeForPeriod(period);
+            }
+            
+            // Apply time period filter
+            filterByTimePeriod(period);
+            // Then apply other filters on top
+            applyAllFilters();
+        }
+        
+        function setDateRangeForPeriod(period) {
+            const now = new Date();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            let startDate;
+            
+            switch(period) {
+                case 'daily':
+                    startDate = new Date(today);
+                    break;
+                case 'weekly':
+                    startDate = new Date(today);
+                    startDate.setDate(startDate.getDate() - 7);
+                    break;
+                case 'monthly':
+                    startDate = new Date(today);
+                    startDate.setMonth(startDate.getMonth() - 1);
+                    break;
+                case 'yearly':
+                    startDate = new Date(today);
+                    startDate.setFullYear(startDate.getFullYear() - 1);
+                    break;
+                default:
+                    startDate = new Date(today);
+            }
+            
+            document.getElementById('startDate').value = startDate.toISOString().split('T')[0];
+            document.getElementById('endDate').value = today.toISOString().split('T')[0];
+        }
+        
+        function filterByTimePeriod(period) {
+            const now = new Date();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            
+            filteredOrders = allOrders.filter(order => {
+                const orderDate = new Date(order.date);
+                
+                switch(period) {
+                    case 'daily':
+                        return orderDate >= today;
+                    case 'weekly':
+                        const weekAgo = new Date(today);
+                        weekAgo.setDate(weekAgo.getDate() - 7);
+                        return orderDate >= weekAgo;
+                    case 'monthly':
+                        const monthAgo = new Date(today);
+                        monthAgo.setMonth(monthAgo.getMonth() - 1);
+                        return orderDate >= monthAgo;
+                    case 'yearly':
+                        const yearAgo = new Date(today);
+                        yearAgo.setFullYear(yearAgo.getFullYear() - 1);
+                        return orderDate >= yearAgo;
+                    case 'all':
+                    default:
+                        return true;
+                }
+            });
+        }
+        
+        function setDefaultDateRange() {
+            const today = new Date();
+            const startDate = new Date(today);
+            startDate.setDate(startDate.getDate() - 7); // Default to last week
+            
+            document.getElementById('startDate').value = startDate.toISOString().split('T')[0];
+            document.getElementById('endDate').value = today.toISOString().split('T')[0];
+        }
+        
+        function applyDateRange() {
+            const startDateValue = document.getElementById('startDate').value;
+            const endDateValue = document.getElementById('endDate').value;
+            
+            if (!startDateValue || !endDateValue) {
+                alert('Please select both start and end dates');
+                return;
+            }
+            
+            const startDate = new Date(startDateValue);
+            startDate.setHours(0, 0, 0, 0);
+            const endDate = new Date(endDateValue);
+            endDate.setHours(23, 59, 59, 999); // Include entire end date
+            
+            // Filter by date range first
+            filteredOrders = allOrders.filter(order => {
+                const orderDate = new Date(order.date);
+                return orderDate >= startDate && orderDate <= endDate;
+            });
+            
+            // Then apply other filters
+            applyAllFilters();
+        }
+        
+        // Apply all filters (status, type, table) to current filtered orders
+        function applyAllFilters() {
+            const statusFilter = document.getElementById('statusFilter').value;
+            const typeFilter = document.getElementById('typeFilter').value;
+            const tableFilter = document.getElementById('tableFilter').value;
+            
+            // Apply filters to already time-filtered orders
+            const tempFiltered = filteredOrders.filter(order => {
+                const statusMatch = statusFilter === 'all' || order.status === statusFilter;
+                const typeMatch = typeFilter === 'all' || order.type === typeFilter;
+                const tableMatch = tableFilter === 'all' || order.table === tableFilter;
+                return statusMatch && typeMatch && tableMatch;
+            });
+            
+            filteredOrders = tempFiltered;
+            updateOrdersDisplay();
+        }
+        
+        // Filter functions
+        function filterOrders() {
+            // Re-apply time period filter first
+            if (currentTimePeriod && currentTimePeriod !== 'all') {
+                filterByTimePeriod(currentTimePeriod);
+            } else {
+                filteredOrders = [...allOrders];
+            }
+            
+            // Then apply status, type, and table filters
+            applyAllFilters();
+        }
+        
+        function searchOrders() {
+            const searchTerm = document.getElementById('searchOrders').value.toLowerCase();
+            
+            if (searchTerm === '') {
+                filterOrders();
+                return;
+            }
+            
+            filteredOrders = allOrders.filter(order => {
+                const orderElement = order.element;
+                const orderText = orderElement.textContent.toLowerCase();
+                return orderText.includes(searchTerm);
+            });
+            
+            updateOrdersDisplay();
+        }
+        
+        function sortOrders() {
+            const sortBy = document.getElementById('sortBy').value;
+            
+            filteredOrders.sort((a, b) => {
+                switch(sortBy) {
+                    case 'newest':
+                        return b.date - a.date;
+                    case 'oldest':
+                        return a.date - b.date;
+                    case 'total-high':
+                        return b.total - a.total;
+                    case 'total-low':
+                        return a.total - b.total;
+                    case 'table':
+                        // Sort by table number (handle null/undefined tables)
+                        const tableA = a.table ? parseInt(a.table) || 0 : 0;
+                        const tableB = b.table ? parseInt(b.table) || 0 : 0;
+                        return tableA - tableB;
+                    case 'status':
+                        return a.status.localeCompare(b.status);
+                    default:
+                        return 0;
+                }
+            });
+            
+            updateOrdersDisplay();
+            
+            // Re-append elements in sorted order to update DOM
+            const container = document.getElementById('ordersList');
+            filteredOrders.forEach(order => {
+                container.appendChild(order.element);
+            });
+        }
+        
+        function clearFilters() {
+            document.getElementById('statusFilter').value = 'all';
+            document.getElementById('typeFilter').value = 'all';
+            document.getElementById('tableFilter').value = 'all';
+            document.getElementById('sortBy').value = 'newest';
+            document.getElementById('searchOrders').value = '';
+            
+            filteredOrders = [...allOrders];
+            updateOrdersDisplay();
+        }
+        
+        function updateOrdersDisplay() {
+            const ordersList = document.getElementById('ordersList');
+            const ordersCount = document.getElementById('ordersCount');
+            const ordersTitle = document.getElementById('ordersTitle');
+            
+            // Hide all orders
+            allOrders.forEach(order => {
+                order.element.style.display = 'none';
+            });
+            
+            // Show filtered orders
+            filteredOrders.forEach(order => {
+                order.element.style.display = 'block';
+            });
+            
+            // Update counts and title
+            ordersCount.textContent = `${filteredOrders.length} orders found`;
+            
+            const periodNames = {
+                'daily': 'Today\'s Orders',
+                'weekly': 'This Week\'s Orders',
+                'monthly': 'This Month\'s Orders',
+                'yearly': 'This Year\'s Orders',
+                'all': 'All Orders'
+            };
+            
+            ordersTitle.textContent = `📋 ${periodNames[currentTimePeriod] || 'Orders'}`;
+        }
+        
+        function exportOrders() {
+            // Simple CSV export
+            const csvContent = [
+                ['Order ID', 'Date', 'Customer', 'Email', 'Type', 'Status', 'Total', 'Items'],
+                ...filteredOrders.map(order => {
+                    const orderElement = order.element;
+                    const items = Array.from(orderElement.querySelectorAll('.item')).map(item => {
+                        const name = item.querySelector('.item-name').textContent;
+                        const price = item.querySelector('.item-price').textContent;
+                        return `${name} (${price})`;
+                    }).join('; ');
+                    
+                    return [
+                        order.id,
+                        order.date.toLocaleDateString(),
+                        orderElement.querySelector('.detail-item:nth-child(1) .detail-value').textContent,
+                        orderElement.querySelector('.detail-item:nth-child(2) .detail-value').textContent,
+                        order.type,
+                        order.status,
+                        `€${order.total.toFixed(2)}`,
+                        items
+                    ];
+                })
+            ].map(row => row.join(',')).join('\n');
+            
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `orders_${currentTimePeriod}_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+        
+        // Order editing functions
+        function editOrder(orderId) {
+            console.log('🔧 EDIT ORDER CLICKED - Order ID:', orderId);
+            
+            // Get current order data to populate the form
+            fetch(`/waiter/orders/${orderId}/data`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const order = data.order;
+                        
+                        // Populate form with current order data
+                        document.getElementById('editOrderId').value = order.id;
+                        document.getElementById('editOrderStatus').value = order.status || 'pending';
+                        document.getElementById('editDiscount').value = order.discount || 0;
+                        
+                        // Show the modal
+                        document.getElementById('editOrderModal').style.display = 'block';
+                        console.log('🔧 Modal opened with current order data');
+                    } else {
+                        alert('Failed to load order data');
+                    }
+                })
+                .catch(error => {
+                    console.error('❌ Error loading order:', error);
+                    alert('Error loading order data');
+                });
+        }
+        
+        function closeEditModal() {
+            document.getElementById('editOrderModal').style.display = 'none';
+            document.getElementById('editOrderForm').reset();
+        }
+        
+        // Handle form submission
+        document.getElementById('editOrderForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const orderId = document.getElementById('editOrderId').value;
+            const status = document.getElementById('editOrderStatus').value;
+            const discount = parseFloat(document.getElementById('editDiscount').value) || 0;
+            
+            console.log('🔧 Updating order:', { orderId, status, discount });
+            
+            // Send update request to the new force edit route
+            fetch(`/waiter/orders/${orderId}/edit`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ status, discount })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(`✅ Order #${orderId} updated successfully!\nStatus: ${status}\nDiscount: €${discount.toFixed(2)}`);
+                    closeEditModal();
+                    location.reload();
+                } else {
+                    alert('❌ Failed to update order: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('❌ Error:', error);
+                alert('❌ Error updating order: ' + error.message);
+            });
+        });
+        
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('editOrderModal');
+            if (event.target === modal) {
+                closeEditModal();
+            }
+        };
+        
+        // Order status update
+        function updateOrderStatus(orderId, status) {
+            fetch(`/waiter/orders/${orderId}/status`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ status: status })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Failed to update order status');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error updating order status');
+            });
+        }
+        
+        
+    </script>
+</body>
+</html>

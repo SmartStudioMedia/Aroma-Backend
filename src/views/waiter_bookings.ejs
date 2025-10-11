@@ -1,0 +1,1278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AROMA Restaurant - Waiter Bookings</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header h1 {
+            color: #2d3748;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .nav-tabs {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .nav-tab {
+            padding: 12px 24px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: background 0.3s ease;
+        }
+        
+        .nav-tab:hover {
+            background: #5a67d8;
+        }
+        
+        .nav-tab.active {
+            background: #4c51bf;
+        }
+        
+        .calendar-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        
+        .calendar-nav {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .calendar-nav button {
+            padding: 10px 16px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        
+        .calendar-nav button:hover {
+            background: #5a67d8;
+        }
+        
+        .current-month {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #2d3748;
+        }
+        
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 1px;
+            background: #e5e7eb;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        .calendar-day-header {
+            background: #4c51bf;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            font-weight: 600;
+        }
+        
+        .calendar-day {
+            background: white;
+            padding: 15px;
+            min-height: 120px;
+            border: 1px solid #e5e7eb;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .calendar-day:hover {
+            background: #f7fafc;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            transform: translateY(-2px);
+        }
+        
+        .calendar-day.other-month {
+            background: #fafafa;
+            color: #d1d5db;
+        }
+        
+        .calendar-day.other-month .day-number {
+            color: #d1d5db;
+        }
+        
+        .calendar-day.today {
+            background: #fffbeb;
+            border: 2px solid #f59e0b;
+            box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
+        }
+        
+        /* Blocked days - RED BOX */
+        .calendar-day.unavailable {
+            background: #fee2e2;
+            border: 2px solid #dc2626;
+            cursor: not-allowed;
+        }
+        
+        .calendar-day.unavailable .day-number {
+            color: #dc2626;
+            font-weight: 700;
+        }
+        
+        .day-number {
+            font-weight: 600;
+            font-size: 1.1rem;
+            margin-bottom: 8px;
+            color: #2d3748;
+        }
+        
+        /* Booking count badge - RED CIRCLE with number */
+        .reservation-count {
+            background: #dc2626;
+            color: white;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+            font-weight: 700;
+            margin: 5px auto 0;
+            box-shadow: 0 2px 8px rgba(220, 38, 38, 0.3);
+        }
+        
+        /* Hide count for days with 0 bookings */
+        .reservation-count.hidden {
+            display: none;
+        }
+        
+        .reservation-list {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        
+        .reservation-item {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            border-left: 4px solid #667eea;
+        }
+        
+        .reservation-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .reservation-time {
+            font-weight: 600;
+            color: #2d3748;
+            font-size: 1.1rem;
+        }
+        
+        .reservation-status {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        
+        .status-pending {
+            background: #fef3c7;
+            color: #d97706;
+        }
+        
+        .status-confirmed {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .status-cancelled {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+        
+        .status-completed {
+            background: #e0e7ff;
+            color: #3730a3;
+        }
+        
+        .reservation-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .detail-item {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .detail-label {
+            font-size: 0.8rem;
+            color: #6b7280;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+        
+        .detail-value {
+            color: #374151;
+            font-weight: 500;
+        }
+        
+        .reservation-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-confirm {
+            background: #10b981;
+            color: white;
+        }
+        
+        .btn-confirm:hover {
+            background: #059669;
+        }
+        
+        .btn-cancel {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .btn-cancel:hover {
+            background: #dc2626;
+        }
+        
+        .btn-complete {
+            background: #3b82f6;
+            color: white;
+        }
+        
+        .btn-complete:hover {
+            background: #2563eb;
+        }
+        
+        .btn-edit {
+            background: #6b7280;
+            color: white;
+        }
+        
+        .btn-edit:hover {
+            background: #4b5563;
+        }
+        
+        .availability-controls {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .form-group label {
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #374151;
+        }
+        
+        .form-group input,
+        .form-group select {
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+        }
+        
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #2d3748;
+        }
+        
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #6b7280;
+        }
+        
+        .close-btn:hover {
+            color: #374151;
+        }
+        
+        @media (max-width: 768px) {
+            .calendar-grid {
+                font-size: 0.8rem;
+            }
+            
+            .calendar-day {
+                min-height: 80px;
+                padding: 10px;
+            }
+            
+            .reservation-details {
+                grid-template-columns: 1fr;
+            }
+            
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📅 Waiter Bookings</h1>
+            <div class="nav-tabs">
+                <a href="/waiter" class="nav-tab">Dashboard</a>
+                <a href="/waiter/orders" class="nav-tab">📋 Orders</a>
+                <a href="/waiter/bookings" class="nav-tab active">📅 Bookings</a>
+                <a href="/waiter/menu" class="nav-tab">🍔 Menu</a>
+                <a href="/waiter/categories" class="nav-tab">📑 Categories</a>
+                <a href="/waiter/qr" class="nav-tab">🔲 QR Codes</a>
+            </div>
+        </div>
+        
+        <!-- Availability Controls -->
+        <div class="availability-controls">
+            <h2 style="margin-bottom: 20px; color: #374151;">🗓️ Manage Blocked Days</h2>
+            <p style="color: #6b7280; margin-bottom: 15px;">Easily block or unblock days to control booking availability</p>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                <!-- Block Days -->
+                <div style="background: #fef3c7; padding: 20px; border-radius: 10px; border: 2px solid #f59e0b;">
+                    <h3 style="color: #92400e; margin-bottom: 15px;">🚫 Block Days</h3>
+                    <div class="form-group">
+                        <label for="blockDateInput">Select Date(s)</label>
+                        <input type="date" id="blockDateInput" style="width: 100%; padding: 10px; border: 2px solid #f59e0b; border-radius: 8px;">
+                    </div>
+                    <div class="form-group" style="margin-top: 10px;">
+                        <label for="blockReasonInput">Reason (Optional)</label>
+                        <input type="text" id="blockReasonInput" placeholder="e.g., Holiday, Private Event" style="width: 100%; padding: 10px; border: 2px solid #f59e0b; border-radius: 8px;">
+                    </div>
+                    <button onclick="blockDay()" style="width: 100%; margin-top: 10px; padding: 12px; background: #f59e0b; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
+                        Block Selected Day
+                    </button>
+                    
+                    <div style="margin-top: 15px; padding-top: 15px; border-top: 2px solid #fbbf24;">
+                        <p style="color: #92400e; font-size: 0.9rem; margin-bottom: 10px;">📅 Block Multiple Days:</p>
+                        <div class="form-group">
+                            <label for="blockStartInput">From:</label>
+                            <input type="date" id="blockStartInput" style="width: 100%; padding: 8px; border: 2px solid #f59e0b; border-radius: 8px; margin-bottom: 8px;">
+                        </div>
+                        <div class="form-group">
+                            <label for="blockEndInput">To:</label>
+                            <input type="date" id="blockEndInput" style="width: 100%; padding: 8px; border: 2px solid #f59e0b; border-radius: 8px;">
+                        </div>
+                        <button onclick="blockRange()" style="width: 100%; margin-top: 10px; padding: 10px; background: #d97706; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
+                            Block Date Range
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Blocked Days List -->
+                <div style="background: #fee2e2; padding: 20px; border-radius: 10px; border: 2px solid #dc2626;">
+                    <h3 style="color: #991b1b; margin-bottom: 15px;">🚫 Blocked Days</h3>
+                    <div id="blockedDaysList" style="max-height: 400px; overflow-y: auto;">
+                        <p style="color: #6b7280;">Loading...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Calendar View -->
+        <div class="calendar-container">
+            <div class="calendar-header">
+                <div class="calendar-nav">
+                    <button onclick="previousMonth()">← Previous</button>
+                    <span class="current-month" id="currentMonth"></span>
+                    <button onclick="nextMonth()">Next →</button>
+                </div>
+                <button class="btn btn-confirm" onclick="refreshCalendar()">Refresh</button>
+            </div>
+            
+            <div class="calendar-grid" id="calendarGrid">
+                <!-- Calendar will be populated by JavaScript -->
+            </div>
+        </div>
+        
+        <!-- Reservations List -->
+        <div class="reservation-list">
+            <h2 style="margin-bottom: 20px; color: #374151;">📋 All Reservations</h2>
+            <div style="margin-bottom: 20px;">
+                <button class="btn btn-confirm" onclick="showAllReservations()" style="margin-right: 10px;">All Reservations</button>
+                <button class="btn btn-edit" onclick="showTodayReservations()">Today Only</button>
+            </div>
+            <div id="reservationsList">
+                <!-- Reservations will be populated by JavaScript -->
+            </div>
+        </div>
+    </div>
+    
+    <!-- Date Bookings Modal -->
+    <div class="modal" id="dateModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title" id="dateModalTitle">📅 Bookings</h3>
+                <button class="close-btn" onclick="closeDateModal()">&times;</button>
+            </div>
+            <div id="dateModalContent">
+                <!-- Date reservations will be populated by JavaScript -->
+            </div>
+        </div>
+    </div>
+    
+    <!-- Edit Reservation Modal -->
+    <div class="modal" id="editModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Edit Reservation</h3>
+                <button class="close-btn" onclick="closeEditModal()">&times;</button>
+            </div>
+            <form id="editReservationForm">
+                <input type="hidden" id="editReservationId">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="editCustomerName">Customer Name</label>
+                        <input type="text" id="editCustomerName" name="customerName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editCustomerPhone">Phone</label>
+                        <input type="tel" id="editCustomerPhone" name="customerPhone" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="editCustomerEmail">Email</label>
+                    <input type="email" id="editCustomerEmail" name="customerEmail" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="editReservationDate">Date</label>
+                        <input type="date" id="editReservationDate" name="reservationDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editReservationTime">Time</label>
+                        <input type="time" id="editReservationTime" name="reservationTime" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="editPartySize">Party Size</label>
+                        <input type="number" id="editPartySize" name="partySize" min="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editStatus">Status</label>
+                        <select id="editStatus" name="status">
+                            <option value="pending">Pending</option>
+                            <option value="confirmed">Confirmed</option>
+                            <option value="cancelled">Cancelled</option>
+                            <option value="completed">Completed</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="editSpecialRequests">Special Requests</label>
+                    <textarea id="editSpecialRequests" name="specialRequests" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="editTableNumber">Table Number</label>
+                    <input type="text" id="editTableNumber" name="tableNumber">
+                </div>
+                <div class="form-group">
+                    <label for="editNotes">Notes</label>
+                    <textarea id="editNotes" name="notes" rows="3"></textarea>
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button type="submit" class="btn btn-confirm">Update Reservation</button>
+                    <button type="button" class="btn btn-cancel" onclick="closeEditModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // SIMPLE APPROACH - Server passes data directly
+        const reservations = <%- JSON.stringify(reservations || []) %>;
+        let currentDate = new Date();
+        let blockedDays = [];
+        
+        console.log('🚀 BOOKINGS PAGE LOADED');
+        console.log('📊 Reservations count:', reservations.length);
+        if (reservations.length > 0) {
+            console.log('✅ Sample booking:', reservations[0]);
+        }
+        
+        // Initialize calendar on page load
+        function initCalendar() {
+            try {
+                console.log('📅 Starting calendar initialization...');
+                updateCalendar();
+                updateReservationCounts();
+                displayReservations(false);
+                loadBlockedDays();
+                console.log('✅ Calendar ready!');
+            } catch (error) {
+                console.error('❌ Calendar initialization error:', error);
+            }
+        }
+        
+        // Update calendar display
+        function updateCalendar() {
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+            
+            document.getElementById('currentMonth').textContent = 
+                currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+            
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+            const startDate = new Date(firstDay);
+            startDate.setDate(startDate.getDate() - firstDay.getDay());
+            
+            const calendarGrid = document.getElementById('calendarGrid');
+            calendarGrid.innerHTML = '';
+            
+            // Add day headers
+            const dayHeaders = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            dayHeaders.forEach(day => {
+                const dayHeader = document.createElement('div');
+                dayHeader.className = 'calendar-day-header';
+                dayHeader.textContent = day;
+                calendarGrid.appendChild(dayHeader);
+            });
+            
+            // Add calendar days
+            for (let i = 0; i < 42; i++) {
+                const date = new Date(startDate);
+                date.setDate(startDate.getDate() + i);
+                
+                const dayElement = document.createElement('div');
+                dayElement.className = 'calendar-day';
+                
+                if (date.getMonth() !== month) {
+                    dayElement.classList.add('other-month');
+                }
+                
+                if (date.toDateString() === new Date().toDateString()) {
+                    dayElement.classList.add('today');
+                }
+                
+                const dateYear = date.getFullYear();
+                const dateMonth = String(date.getMonth() + 1).padStart(2, '0');
+                const dateDay = String(date.getDate()).padStart(2, '0');
+                const dateId = `${dateYear}-${dateMonth}-${dateDay}`;
+                
+                // Add data-date attribute for easy selection
+                dayElement.setAttribute('data-date', dateId);
+                
+                // Show day number and count badge (hidden by default)
+                dayElement.innerHTML = `
+                    <div class="day-number">${date.getDate()}</div>
+                    <div class="reservation-count hidden" id="count-${dateId}">0</div>
+                `;
+                
+                dayElement.onclick = () => selectDate(date);
+                calendarGrid.appendChild(dayElement);
+            }
+        }
+        
+        // Update reservation counts for each day
+        function updateReservationCounts() {
+            console.log('🔄 Updating reservation counts on calendar...');
+            
+            // First, hide all count badges
+            document.querySelectorAll('.reservation-count').forEach(count => {
+                count.classList.add('hidden');
+                count.textContent = '0';
+            });
+            
+            if (!reservations || reservations.length === 0) {
+                console.log('ℹ️ No reservations to display');
+                return;
+            }
+            
+            // Group reservations by date
+            const reservationsByDate = {};
+            
+            reservations.forEach(reservation => {
+                const date = new Date(reservation.reservationDate);
+                // Use local date string to avoid timezone issues
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                const dateStr = `${year}-${month}-${day}`;
+                
+                if (!reservationsByDate[dateStr]) {
+                    reservationsByDate[dateStr] = [];
+                }
+                reservationsByDate[dateStr].push(reservation);
+            });
+            
+            // Show count in RED CIRCLE for days with bookings
+            Object.keys(reservationsByDate).forEach(dateStr => {
+                const countElement = document.getElementById(`count-${dateStr}`);
+                if (countElement) {
+                    const count = reservationsByDate[dateStr].length;
+                    countElement.textContent = count;
+                    countElement.classList.remove('hidden'); // Show the red circle
+                    console.log(`✅ ${dateStr}: ${count} bookings - showing red circle`);
+                }
+            });
+            
+            console.log('✅ Calendar updated with booking counts in red circles');
+        }
+        
+        // Load reservations (for refresh button)
+        async function loadReservations() {
+            try {
+                const response = await fetch('/api/reservations');
+                const data = await response.json();
+                reservations = data.reservations || [];
+                updateReservationCounts();
+                displayReservations(false);
+            } catch (error) {
+                console.error('Error loading reservations:', error);
+            }
+        }
+        
+        // Helper functions for filtering
+        function showAllReservations() {
+            displayReservations(true);
+        }
+        
+        function showTodayReservations() {
+            displayReservations(false);
+        }
+        
+        // Display reservations
+        function displayReservations(showAll = false) {
+            const reservationsList = document.getElementById('reservationsList');
+            const todayDate = new Date();
+            const todayYear = todayDate.getFullYear();
+            const todayMonth = String(todayDate.getMonth() + 1).padStart(2, '0');
+            const todayDay = String(todayDate.getDate()).padStart(2, '0');
+            const today = `${todayYear}-${todayMonth}-${todayDay}`;
+            
+            let reservationsToShow;
+            if (showAll) {
+                reservationsToShow = reservations;
+            } else {
+                reservationsToShow = reservations.filter(r => {
+                    const rDate = new Date(r.reservationDate);
+                    const rYear = rDate.getFullYear();
+                    const rMonth = String(rDate.getMonth() + 1).padStart(2, '0');
+                    const rDay = String(rDate.getDate()).padStart(2, '0');
+                    return `${rYear}-${rMonth}-${rDay}` === today;
+                });
+            }
+            
+            if (reservationsToShow.length === 0) {
+                const message = showAll ? 'No reservations found' : 'No reservations for today';
+                reservationsList.innerHTML = `<p style="text-align: center; color: #6b7280; padding: 20px;">${message}</p>`;
+                return;
+            }
+            
+            reservationsList.innerHTML = reservationsToShow.map(reservation => {
+                const reservationDate = new Date(reservation.reservationDate);
+                const formattedDate = reservationDate.toLocaleDateString('en-US', { 
+                    weekday: 'short', 
+                    year: 'numeric', 
+                    month: 'short', 
+                    day: 'numeric' 
+                });
+                
+                return `
+                <div class="reservation-item">
+                    <div class="reservation-header">
+                        <div>
+                            <div class="reservation-time">${formattedDate} at ${reservation.reservationTime}</div>
+                        </div>
+                        <div class="reservation-status status-${reservation.status}">${reservation.status}</div>
+                    </div>
+                    <div class="reservation-details">
+                        <div class="detail-item">
+                            <div class="detail-label">Customer</div>
+                            <div class="detail-value">${reservation.customerName}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Party Size</div>
+                            <div class="detail-value">${reservation.partySize} people</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Phone</div>
+                            <div class="detail-value">${reservation.customerPhone}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Email</div>
+                            <div class="detail-value">${reservation.customerEmail}</div>
+                        </div>
+                        ${reservation.tableNumber ? `
+                        <div class="detail-item">
+                            <div class="detail-label">Table</div>
+                            <div class="detail-value">${reservation.tableNumber}</div>
+                        </div>
+                        ` : ''}
+                    </div>
+                    ${reservation.specialRequests ? `
+                    <div class="detail-item" style="margin-top: 10px;">
+                        <div class="detail-label">Special Requests</div>
+                        <div class="detail-value">${reservation.specialRequests}</div>
+                    </div>
+                    ` : ''}
+                    <div class="reservation-actions">
+                        <button class="btn btn-edit" onclick="editReservation(${reservation.id})">Edit</button>
+                        ${reservation.status !== 'cancelled' ? `
+                            <button class="btn btn-cancel" onclick="updateReservationStatus(${reservation.id}, 'cancelled')">Cancel</button>
+                        ` : ''}
+                    </div>
+                </div>
+                `;
+            }).join('');
+        }
+        
+        // Update reservation status
+        async function updateReservationStatus(reservationId, status) {
+            try {
+                const response = await fetch(`/api/reservations/${reservationId}/status`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ status })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    loadReservations();
+                } else {
+                    alert('Failed to update reservation: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error updating reservation:', error);
+                alert('Error updating reservation');
+            }
+        }
+        
+        // Edit reservation
+        function editReservation(reservationId) {
+            const reservation = reservations.find(r => r.id === reservationId);
+            if (!reservation) return;
+            
+            document.getElementById('editReservationId').value = reservation.id;
+            document.getElementById('editCustomerName').value = reservation.customerName;
+            document.getElementById('editCustomerPhone').value = reservation.customerPhone;
+            document.getElementById('editCustomerEmail').value = reservation.customerEmail;
+            document.getElementById('editReservationDate').value = new Date(reservation.reservationDate).toISOString().split('T')[0];
+            document.getElementById('editReservationTime').value = reservation.reservationTime;
+            document.getElementById('editPartySize').value = reservation.partySize;
+            document.getElementById('editStatus').value = reservation.status;
+            document.getElementById('editSpecialRequests').value = reservation.specialRequests || '';
+            document.getElementById('editTableNumber').value = reservation.tableNumber || '';
+            document.getElementById('editNotes').value = reservation.notes || '';
+            
+            document.getElementById('editModal').style.display = 'block';
+        }
+        
+        // Close edit modal
+        function closeEditModal() {
+            document.getElementById('editModal').style.display = 'none';
+        }
+        
+        // Update availability
+        async function updateAvailability() {
+            const date = document.getElementById('availabilityDate').value;
+            const status = document.getElementById('availabilityStatus').value;
+            const openTime = document.getElementById('openTime').value;
+            const closeTime = document.getElementById('closeTime').value;
+            const maxReservations = document.getElementById('maxReservations').value;
+            const blockedReasons = document.getElementById('blockedReasons').value;
+            
+            if (!date) {
+                alert('Please select a date');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/availability', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        date,
+                        isAvailable: status === 'available',
+                        openTime,
+                        closeTime,
+                        maxReservations: parseInt(maxReservations),
+                        blockedReasons: status === 'unavailable' ? blockedReasons : ''
+                    })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    alert('Availability updated successfully');
+                } else {
+                    alert('Failed to update availability: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error updating availability:', error);
+                alert('Error updating availability');
+            }
+        }
+        
+        // Navigation functions
+        function previousMonth() {
+            currentDate.setMonth(currentDate.getMonth() - 1);
+            updateCalendar();
+            updateReservationCounts();
+            markBlockedDaysOnCalendar();
+        }
+        
+        function nextMonth() {
+            currentDate.setMonth(currentDate.getMonth() + 1);
+            updateCalendar();
+            updateReservationCounts();
+            markBlockedDaysOnCalendar();
+        }
+        
+        function refreshCalendar() {
+            loadReservations();
+        }
+        
+        function selectDate(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const dateStr = `${year}-${month}-${day}`;
+            
+            const dayReservations = reservations.filter(r => {
+                const rDate = new Date(r.reservationDate);
+                const rYear = rDate.getFullYear();
+                const rMonth = String(rDate.getMonth() + 1).padStart(2, '0');
+                const rDay = String(rDate.getDate()).padStart(2, '0');
+                return `${rYear}-${rMonth}-${rDay}` === dateStr;
+            });
+            
+            const modal = document.getElementById('dateModal');
+            const modalTitle = document.getElementById('dateModalTitle');
+            const modalContent = document.getElementById('dateModalContent');
+            
+            const formattedDate = date.toLocaleDateString('en-US', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            });
+            
+            modalTitle.textContent = `📅 Bookings for ${formattedDate}`;
+            
+            if (dayReservations.length === 0) {
+                modalContent.innerHTML = '<p style="text-align: center; color: #6b7280; padding: 20px;">No bookings for this date</p>';
+            } else {
+                modalContent.innerHTML = dayReservations.map(reservation => `
+                    <div class="reservation-item" style="margin-bottom: 15px;">
+                        <div class="reservation-header">
+                            <div class="reservation-time">${reservation.reservationTime}</div>
+                            <div class="reservation-status status-${reservation.status}">${reservation.status}</div>
+                        </div>
+                        <div class="reservation-details">
+                            <div class="detail-item">
+                                <div class="detail-label">Customer</div>
+                                <div class="detail-value">${reservation.customerName}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Party Size</div>
+                                <div class="detail-value">${reservation.partySize} people</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Phone</div>
+                                <div class="detail-value">${reservation.customerPhone}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Email</div>
+                                <div class="detail-value">${reservation.customerEmail}</div>
+                            </div>
+                            ${reservation.tableNumber ? `
+                            <div class="detail-item">
+                                <div class="detail-label">Table</div>
+                                <div class="detail-value">${reservation.tableNumber}</div>
+                            </div>
+                            ` : ''}
+                        </div>
+                        ${reservation.specialRequests ? `
+                        <div class="detail-item" style="margin-top: 10px;">
+                            <div class="detail-label">Special Requests</div>
+                            <div class="detail-value">${reservation.specialRequests}</div>
+                        </div>
+                        ` : ''}
+                        <div class="reservation-actions">
+                            <button class="btn btn-edit" onclick="editReservation(${reservation.id}); closeDateModal();">Edit</button>
+                            ${reservation.status !== 'cancelled' ? `
+                                <button class="btn btn-cancel" onclick="updateReservationStatus(${reservation.id}, 'cancelled')">Cancel</button>
+                            ` : ''}
+                        </div>
+                    </div>
+                `).join('');
+            }
+            
+            modal.style.display = 'block';
+        }
+        
+        function closeDateModal() {
+            document.getElementById('dateModal').style.display = 'none';
+        }
+        
+        // Block a single day
+        async function blockDay() {
+            const date = document.getElementById('blockDateInput').value;
+            const reason = document.getElementById('blockReasonInput').value;
+            
+            if (!date) {
+                alert('Please select a date to block');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/availability/block', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        date,
+                        isBlocked: true,
+                        reason: reason || ''
+                    })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    alert('✅ Day blocked successfully!');
+                    document.getElementById('blockDateInput').value = '';
+                    document.getElementById('blockReasonInput').value = '';
+                    await loadBlockedDays();
+                    updateCalendar();
+                    updateReservationCounts();
+                } else {
+                    alert('❌ Failed to block day: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error blocking day:', error);
+                alert('❌ Error blocking day');
+            }
+        }
+        
+        // Unblock a single day
+        async function unblockDay(dateStr) {
+            if (!confirm(`Unblock this day?\n${dateStr}`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/availability/block', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        date: dateStr,
+                        isBlocked: false,
+                        reason: ''
+                    })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    alert('✅ Day unblocked successfully!');
+                    await loadBlockedDays();
+                    updateCalendar();
+                    updateReservationCounts();
+                } else {
+                    alert('❌ Failed to unblock day: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error unblocking day:', error);
+                alert('❌ Error unblocking day');
+            }
+        }
+        
+        // Load blocked days from server
+        async function loadBlockedDays() {
+            try {
+                const response = await fetch('/api/availability/blocked');
+                const data = await response.json();
+                if (data.success) {
+                    blockedDays = data.blockedDays || [];
+                    displayBlockedDays();
+                    markBlockedDaysOnCalendar();
+                }
+            } catch (error) {
+                console.error('Error loading blocked days:', error);
+            }
+        }
+        
+        // Display list of blocked days
+        function displayBlockedDays() {
+            const blockedDaysList = document.getElementById('blockedDaysList');
+            if (blockedDays.length === 0) {
+                blockedDaysList.innerHTML = '<p style="color: #6b7280; text-align: center; padding: 20px;">No blocked days</p>';
+                return;
+            }
+            
+            blockedDaysList.innerHTML = blockedDays.map(day => {
+                const date = new Date(day.date);
+                const dateStr = date.toISOString().split('T')[0];
+                const formattedDate = date.toLocaleDateString('en-US', { 
+                    weekday: 'short', 
+                    year: 'numeric', 
+                    month: 'short', 
+                    day: 'numeric' 
+                });
+                return `
+                    <div style="padding: 12px; border-bottom: 1px solid #fecaca; background: white; margin-bottom: 8px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="font-weight: 600; color: #991b1b;">📅 ${formattedDate}</div>
+                            ${day.reason ? `<div style="font-size: 0.85rem; color: #6b7280; margin-top: 4px;">${day.reason}</div>` : ''}
+                        </div>
+                        <button onclick="unblockDay('${dateStr}')" style="padding: 6px 12px; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 600;">
+                            Unblock
+                        </button>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        // Mark blocked days on calendar
+        function markBlockedDaysOnCalendar() {
+            blockedDays.forEach(day => {
+                const date = new Date(day.date);
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const dayNum = String(date.getDate()).padStart(2, '0');
+                const dateId = `${year}-${month}-${dayNum}`;
+                
+                const countElement = document.getElementById(`count-${dateId}`);
+                if (countElement) {
+                    const dayElement = countElement.closest('.calendar-day');
+                    if (dayElement) {
+                        dayElement.classList.add('unavailable');
+                        dayElement.title = `Blocked: ${day.reason || 'No bookings allowed'}`;
+                    }
+                }
+            });
+        }
+        
+        // Block a range of days
+        async function blockRange() {
+            const startDate = document.getElementById('blockStartInput').value;
+            const endDate = document.getElementById('blockEndInput').value;
+            const reason = document.getElementById('blockReasonInput').value;
+            
+            if (!startDate || !endDate) {
+                alert('Please select both start and end dates');
+                return;
+            }
+            
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            
+            if (end < start) {
+                alert('End date must be after start date');
+                return;
+            }
+            
+            // Calculate number of days
+            const dayCount = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+            
+            if (!confirm(`Block ${dayCount} days from ${startDate} to ${endDate}?`)) {
+                return;
+            }
+            
+            try {
+                // Block each day in the range
+                const promises = [];
+                const currentDate = new Date(start);
+                
+                while (currentDate <= end) {
+                    const dateStr = currentDate.toISOString().split('T')[0];
+                    
+                    promises.push(
+                        fetch('/api/availability/block', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                date: dateStr,
+                                isBlocked: true,
+                                reason: reason || ''
+                            })
+                        })
+                    );
+                    
+                    currentDate.setDate(currentDate.getDate() + 1);
+                }
+                
+                await Promise.all(promises);
+                
+                alert(`✅ Successfully blocked ${dayCount} days!`);
+                document.getElementById('blockStartInput').value = '';
+                document.getElementById('blockEndInput').value = '';
+                await loadBlockedDays();
+                updateCalendar();
+                updateReservationCounts();
+            } catch (error) {
+                console.error('Error blocking range:', error);
+                alert('❌ Error blocking date range');
+            }
+        }
+        
+        // Handle edit form submission
+        document.getElementById('editReservationForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const reservationId = document.getElementById('editReservationId').value;
+            const formData = new FormData(this);
+            const data = Object.fromEntries(formData);
+            
+            try {
+                const response = await fetch(`/api/reservations/${reservationId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    closeEditModal();
+                    loadReservations();
+                } else {
+                    alert('Failed to update reservation: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error updating reservation:', error);
+                alert('Error updating reservation');
+            }
+        });
+        
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            initCalendar();
+        });
+    </script>
+</body>
+</html>
